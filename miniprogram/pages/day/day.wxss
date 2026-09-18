@@ -1,0 +1,11 @@
+.day-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 8rpx 8rpx 24rpx;
+}
+.day-header__date {
+  font-size: 40rpx;
+  font-weight: 700;
+  color: #3d332b;
+}

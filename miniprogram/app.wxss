@@ -1,0 +1,83 @@
+/* app.wxss — 全局基础样式（暖色家庭风） */
+page {
+  background: #fff8ef;
+  color: #3d332b;
+  font-size: 28rpx;
+  line-height: 1.6;
+  font-family: -apple-system, 'PingFang SC', 'Helvetica Neue', sans-serif;
+}
+
+.container {
+  padding: 24rpx 32rpx 48rpx;
+}
+
+/* 卡片 */
+.card {
+  background: #ffffff;
+  border-radius: 24rpx;
+  padding: 28rpx;
+  margin-bottom: 24rpx;
+  box-shadow: 0 4rpx 16rpx rgba(122, 96, 66, 0.06);
+}
+
+.card-title {
+  font-size: 34rpx;
+  font-weight: 600;
+  color: #3d332b;
+  margin-bottom: 16rpx;
+}
+
+/* 弱化文字 */
+.muted {
+  color: #9a8f80;
+  font-size: 24rpx;
+}
+
+/* 主按钮 */
+.btn-primary {
+  background: #b26a00;
+  color: #ffffff;
+  border-radius: 999rpx;
+  font-size: 30rpx;
+  padding: 8rpx 0;
+}
+.btn-primary[disabled] {
+  background: #d9c4a5;
+  color: #f7f1e6;
+}
+
+.btn-ghost {
+  background: #f5e9d6; /* 浅橙纯色底替代描边 */
+  color: #b26a00;
+  border-radius: 999rpx;
+  font-size: 30rpx;
+  padding: 8rpx 0;
+}
+
+/* 告警条 */
+.alert {
+  border-radius: 16rpx;
+  padding: 16rpx 20rpx;
+  font-size: 24rpx;
+  margin-bottom: 12rpx;
+}
+.alert--error {
+  background: #fbe9e7;
+  color: #c0392b;
+}
+.alert--warn {
+  background: #fdf3e0;
+  color: #b26a00;
+}
+.alert--info {
+  background: #eef3f7;
+  color: #4a6785;
+}
+
+/* 加载与空态 */
+.center-tip {
+  text-align: center;
+  color: #9a8f80;
+  padding: 120rpx 0;
+  font-size: 26rpx;
+}

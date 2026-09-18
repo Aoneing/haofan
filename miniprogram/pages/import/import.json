@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "好饭 · 导入食谱",
+  "usingComponents": {
+    "day-card": "/components/day-card/day-card"
+  }
+}

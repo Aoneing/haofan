@@ -1,0 +1,23 @@
+.thumb {
+  border-radius: 16rpx;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.thumb--img {
+  background: #f2ead9;
+}
+.thumb--ph {
+  background: #f2ead9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.thumb__img {
+  width: 100%;
+  height: 100%;
+}
+.thumb__ph {
+  color: #b09a77;
+  font-size: 32rpx;
+  font-weight: 600;
+}

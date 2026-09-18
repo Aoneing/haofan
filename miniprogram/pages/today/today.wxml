@@ -1,0 +1,62 @@
+<view class="container">
+  <!-- 加载中 -->
+  <view wx:if="{{loading}}" class="center-tip">正在开饭…</view>
+
+  <!-- 加载失败 -->
+  <view wx:elif="{{state === 'error'}}" class="card">
+    <view class="card-title">出错了</view>
+    <view class="muted">{{errMsg}}</view>
+    <button class="btn-ghost" style="margin-top:24rpx" bindtap="onErrorRetry">重试</button>
+  </view>
+
+  <!-- 进行中：今天 + 明天 -->
+  <block wx:elif="{{state === 'in-period'}}">
+    <view class="today-header">
+      <view class="today-header__date">{{todayText}}</view>
+      <view class="muted" bindtap="goWeek">本周 {{periodRange}} ›</view>
+    </view>
+
+    <view wx:if="{{todayDay}}">
+      <view class="section-label">今天的饭</view>
+      <day-card
+        day="{{todayDay}}"
+        images="{{todayImages}}"
+        highlight="today"
+        bind:daytap="onDayTap"
+        bind:dishtap="onDishTap"
+      />
+    </view>
+    <view wx:else class="card">
+      <view class="muted">今天没有安排，看看本周其它日子吧</view>
+    </view>
+
+    <view class="section-label" bindtap="goTomorrowDetail">明天吃什么 ›</view>
+    <day-card
+      wx:if="{{tomorrowDay}}"
+      day="{{tomorrowDay}}"
+      images="{{tomorrowImages}}"
+      highlight="tomorrow"
+    />
+    <view wx:else class="card muted">明天的安排还没导入</view>
+  </block>
+
+  <!-- 未开始 -->
+  <block wx:elif="{{state === 'before'}}">
+    <view class="card state-card">
+      <view class="state-card__emoji">🍚</view>
+      <view class="card-title">食谱已就绪，还没开饭</view>
+      <view class="muted">{{beforeText}}（{{periodRange}}）</view>
+      <button class="btn-primary" style="margin-top:28rpx" bindtap="goWeek">先看看这期菜单</button>
+    </view>
+  </block>
+
+  <!-- 已结束 -->
+  <block wx:elif="{{state === 'after'}}">
+    <view class="card state-card">
+      <view class="state-card__emoji">📭</view>
+      <view class="card-title">这一期吃完了</view>
+      <view class="muted">上一份食谱已结束（{{periodRange}}），把新一周的 Excel 导进来吧</view>
+      <button class="btn-primary" style="margin-top:28rpx" bindtap="goImport">导入新食谱</button>
+    </view>
+  </block>
+</view>

@@ -1,0 +1,51 @@
+<view wx:if="{{vm}}" class="dc {{highlight === 'today' ? 'dc--today' : highlight === 'tomorrow' ? 'dc--tomorrow' : ''}}">
+  <view class="dc__head" catchtap="onTap">
+    <text class="dc__date">{{vm.dateText}}</text>
+    <text wx:if="{{highlight === 'today'}}" class="dc__badge dc__badge--today">今天</text>
+    <text wx:elif="{{highlight === 'tomorrow'}}" class="dc__badge dc__badge--tomorrow">明天</text>
+    <text wx:if="{{compact}}" class="dc__more">详情 ›</text>
+  </view>
+
+  <!-- 餐次 -->
+  <view
+    wx:for="{{vm.meals}}"
+    wx:key="index"
+    class="dc__meal"
+    style="background:{{item.bg}};color:{{item.fg}}"
+  >
+    <text class="dc__meal-label">{{item.mealText}}</text>
+    <dish-thumb title="{{item.title}}" url="{{item.imageUrl}}" size="{{compact ? 72 : 96}}" />
+    <view class="dc__meal-main">
+      <view class="dc__dish-row">
+        <text
+          class="dc__dish {{item.missing ? 'dc__dish--missing' : ''}}"
+          data-key="{{item.key}}"
+          data-title="{{item.title}}"
+          catchtap="onDishTap"
+        >{{item.title}}</text>
+        <text wx:if="{{item.needsReview}}" class="dc__tag">待校对</text>
+      </view>
+      <text wx:if="{{item.optionsText}}" class="dc__options">可选：{{item.optionsText}}</text>
+      <text wx:if="{{!compact && item.recipe}}" class="dc__recipe">{{item.recipe}}</text>
+    </view>
+  </view>
+
+  <!-- 按天备料 -->
+  <view wx:if="{{vm.prepNotes.length}}" class="dc__prep">
+    <view wx:for="{{vm.prepNotes}}" wx:key="index" class="dc__prep-item">
+      <text class="dc__prep-timing dc__prep-timing--{{item.timing}}">{{item.timingText}}</text>
+      <view class="dc__prep-body">
+        <text class="dc__prep-label">{{item.label}}</text>
+        <text wx:if="{{item.stepsText}}" class="dc__prep-steps">{{item.stepsText}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 整周备注 -->
+  <view wx:if="{{vm.globalPrepList.length}}" class="dc__global">
+    <view wx:for="{{vm.globalPrepList}}" wx:key="label" class="dc__global-item">
+      <text class="dc__global-label">{{item.label}}</text>
+      <text class="dc__global-value">{{item.value}}</text>
+    </view>
+  </view>
+</view>

@@ -1,0 +1,56 @@
+# 更新日志
+
+本项目的所有重要变更都记录在这里。格式参照 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
+
+## [Unreleased]
+
+### Added
+
+- 一周页星期导航条：白底圆角容器 + 选中纯色方块（品牌橙），每次打开默认选中「今天」（今天不在本期时退回第一天并提示）；点击平滑滚动定位到对应日卡片（`wx.pageScrollTo` selector，低版本静默降级）
+
+### Changed
+
+- **UI 色块化（按 docs/UI参考.jpg 调整）**：去除全部边框与分割线，改纯色色块分层 —— 今日卡实线边框 → 极浅橙纯底（#fff7ea），明日卡虚线边框 → 微暖白纯底（#fcf9f1），备料区分割虚线 → 浅米色块（#faf5ea），幽灵按钮描边 → 浅橙纯底，「我的」页周期列表分割线 → 浅米圆角色块
+- `docs/效果预览.html` 重做：真实数据渲染新 UI（周导航 + 色块卡片），支持切换今日/一周/我的与模拟三种「今天」（期前倒计时 / 周中 / 期末），hash 直达（如 `#week`、`#today`、`#end`）
+
+### Added
+
+- `docs/部署手册.md`：0 元部署全流程（个人主体免费注册 → 云开发免费体验环境 → 体验版分发），含成本依据、集合权限说明、9 步操作、常见报错排查表、正式发布（备案 + 付费）说明
+- `scripts/preflight.js`（`npm run preflight`）：部署前自检 —— AppID 占位、云环境配置、页面四件套完整性、tabBar 图标、云函数依赖声明、全量 JS 语法、解析器可加载性，输出 ✅/⚠️/❌ 清单与修复建议
+- `miniprogram/config.js`：集中部署配置，`cloudEnv` 留空时自动使用小程序「默认环境」
+- tabBar 图标：碗（今日）/ 日历（一周）/ 人形（我的），灰/橙两态，PIL 生成（`miniprogram/images/tabbar/`）
+- `docs/效果预览.html`：用真实 food(1).xlsx 解析结果 1:1 还原小程序界面的浏览器预览页，支持切换首页三态（期前/进行中/期后）、一周与我的页；`#before` 等 hash 可直达指定状态
+- 工程骨架：目录结构、ESLint / Prettier、GitHub Actions CI（解析器单测 + lint）
+- Excel 解析器 `cloudfunctions/menuParse/lib/parseExcel.js`
+  - 零第三方依赖的纯函数 `parseAOA(aoa)`，支持矩阵式周食谱表
+  - 处理合并单元格填充、文本日期补年份与星期校验、菜名/配方切分、二选一拆分
+  - 告警码体系 W001–W010
+- 零依赖单元测试 `tests/run.js` + `tests/parseExcel.test.js`（`npm test` 即可运行，不需要安装任何依赖）
+- 本地解析脚本 `scripts/parse-local.js`，可直接对真实 Excel 出结构化 JSON
+- 四个云函数：`menuParse` / `menuSave` / `menuQuery` / `dishImage`
+- 小程序端：今日（三态首页）/ 一周 / 单日 / 菜谱详情 / 导入向导 / 我的 六个页面
+- 组件：`day-card`、`dish-thumb`（含按餐次配色的占位图降级）
+- `docs/解析规则.md`：表格陷阱 → 对策 → 告警码 的行为规范
+
+### Fixed
+
+- **测试**：W006 用例在 `days[0]`（周日）里找周三列的超长菜名，索引错误导致必挂，改为 `days[3]`
+- **imageStore**：并发 `hydrate` 时在途请求直接复用，导致本次新增菜名被静默丢弃、配图随机缺失；改为链式排队后重算差集
+- **menuQuery.getWeek**：无参调用直接返回 NOT_FOUND，一周 tab 首次进入空白；改为回退「最近未结束周期 → 最近历史周期」
+- **menuSave**：周期部分重叠覆盖时，旧周期落在新范围外的天文档成为孤儿数据（首页会显示已不存在的周期内容）；覆盖时清理孤儿天，旧周期失去全部天文档后连同周期记录一并移除
+- **day-card**：vm 映射缺 `key` 字段，WXML 里 `data-key` 永远为空，点菜品无法跳详情
+- **day 页**：`isToday` 在 `setData` 后读旧值，导航栏标题恒为「那天吃什么」
+- **week 页**：`wx:key="day.date"` 路径语法不被支持；缺 `bind:dishtap`，点菜品无响应
+- **week 页跳转**：首页「本周 xx」入口未带 periodId，可能落到错误周期
+- **import 页**：年份切换后候选窗口重建与 `yearIndex` 双写打架，picker 选中项与实际年份可能不一致；重解析年份窗口以用户所选年为中心
+- 解析器 `normalizeDishKey` 未剥离尾部全/半角冒号，导致配图主键带 `：`
+- 解析器 A 列桩前向填充：无合并元数据时（纯 AOA 输入），合并延续行会被误判为无标签行并误发 W010，现按 `lastLabel` 继承上一行餐次
+- 单元测试五处断言与解析器实际行为对齐（跨年用例日期、W006 定位方式、备料计数、三年候选回退场景、scanBounds 边界）
+
+### Changed
+
+- **部署成本降到 0 元且无需改代码**：`app.js` 不再硬编码 `YOUR_CLOUD_ENV_ID`，改为读取 `config.js`；单云环境项目导入即用，部署时必须手改的代码点从 2 处降为 0 处（AppID 可由开发者工具导入时同步）
+- README 修正免费云环境到期规则表述（发布上线后转付费、活动截止 2026-12-31），并补充「个人小程序开云开发无微信认证限制」的依据
+- `menuParse` 支持入参 `yearOverride`：校对页切换年份后重解析，直接采用指定年份、跳过推断
+- 前端使用 JavaScript 而非设计文档中的 TypeScript：单人项目零构建步骤更可靠，解析器核心逻辑由零依赖单测兜底
+

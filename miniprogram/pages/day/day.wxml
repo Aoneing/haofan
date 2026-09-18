@@ -1,0 +1,16 @@
+<view class="container">
+  <view wx:if="{{loading}}" class="center-tip">正在端菜…</view>
+
+  <view wx:elif="{{notFound}}" class="card">
+    <view class="card-title">这一天没有食谱</view>
+    <view class="muted">可能还没导入，或者日期超出了已导入的范围</view>
+  </view>
+
+  <block wx:else>
+    <view class="day-header">
+      <view class="day-header__date">{{dateText}}{{isToday ? ' · 今天' : ''}}</view>
+      <view wx:if="{{periodId}}" class="muted" bindtap="goWeek">查看本周 ›</view>
+    </view>
+    <day-card day="{{day}}" images="{{images}}" bind:dishtap="onDishTap" />
+  </block>
+</view>

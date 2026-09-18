@@ -1,0 +1,44 @@
+<view class="container">
+  <view wx:if="{{loading}}" class="center-tip">正在摆桌…</view>
+
+  <block wx:elif="{{notFound}}">
+    <view class="card state-card">
+      <view class="state-card__emoji">🍽️</view>
+      <view class="card-title">还没有食谱</view>
+      <view class="muted">把家里那一周食谱 Excel 发给小程序，一键生成</view>
+      <button class="btn-primary" style="margin-top:28rpx" bindtap="goImport">去导入</button>
+    </view>
+  </block>
+
+  <block wx:else>
+    <view class="week-header">
+      <view class="week-header__title">本期菜单</view>
+      <view class="muted">{{periodRange}}</view>
+    </view>
+
+    <!-- 星期导航：默认选中今天，点击滚动到对应日 -->
+    <view class="week-nav">
+      <view
+        wx:for="{{navDays}}"
+        wx:key="date"
+        class="week-nav__item {{item.selected ? 'week-nav__item--on' : item.isToday ? 'week-nav__item--today' : ''}}"
+        data-index="{{index}}"
+        bindtap="onNavTap"
+      >
+        <text class="week-nav__wd">{{item.weekdayText}}</text>
+        <text class="week-nav__date">{{item.dateText}}</text>
+      </view>
+    </view>
+
+    <view wx:for="{{days}}" wx:key="index" id="day-{{index}}">
+      <day-card
+        day="{{item.day}}"
+        images="{{item.images}}"
+        compact="{{true}}"
+        highlight="{{item.highlight}}"
+        bind:daytap="onDayTap"
+        bind:dishtap="onDishTap"
+      />
+    </view>
+  </block>
+</view>

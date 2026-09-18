@@ -1,0 +1,13 @@
+<view
+  class="thumb {{url ? 'thumb--img' : 'thumb--ph'}}"
+  style="width:{{size}}rpx;height:{{size}}rpx"
+>
+  <image
+    wx:if="{{url}}"
+    class="thumb__img"
+    src="{{url}}"
+    mode="aspectFill"
+    lazy-load="{{true}}"
+  />
+  <text wx:else class="thumb__ph">{{phChar}}</text>
+</view>

@@ -1,0 +1,6 @@
+{
+  "component": true,
+  "usingComponents": {
+    "dish-thumb": "../dish-thumb/dish-thumb"
+  }
+}

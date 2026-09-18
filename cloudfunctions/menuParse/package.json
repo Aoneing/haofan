@@ -1,0 +1,10 @@
+{
+  "name": "menuParse",
+  "version": "0.1.0",
+  "description": "好饭 · 解析周食谱 Excel，返回结构化 JSON 与告警（不写库）",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3",
+    "xlsx": "^0.18.5"
+  }
+}

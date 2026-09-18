@@ -1,0 +1,91 @@
+<view class="container">
+  <!-- 步骤指示 -->
+  <view class="steps">
+    <text class="steps__item {{step >= 1 ? 'steps__item--on' : ''}}">① 选文件</text>
+    <text class="steps__arrow">→</text>
+    <text class="steps__item {{step >= 2 ? 'steps__item--on' : ''}}">② 校对</text>
+    <text class="steps__arrow">→</text>
+    <text class="steps__item {{step >= 3 ? 'steps__item--on' : ''}}">③ 完成</text>
+  </view>
+
+  <!-- 第 1 步 -->
+  <block wx:if="{{step === 1}}">
+    <view class="card">
+      <view class="card-title">第一步 · 选择 Excel</view>
+      <view class="muted">把家里发的每周食谱 Excel（.xlsx / .xls）发到任意一个聊天里，再从这里从聊天记录中选它。</view>
+      <button class="btn-primary" style="margin-top:28rpx" bindtap="chooseFile">选择文件</button>
+      <view wx:if="{{fileName}}" class="picked">
+        <text class="picked__name">{{fileName}}</text>
+        <text class="muted">{{fileSizeText}}</text>
+      </view>
+      <button
+        wx:if="{{fileName}}"
+        class="btn-primary"
+        style="margin-top:24rpx"
+        loading="{{busy}}"
+        bindtap="startParse"
+      >
+        上传并解析
+      </button>
+    </view>
+    <view wx:if="{{parsing}}" class="center-tip">正在逐格读取表格…</view>
+    <view wx:if="{{parseError}}" class="alert alert--error">{{parseError}}</view>
+  </block>
+
+  <!-- 第 2 步 -->
+  <block wx:if="{{step === 2}}">
+    <view class="card">
+      <view class="card-title">第二步 · 校对</view>
+      <view class="period-line">{{periodRangeText}}</view>
+
+      <view wx:if="{{period.yearAssumed}}" class="alert alert--warn">
+        表格没写年份，按 <picker mode="selector" range="{{years}}" value="{{yearIndex}}" bindchange="onYearChange"><text class="year-link">{{years[yearIndex]}} 年 ▾</text></picker> 推断。如不对请切换年份。
+      </view>
+
+      <view class="check-line">
+        <text>✅ {{stats.mealCells}} 道菜</text>
+        <text wx:if="{{reviewCount}}" class="check-line__warn">⚠️ {{reviewCount}} 处待校对</text>
+        <text wx:if="{{missingCount}}" class="check-line__muted">⬜ {{missingCount}} 处空餐</text>
+      </view>
+
+      <view wx:for="{{warnings}}" wx:key="index" class="alert alert--{{item.level}}">
+        <text class="alert__code">{{item.code}}</text> {{item.message}}
+      </view>
+    </view>
+
+    <!-- 校对场景不接 dishtap：点菜品跳出向导会丢失校对进度 -->
+    <day-card
+      wx:for="{{days}}"
+      wx:key="index"
+      day="{{item.day}}"
+      images="{{item.images}}"
+      compact="{{true}}"
+      bind:daytap="onDayTap"
+    />
+
+    <view class="card">
+      <view class="muted">确认以上内容没问题后保存。保存后随时可以重新导入同一份表格覆盖。</view>
+      <view wx:if="{{saveError}}" class="alert alert--error" style="margin-top:16rpx">{{saveError}}</view>
+      <button
+        class="btn-primary"
+        style="margin-top:24rpx"
+        loading="{{saving}}"
+        bindtap="confirmSave"
+      >
+        确认无误，保存
+      </button>
+    </view>
+  </block>
+
+  <!-- 第 3 步 -->
+  <block wx:if="{{step === 3}}">
+    <view class="card state-card">
+      <view class="state-card__emoji">🎉</view>
+      <view class="card-title">导入成功</view>
+      <view class="muted">这一周吃什么，已经在小程序里就位了</view>
+      <button class="btn-primary" style="margin-top:28rpx" bindtap="goToday">看今天吃什么</button>
+      <button class="btn-ghost" style="margin-top:16rpx" bindtap="goWeek">查看本期菜单</button>
+      <button class="btn-ghost" style="margin-top:16rpx" bindtap="restart">再导一份</button>
+    </view>
+  </block>
+</view>

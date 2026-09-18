@@ -1,0 +1,9 @@
+{
+  "name": "menuQuery",
+  "version": "1.0.0",
+  "description": "好饭：首页三态 / 周视图 / 日视图 / 周期列表查询",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}

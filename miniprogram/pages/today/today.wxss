@@ -1,0 +1,29 @@
+.today-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 8rpx 8rpx 24rpx;
+}
+.today-header__date {
+  font-size: 40rpx;
+  font-weight: 700;
+  color: #3d332b;
+}
+
+.section-label {
+  font-size: 26rpx;
+  color: #9a8f80;
+  margin: 8rpx 8rpx 16rpx;
+}
+
+.state-card {
+  text-align: center;
+  padding: 64rpx 40rpx;
+}
+.state-card__emoji {
+  font-size: 72rpx;
+  margin-bottom: 16rpx;
+}
+.state-card .muted {
+  display: block;
+}

@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "好饭 · 一周",
+  "enablePullDownRefresh": true,
+  "usingComponents": {
+    "day-card": "/components/day-card/day-card"
+  }
+}

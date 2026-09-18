@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>好饭 · 效果预览（纯色色块 UI）</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    background:#20242b; min-height:100vh; display:flex; gap:40px;
+    align-items:flex-start; justify-content:center; padding:36px 24px; color:#e8e4dd;
+  }
+  /* ---------- 左侧面板 ---------- */
+  #panel { width:340px; padding-top:8px; }
+  #panel h1 { font-size:20px; margin-bottom:6px; }
+  #panel .sub { font-size:13px; color:#9aa0ab; margin-bottom:22px; line-height:1.7; }
+  .grp { margin-bottom:18px; }
+  .grp .lbl { font-size:12px; color:#9aa0ab; margin-bottom:8px; letter-spacing:1px; }
+  .btns { display:flex; flex-wrap:wrap; gap:8px; }
+  .btns button {
+    padding:8px 14px; border:none; border-radius:10px; cursor:pointer;
+    background:#2e333c; color:#cfd4dc; font-size:13px; transition:all .15s;
+  }
+  .btns button:hover { background:#3a404b; }
+  .btns button.on { background:#f08c1e; color:#fff; font-weight:600; }
+  #stats { margin-top:24px; background:#262b33; border-radius:14px; padding:16px; font-size:12.5px; line-height:2; color:#a8aeba; }
+  #stats b { color:#e8e4dd; }
+  #stats .w { color:#e8b46a; }
+  /* ---------- 手机壳 ---------- */
+  .phone {
+    width:390px; height:812px; background:#111; border-radius:54px; padding:12px;
+    box-shadow:0 30px 80px rgba(0,0,0,.55); flex-shrink:0;
+  }
+  .screen {
+    width:100%; height:100%; background:#fff8ef; border-radius:44px; overflow:hidden;
+    display:flex; flex-direction:column; color:#3d332b;
+  }
+  .statusbar { height:44px; display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:600; color:#3d332b; flex-shrink:0; }
+  .content { flex:1; overflow-y:auto; padding:8px 16px 16px; scrollbar-width:none; }
+  .content::-webkit-scrollbar { display:none; }
+  /* ---------- 页头 ---------- */
+  .pg-head { display:flex; align-items:baseline; justify-content:space-between; padding:10px 4px 14px; }
+  .pg-head .t { font-size:26px; font-weight:800; letter-spacing:1px; }
+  .pg-head .r { font-size:12px; color:#9a8f80; }
+  /* ---------- 概览卡 ---------- */
+  .hero {
+    background:#fff; border-radius:22px; padding:18px 18px 16px; margin-bottom:14px;
+    box-shadow:0 4px 16px rgba(122,96,66,.06); display:flex; align-items:center; gap:14px;
+  }
+  .hero .big { font-size:44px; font-weight:800; color:#b26a00; line-height:1; }
+  .hero .big small { font-size:13px; font-weight:600; color:#9a8f80; margin-left:4px; }
+  .hero .meta { font-size:13px; color:#7a6a55; margin-top:6px; }
+  .hero .title { font-size:15px; font-weight:700; margin-bottom:6px; }
+  .hero .chips { display:flex; gap:6px; margin-left:auto; flex-direction:column; align-items:flex-end; }
+  .chip { font-size:11px; background:#faf5ea; color:#854f0b; border-radius:999px; padding:3px 10px; }
+  /* ---------- 周导航（新） ---------- */
+  .wnav {
+    display:flex; background:#fff; border-radius:18px; padding:7px 6px; margin-bottom:14px;
+    box-shadow:0 4px 16px rgba(122,96,66,.06);
+  }
+  .wnav .it {
+    flex:1; display:flex; flex-direction:column; align-items:center; padding:7px 0 6px;
+    border-radius:12px; cursor:pointer; transition:background .2s;
+  }
+  .wnav .it .wd { font-size:13px; font-weight:600; color:#7a6a55; }
+  .wnav .it .dt { font-size:11px; color:#9a8f80; margin-top:2px; }
+  .wnav .it.on { background:#b26a00; box-shadow:0 4px 12px rgba(178,106,0,.3); }
+  .wnav .it.on .wd, .wnav .it.on .dt { color:#fff; }
+  .wnav .it.tdy .wd { color:#b26a00; }
+  /* ---------- 日卡 ---------- */
+  .dc { background:#fff; border-radius:20px; padding:16px; margin-bottom:14px; box-shadow:0 4px 16px rgba(122,96,66,.06); }
+  .dc.today { background:#fff7ea; box-shadow:0 6px 20px rgba(178,106,0,.14); }
+  .dc.tomorrow { background:#fcf9f1; }
+  .dc .head { display:flex; align-items:center; margin-bottom:12px; }
+  .dc .head .date { font-size:15px; font-weight:700; }
+  .badge { margin-left:8px; font-size:11px; padding:2px 10px; border-radius:999px; }
+  .badge.today { background:#b26a00; color:#fff; }
+  .badge.tomorrow { background:#f3e5c8; color:#854f0b; }
+  .dc .more { margin-left:auto; font-size:12px; color:#9a8f80; }
+  .meal { display:flex; align-items:center; border-radius:14px; padding:10px 12px; margin-bottom:8px; }
+  .meal:last-of-type { margin-bottom:0; }
+  .meal .mlabel { writing-mode:vertical-rl; text-orientation:upright; letter-spacing:3px; font-size:13px; font-weight:700; margin-right:10px; opacity:.85; flex-shrink:0; }
+  .thumb {
+    width:52px; height:52px; border-radius:12px; flex-shrink:0; margin-right:12px;
+    display:flex; align-items:center; justify-content:center; font-size:22px;
+    background:rgba(255,255,255,.75);
+  }
+  .meal .main { flex:1; min-width:0; }
+  .meal .dish { font-size:15px; font-weight:700; }
+  .meal .opts { font-size:12px; opacity:.85; margin-top:2px; }
+  .meal .miss { opacity:.45; font-weight:400; }
+  .prep { margin-top:12px; background:rgba(255,255,255,.6); border-radius:12px; padding:10px 12px; }
+  .prep .pi { display:flex; margin-bottom:6px; font-size:12px; }
+  .prep .pi:last-child { margin-bottom:0; }
+  .prep .tag { flex-shrink:0; width:20px; height:20px; border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:11px; margin-right:8px; }
+  .prep .tag.m { background:#faeeda; color:#854f0b; }
+  .prep .tag.e { background:#e6f1fb; color:#0c447c; }
+  .prep .tag.u { background:#f3eee5; color:#7a6a55; }
+  .prep .pl { color:#7a6a55; font-weight:600; }
+  .prep .ps { color:#9a8f80; }
+  .sec { font-size:13px; color:#9a8f80; margin:6px 4px 10px; }
+  .sec.link { color:#b26a00; cursor:pointer; }
+  /* ---------- 空态 ---------- */
+  .empty { text-align:center; padding:60px 30px; }
+  .empty .em { font-size:44px; margin-bottom:12px; }
+  .empty .tt { font-size:17px; font-weight:700; margin-bottom:8px; }
+  .empty .ds { font-size:13px; color:#9a8f80; line-height:1.7; }
+  .empty .btn { margin-top:18px; display:inline-block; background:#b26a00; color:#fff; border-radius:999px; padding:10px 30px; font-size:14px; }
+  /* ---------- tabBar ---------- */
+  .tabbar {
+    flex-shrink:0; height:64px; background:#fff; display:flex; align-items:stretch;
+    border-radius:0 0 44px 44px; box-shadow:0 -2px 12px rgba(122,96,66,.05);
+  }
+  .tabbar .tab { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; cursor:pointer; }
+  .tabbar .tab img { width:24px; height:24px; }
+  .tabbar .tab span { font-size:10px; color:#9a8f80; }
+  .tabbar .tab.on span { color:#b26a00; font-weight:700; }
+</style>
+</head>
+<body>
+  <aside id="panel">
+    <h1>🍚 好饭 · 新 UI 预览</h1>
+    <div class="sub">按 UI 参考.jpg 调整：去除边框与分割线 → 纯色色块分层；<br>一周页新增星期导航，每次打开默认选中「今天」。</div>
+    <div class="grp"><div class="lbl">视图</div><div class="btns" id="vb"></div></div>
+    <div class="grp"><div class="lbl">模拟「今天」</div><div class="btns" id="db"></div></div>
+    <div id="stats"></div>
+  </aside>
+  <div class="phone">
+    <div class="screen">
+      <div class="statusbar">9:41</div>
+      <div class="content" id="content"></div>
+      <div class="tabbar" id="tabbar"></div>
+    </div>
+  </div>
+<script>
+const DATA = {"ok":true,"period":{"startDate":"2026-09-20","endDate":"2026-09-26","startWeekday":0,"startWeekdayText":"周日","rawRangeText":"9/20-9/26","yearAssumed":false},"days":[{"date":"2026-09-20","weekday":0,"weekdayText":"周日","dayIndex":0,"meals":[{"meal":"breakfast","mealText":"早餐","slot":1,"displayTitle":"大米糕","options":[],"recipe":null,"rawText":"大米糕","dishKeys":["大米糕"],"needsReview":false,"missing":false},{"meal":"breakfast","mealText":"早餐","slot":2,"displayTitle":"莲藕消积米糊","options":[],"recipe":"18g 莲藕， 18g苹果，18g南瓜，6g小米，300ml 水","rawText":"莲藕消积米糊：18g 莲藕， 18g苹果，18g南瓜，6g小米，300ml 水","dishKeys":["莲藕消积米糊"],"needsReview":false,"missing":false},{"meal":"lunch","mealText":"午餐","slot":1,"displayTitle":"照烧茄子鹅肝烩饭","options":[],"recipe":"鹅肝煎熟留底油，\n制作：洋葱炒香，+茄子+胡萝卜翻炒，加少量水煮软，加入米饭和照烧汁，+鹅肝，+鸡蛋碎(1/2)，收汁","rawText":"照烧茄子鹅肝烩饭：鹅肝煎熟留底油，\n制作：洋葱炒香，+茄子+胡萝卜翻炒，加少量水煮软，加入米饭和照烧汁，+鹅肝，+鸡蛋碎(1/2)，收汁","dishKeys":["照烧茄子鹅肝烩饭"],"needsReview":false,"missing":false},{"meal":"snack","mealText":"加餐","slot":1,"displayTitle":"酸奶 或 六物饮","options":["酸奶","六物饮"],"recipe":null,"rawText":"酸奶/六物饮","dishKeys":["酸奶","六物饮"],"needsReview":false,"missing":false},{"meal":"dinner","mealText":"晚餐","slot":1,"displayTitle":"羊肚菌土豆泥肉沫拌面","options":[],"recipe":"猪肉末炒熟备用，\n制作：西红柿去皮炒出沙，+土豆泥+羊肚菌翻炒，加少量水煮软，+肉末，加淀粉水收汁，拌入煮好的面条，+西兰花，+鸡蛋碎(1/2)，+调味（盐/酱油/菌菇粉/芝麻粉）","rawText":"羊肚菌土豆泥肉沫拌面：猪肉末炒熟备用，\n制作：西红柿去皮炒出沙，+土豆泥+羊肚菌翻炒，加少量水煮软，+肉末，加淀粉水收汁，拌入煮好的面条，+西兰花，+鸡蛋碎(1/2)，+调味（盐/酱油/菌菇粉/芝麻粉）","dishKeys":["羊肚菌土豆泥肉沫拌面"],"needsReview":false,"missing":false}],"prepNotes":[{"label":"食材处理（早）","timing":"morning","steps":["洋葱1，茄子1，胡萝卜1，西红柿半个，土豆泥1，西兰花1，","羊肚菌洗净温水泡半小时，面条煮好，鸡蛋碎炒好，西红柿去皮","猪肉葱姜去腥锤散腌制，","鹅肝去腥，"],"rawText":"1. 洋葱1，茄子1，胡萝卜1，西红柿半个，土豆泥1，西兰花1，\n2. 羊肚菌洗净温水泡半小时，面条煮好，鸡蛋碎炒好，西红柿去皮\n3. 猪肉葱姜去腥锤散腌制，\n4. 鹅肝去腥，"},{"label":"解冻洗净备用（晚）","timing":"evening","steps":["米糊备好","软饭备好","牛肉解冻，鳕鱼解冻"],"rawText":"1.米糊备好\n2.软饭备好\n3.牛肉解冻，鳕鱼解冻"}],"globalPrep":{"食材准备":"/排骨/虾","备餐":"1.香菇焯水"}},{"date":"2026-09-21","weekday":1,"weekdayText":"周一","dayIndex":1,"meals":[{"meal":"breakfast","mealText":"早餐","slot":1,"displayTitle":"苹果山药馒头","options":[],"recipe":null,"rawText":"苹果山药馒头","dishKeys":["苹果山药馒头"],"needsReview":false,"missing":false},{"meal":"breakfast","mealText":"早餐","slot":2,"displayTitle":"莲藕润肺米糊","options":[],"recipe":"莲藕18g，雪梨半个，百合6g，银耳2g，水300ml","rawText":"莲藕润肺米糊：莲藕18g，雪梨半个，百合6g，银耳2g，水300ml","dishKeys":["莲藕润肺米糊"],"needsReview":false,"missing":false},{"meal":"lunch","mealText":"午餐","slot":1,"displayTitle":"番茄牛肉滑蛋盖饭","options":[],"recipe":"牛肉腌制炒熟，滑蛋（鸡蛋+20ml奶）\n制作：西红柿炒出沙混合牛肉，鸡蛋（1/2）翻炒，倒入料汁（淀粉水+番茄酱）+西兰花，+调味（盐/菌菇粉/芝麻粉），收汁 盖饭","rawText":"番茄牛肉滑蛋盖饭：牛肉腌制炒熟，滑蛋（鸡蛋+20ml奶）\n制作：西红柿炒出沙混合牛肉，鸡蛋（1/2）翻炒，倒入料汁（淀粉水+番茄酱）+西兰花，+调味（盐/菌菇粉/芝麻粉），收汁 盖饭","dishKeys":["番茄牛肉滑蛋盖饭"],"needsReview":false,"missing":false},{"meal":"snack","mealText":"加餐","slot":1,"displayTitle":"水果 或 苹果山药水","options":["水果","苹果山药水"],"recipe":null,"rawText":"水果/苹果山药水","dishKeys":["水果","苹果山药水"],"needsReview":false,"missing":false},{"meal":"dinner","mealText":"晚餐","slot":1,"displayTitle":"虾皮裙带菜鳕鱼鸡蛋面","options":[],"recipe":"鳕鱼煎熟，\n制作：虾皮裙带菜炒香，加水煮开，+鸡蛋碎（1/2），+鳕鱼，+调味（盐/蚝油/菌菇粉/芝麻粉），面另放","rawText":"虾皮裙带菜鳕鱼鸡蛋面：鳕鱼煎熟，\n制作：虾皮裙带菜炒香，加水煮开，+鸡蛋碎（1/2），+鳕鱼，+调味（盐/蚝油/菌菇粉/芝麻粉），面另放","dishKeys":["虾皮裙带菜鳕鱼鸡蛋面"],"needsReview":false,"missing":false}],"prepNotes":[{"label":"食材处理（早）","timing":"morning","steps":["西红柿1，西兰花1，","面煮好，虾皮裙带菜泡好，西红柿去皮，鸡蛋碎2个蛋，","牛肉腌制炒熟，","鳕鱼去腥腌制煎熟"],"rawText":"1. 西红柿1，西兰花1，\n2. 面煮好，虾皮裙带菜泡好，西红柿去皮，鸡蛋碎2个蛋，\n3，牛肉腌制炒熟，\n4. 鳕鱼去腥腌制煎熟"},{"label":"解冻洗净备用（晚）","timing":"evening","steps":["米糊备好","软饭备好","虾仁解冻，黄鱼解冻"],"rawText":"1.米糊备好\n2.软饭备好\n3.虾仁解冻，黄鱼解冻"}],"globalPrep":{"食材准备":"/排骨/虾","备餐":"1.香菇焯水"}},{"date":"2026-09-22","weekday":2,"weekdayText":"周二","dayIndex":2,"meals":[{"meal":"breakfast","mealText":"早餐","slot":1,"displayTitle":"黑芝麻手指馒头","options":[],"recipe":null,"rawText":"黑芝麻手指馒头","dishKeys":["黑芝麻手指馒头"],"needsReview":false,"missing":false},{"meal":"breakfast","mealText":"早餐","slot":2,"displayTitle":"核桃露","options":[],"recipe":"小米12 花生6  山药30 核桃3个（6瓣） 枣3个 清水300ml","rawText":"核桃露：小米12 花生6  山药30 核桃3个（6瓣） 枣3个 清水300ml","dishKeys":["核桃露"],"needsReview":false,"missing":false},{"meal":"lunch","mealText":"午餐","slot":1,"displayTitle":"虾仁芝士焗饭","options":[],"recipe":"虾仁腌制炒熟，\n制作：洋葱+彩椒 + 少量番茄 过油炒香，加少量水煮软食材，放入虾仁，米饭，加调味（盐/酱油/菌菇粉/芝麻粉）烩熟，平铺放入芝士碎小火焖化后拌匀","rawText":"虾仁芝士焗饭：虾仁腌制炒熟，\n制作：洋葱+彩椒 + 少量番茄 过油炒香，加少量水煮软食材，放入虾仁，米饭，加调味（盐/酱油/菌菇粉/芝麻粉）烩熟，平铺放入芝士碎小火焖化后拌匀","dishKeys":["虾仁芝士焗饭"],"needsReview":false,"missing":false},{"meal":"snack","mealText":"加餐","slot":1,"displayTitle":"六物饮","options":[],"recipe":null,"rawText":"六物饮","dishKeys":["六物饮"],"needsReview":false,"missing":false},{"meal":"dinner","mealText":"晚餐","slot":1,"displayTitle":"黄鱼丝瓜面","options":[],"recipe":"黄鱼去腥去皮腌制煎熟，制作：底油下入丝瓜+胡萝卜炒香，加水煮开，加入鸡蛋碎和鱼肉炖煮软烂，+调味（盐/蚝油/菌菇粉/芝麻粉），山药面另放","rawText":"黄鱼丝瓜面：黄鱼去腥去皮腌制煎熟，制作：底油下入丝瓜+胡萝卜炒香，加水煮开，加入鸡蛋碎和鱼肉炖煮软烂，+调味（盐/蚝油/菌菇粉/芝麻粉），山药面另放","dishKeys":["黄鱼丝瓜面"],"needsReview":false,"missing":false}],"prepNotes":[{"label":"食材处理（早）","timing":"morning","steps":["洋葱1，彩椒1，番茄半个，芝士碎，胡萝卜1，丝瓜1，","山药面煮熟，鸡蛋碎炒好","虾仁去腥锤碎腌制炒变色","黄鱼去腥去皮腌制煎熟"],"rawText":"1. 洋葱1，彩椒1，番茄半个，芝士碎，胡萝卜1，丝瓜1，\n2. 山药面煮熟，鸡蛋碎炒好\n3. 虾仁去腥锤碎腌制炒变色\n4. 黄鱼去腥去皮腌制煎熟"},{"label":"解冻洗净备用（晚）","timing":"evening","steps":["米糊备好","双米粥备好","三文鱼解冻，2个鸡蛋常温，"],"rawText":"1.米糊备好\n2.双米粥备好\n3.三文鱼解冻，2个鸡蛋常温，"}],"globalPrep":{"食材准备":"/排骨/虾","备餐":"1.香菇焯水"}},{"date":"2026-09-23","weekday":3,"weekdayText":"周三","dayIndex":3,"meals":[{"meal":"breakfast","mealText":"早餐","slot":1,"displayTitle":"紫薯肉松蒸糕","options":[],"recipe":"紫薯40克（熟）、面粉20克、蛋液55-60克 、清水或奶20克（蒸7分钟），柠檬汁固色，","rawText":"紫薯肉松蒸糕：紫薯40克（熟）、面粉20克、蛋液55-60克 、清水或奶20克（蒸7分钟），柠檬汁固色，","dishKeys":["紫薯肉松蒸糕"],"needsReview":false,"missing":false},{"meal":"breakfast","mealText":"早餐","slot":2,"displayTitle":"苹果绿豆饮","options":[],"recipe":"苹果40 绿豆10 小米 10 ，大米10 ， 红枣2， 水200-300ml","rawText":"苹果绿豆饮：苹果40 绿豆10 小米 10 ，大米10 ， 红枣2， 水200-300ml","dishKeys":["苹果绿豆饮"],"needsReview":false,"missing":false},{"meal":"lunch","mealText":"午餐","slot":1,"displayTitle":"鹅肝葱油拌面","options":[],"recipe":"鹅肝煎熟留底油，制作：胡萝卜（1/2）+香菇+彩椒过油炒香，+葱油酱一勺翻炒，加适量水煮软，加入鹅肝和煮好的面条，+青菜，+鸡蛋碎（1/2）","rawText":"鹅肝葱油拌面：鹅肝煎熟留底油，制作：胡萝卜（1/2）+香菇+彩椒过油炒香，+葱油酱一勺翻炒，加适量水煮软，加入鹅肝和煮好的面条，+青菜，+鸡蛋碎（1/2）","dishKeys":["鹅肝葱油拌面"],"needsReview":false,"missing":false},{"meal":"snack","mealText":"加餐","slot":1,"displayTitle":"酸奶 或 雪梨水","options":["酸奶","雪梨水"],"recipe":null,"rawText":"酸奶/雪梨水","dishKeys":["酸奶","雪梨水"],"needsReview":false,"missing":false},{"meal":"dinner","mealText":"晚餐","slot":1,"displayTitle":"三文鱼西葫芦粥","options":[],"recipe":"三文鱼腌制煎熟，制作：胡萝卜（1/2）+西葫芦 过油炒香，加米粥，+三文鱼，+鸡蛋碎(1/2),+调味（芝麻粉/盐/蚝油/菌菇粉）","rawText":"三文鱼西葫芦粥：三文鱼腌制煎熟，制作：胡萝卜（1/2）+西葫芦 过油炒香，加米粥，+三文鱼，+鸡蛋碎(1/2),+调味（芝麻粉/盐/蚝油/菌菇粉）","dishKeys":["三文鱼西葫芦粥"],"needsReview":false,"missing":false}],"prepNotes":[{"label":"食材处理（早）","timing":"morning","steps":["胡萝卜1.5，香菇1，彩椒1，青菜1，西葫芦1，紫薯40g，肉松","山药面煮熟，鸡蛋碎炒好","鹅肝去腥煎熟","三文鱼去腥切小丁腌制炒熟","蒸糕做好"],"rawText":"1. 胡萝卜1.5，香菇1，彩椒1，青菜1，西葫芦1，紫薯40g，肉松\n2. 山药面煮熟，鸡蛋碎炒好\n3. 鹅肝去腥煎熟\n4，三文鱼去腥切小丁腌制炒熟\n5.蒸糕做好"},{"label":"解冻洗净备用（晚）","timing":"evening","steps":["苹果洗净","猪肉解冻，鳕鱼解冻"],"rawText":"1.苹果洗净\n\n3.猪肉解冻，鳕鱼解冻"}],"globalPrep":{"食材准备":"/排骨/虾","备餐":"1.香菇焯水"}},{"date":"2026-09-24","weekday":4,"weekdayText":"周四","dayIndex":4,"meals":[{"meal":"breakfast","mealText":"早餐","slot":1,"displayTitle":"大米糕","options":[],"recipe":null,"rawText":"大米糕","dishKeys":["大米糕"],"needsReview":false,"missing":false},{"meal":"breakfast","mealText":"早餐","slot":2,"displayTitle":"苹果山楂水","options":[],"recipe":"半个苹果带皮，焦山楂3片，红枣3颗，（陈皮一片），600ml水煮开小火煮30分钟左右，适量黄冰糖","rawText":"苹果山楂水：半个苹果带皮，焦山楂3片，红枣3颗，（陈皮一片），600ml水煮开小火煮30分钟左右，适量黄冰糖","dishKeys":["苹果山楂水"],"needsReview":false,"missing":false},{"meal":"lunch","mealText":"午餐","slot":1,"displayTitle":"洋葱猪肉炒蝴蝶面","options":[],"recipe":"蝴蝶面煮熟，\n制作：洋葱+胡萝卜（1/2）+香菇过油炒香，加少量水煮软，+肉末，加面翻炒，+调味（盐/蚝油/菌菇粉/芝麻粉），+青菜","rawText":"洋葱猪肉炒蝴蝶面；蝴蝶面煮熟，\n制作：洋葱+胡萝卜（1/2）+香菇过油炒香，加少量水煮软，+肉末，加面翻炒，+调味（盐/蚝油/菌菇粉/芝麻粉），+青菜","dishKeys":["洋葱猪肉炒蝴蝶面"],"needsReview":false,"missing":false},{"meal":"snack","mealText":"加餐","slot":1,"displayTitle":"水果","options":[],"recipe":null,"rawText":"水果","dishKeys":["水果"],"needsReview":false,"missing":false},{"meal":"dinner","mealText":"晚餐","slot":1,"displayTitle":"鳕鱼茄子燕麦粥","options":[],"recipe":"鳕鱼煎熟，\n制作：胡萝卜（1/2）+茄子+玉米炒香，加水煮燕麦，+鳕鱼，+调味（盐/酱油/菌菇粉/芝麻粉）","rawText":"鳕鱼茄子燕麦粥：鳕鱼煎熟，\n制作：胡萝卜（1/2）+茄子+玉米炒香，加水煮燕麦，+鳕鱼，+调味（盐/酱油/菌菇粉/芝麻粉）","dishKeys":["鳕鱼茄子燕麦粥"],"needsReview":false,"missing":false}],"prepNotes":[{"label":"食材处理（早）","timing":"morning","steps":["洋葱1，胡萝卜1.5，茄子1，玉米1，香菇1，青菜1，","蝴蝶面煮熟","猪肉去腥锤碎腌制炒熟","鳕鱼去腥切大块腌制煎熟"],"rawText":"1. 洋葱1，胡萝卜1.5，茄子1，玉米1，香菇1，青菜1，\n2.蝴蝶面煮熟\n3.猪肉去腥锤碎腌制炒熟\n4.鳕鱼去腥切大块腌制煎熟"},{"label":"解冻洗净备用（晚）","timing":"evening","steps":["山药，莲藕蒸熟 备用"],"rawText":"1.山药，莲藕蒸熟 备用"}],"globalPrep":{"食材准备":"/排骨/虾","备餐":"1.香菇焯水"}},{"date":"2026-09-25","weekday":5,"weekdayText":"周五","dayIndex":5,"meals":[{"meal":"breakfast","mealText":"早餐","slot":1,"displayTitle":"山药蜜豆饼","options":[],"recipe":"熟山药50  + 鸡蛋1 + 牛奶50ml打 细腻，加面粉20g搅拌均匀，加入蜜豆或红枣，四孔锅 煎至金黄熟透","rawText":"山药蜜豆饼：熟山药50  + 鸡蛋1 + 牛奶50ml打 细腻，加面粉20g搅拌均匀，加入蜜豆或红枣，四孔锅 煎至金黄熟透","dishKeys":["山药蜜豆饼"],"needsReview":false,"missing":false},{"meal":"breakfast","mealText":"早餐","slot":2,"displayTitle":"红豆核桃奶昔","options":[],"recipe":"赤小豆30克、核桃仁40克、胚芽米30克、红枣4颗、清水500毫升、打好加牛奶150毫升","rawText":"红豆核桃奶昔：赤小豆30克、核桃仁40克、胚芽米30克、红枣4颗、清水500毫升、打好加牛奶150毫升","dishKeys":["红豆核桃奶昔"],"needsReview":false,"missing":false},{"meal":"lunch","mealText":"午餐","slot":1,"displayTitle":"莲藕虾饼","options":[],"recipe":"虾仁80 莲藕20 玉米粒20 胡萝卜10 面粉10 适量葱花，虾仁去腥剁碎，莲藕剁碎，所有食材混合后加调味，整理成小饼，煎至金黄熟透\n+拇指玉米","rawText":"莲藕虾饼： 虾仁80 莲藕20 玉米粒20 胡萝卜10 面粉10 适量葱花，虾仁去腥剁碎，莲藕剁碎，所有食材混合后加调味，整理成小饼，煎至金黄熟透\n+拇指玉米","dishKeys":["莲藕虾饼"],"needsReview":false,"missing":false},{"meal":"snack","mealText":"加餐","slot":1,"displayTitle":"六物饮","options":[],"recipe":null,"rawText":"六物饮","dishKeys":["六物饮"],"needsReview":false,"missing":false},{"meal":"dinner","mealText":"晚餐","slot":1,"displayTitle":"山药疙瘩汤","options":[],"recipe":"熟山药30g + 水60ml打成泥 ，+ 30g面粉拌成糊，午餐肉+西红柿+虾皮炒香，加水煮开，滴入面糊，煮开淋入蛋液，青菜，+调味","rawText":"山药疙瘩汤：熟山药30g + 水60ml打成泥 ，+ 30g面粉拌成糊，午餐肉+西红柿+虾皮炒香，加水煮开，滴入面糊，煮开淋入蛋液，青菜，+调味","dishKeys":["山药疙瘩汤"],"needsReview":false,"missing":false}],"prepNotes":[{"label":"解冻洗净备用（晚）","timing":"evening","steps":["买排骨"],"rawText":"买排骨"}],"globalPrep":{"食材准备":"/排骨/虾","备餐":"1.香菇焯水"}},{"date":"2026-09-26","weekday":6,"weekdayText":"周六","dayIndex":6,"meals":[{"meal":"breakfast","mealText":"早餐","slot":1,"displayTitle":"葱香肉松蛋卷","options":[],"recipe":"鸡蛋1个，水80g，面粉40g，葱花，肉松，芝麻","rawText":"葱香肉松蛋卷：鸡蛋1个，水80g，面粉40g，葱花，肉松，芝麻","dishKeys":["葱香肉松蛋卷"],"needsReview":false,"missing":false},{"meal":"breakfast","mealText":"早餐","slot":2,"displayTitle":"山药苹果水","options":[],"recipe":null,"rawText":"山药苹果水","dishKeys":["山药苹果水"],"needsReview":false,"missing":false},{"meal":"lunch","mealText":"午餐","slot":1,"displayTitle":"羊肚菌排骨焖饭","options":[],"recipe":"排骨3块，冷水下锅，葱姜水去腥，另起油锅翻炒排骨，加洋葱+土豆+胡萝卜+南瓜丁+玉米粒+羊肚菌翻炒，+调味（盐/酱油/蚝油），加米翻炒后放入炖锅，加适量水，焖熟","rawText":"羊肚菌排骨焖饭：排骨3块，冷水下锅，葱姜水去腥，另起油锅翻炒排骨，加洋葱+土豆+胡萝卜+南瓜丁+玉米粒+羊肚菌翻炒，+调味（盐/酱油/蚝油），加米翻炒后放入炖锅，加适量水，焖熟","dishKeys":["羊肚菌排骨焖饭"],"needsReview":false,"missing":false},{"meal":"snack","mealText":"加餐","slot":1,"displayTitle":"乌梅三豆饮 或 酸奶","options":["乌梅三豆饮","酸奶"],"recipe":null,"rawText":"乌梅三豆饮/酸奶","dishKeys":["乌梅三豆饮","酸奶"],"needsReview":false,"missing":false},{"meal":"dinner","mealText":"晚餐","slot":1,"displayTitle":"苹果消食粥","options":[],"recipe":"小米30g，山药30g拍碎，苹果丁30g，胡萝卜20g，2个红枣，清水400ml，煮好可加少量鸡内金粉","rawText":"苹果消食粥：小米30g，山药30g拍碎，苹果丁30g，胡萝卜20g，2个红枣，清水400ml，煮好可加少量鸡内金粉","dishKeys":["苹果消食粥"],"needsReview":false,"missing":false}],"prepNotes":[],"globalPrep":{"食材准备":"/排骨/虾","备餐":"1.香菇焯水"}}],"warnings":[{"code":"W004","level":"info","message":"检测到 3 处合并单元格，已按合并范围填充（共 13 格）"},{"code":"W007","level":"info","message":"4 处「/」已按二选一处理（如 2026-09-20 加餐）"},{"code":"W009","level":"info","message":"本周有 2 个菜名重复出现（如 大米糕、六物饮），可复用同一张配图"}],"stats":{"bounds":{"maxRow":11,"maxCol":8},"headerRow":1,"mealCells":35,"prepNotes":11,"globalPrepRows":2}};
+const ICONS = {"today":"data:image/png;base64,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","today-active":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFEAAABRCAYAAACqj0o2AAAL7ElEQVR4nO1ce4ycVRU/59zvm/fso5uClO1IpTzcBaKpwRCJbYFIQjDGP3ajEEMwgRJNtNAt1YhO9x/oC4EohkeIGpWS3RD9wxiRRykJ0agNoLaCJJXdraW0ZV/znu+795hzZ6ZMtwU6u7Odr+380qbdb+d8372/79xzz+OeAWijjTbaaKONNtpoo1EwAMrfM0k2MOA0EI+AOpNkAwWum8Su9GqHH1nZEXTZhcBp9g05DYSDoI9sXXZZPOTe44beWTNdMG8DwM32d8NggiYbKBJ5ABQOgz66tfebySg95BJ2oEIwxhwKqmygSOQRUKIJ09tSNyRj+FS+DJDzdakjplwk8IMoGygSme0uaPjxC2LTs/yop5E9zQYRHQQgqPw+ULLNBDXlLqNAiMDZjHtNR4QuzZeZCT8w8nZCQZNtIprzkL2r7Rv3GK4hhYzIc414IXCyTURT3xQih09YQPIzoxdU2eCQ2L+b5R/F+AZrRmD8YEoMYIA7PzR6aJVs4EgcACODRXBeyZV4KuRgZQ5VIIKHMq1loE6IJlolGzQSUcY+ApTcuP+wp+GHsRjJgGUyxjAwIYb+l74ghuvAE3dkZKDO+LdItploqqrzCCgaBD25PfVYV5zWlTyGoscy2TIBHHIc2FP04NHuofEXxT2xJLRYNngbyyBokwbq3jh+10zev8Uw/1MR+CGFIURMRRz6ajyML0zvSD0kn5dwrNWyzUDT/SgcBiOD7Bo6sHPfvqWrEmG8ymf+ZSgEZiqvy/kS+52dav3U9tSP7GfrbFWrZBeKRXFGsTrIVTd8yuC3x/7t+fyW66A4xsQMKpPRftiFH2R+vLxftOg4rWqR7EKwaB49DoKGF/aTzaAgxGpWCBHQNwyxCLm+5q9Xrq6mIMjOF4sbFl2QYNEOZMjXm3KJLYyW0BeurlzZbQIjOw+cltiSGb2522HFv8NQUGUDRyIgd9TFEvIzK8mxMOz92GXVKtnAkQhzs8oI2jA6iM/Wh28Bkw0ciRUwsGEudyWVM1vg0eTG8ZdsVlo2g6DKBsgmskyECN3upBPK5f1Xicxd1sUY+ejaR6tkW1qoOhmQIAwOStljLJPXT+18c2LLuifAO5UQrFWyjWBR00RcHez0tuUXY5TO6yjr13HDAZso/biJtEr2jACPgJr3qYYWyQYCXD2VMJ9JtEq2jTbaaKONNto4kzE/n6vJNYpAYRjYllnbCKgm1sKlI1t7ki7Ff00KksZnNnh2OLIEYGJhpLLGexJ3j73eyMHQhhMQbj7qchJuSkaUo32WIP+sgDEATgQhP+svtRf6T105Gs/iREjSS9PZgun2jZQrzg5NFB7jjKQUeaclFYYISv7ac1d4dpBoay8IBKbx+cyLRBZd/LDrGPydrcrSCYaI5Y/UYBadxKJBTFLohCoaA4QcxJAKvmZqBijIWZ26azIfhwBLPjfMySkLyM5c8Q8vnp2C/X+Nu3RdVtuTqYqZdSKqVLaof1X28RfIQEphU+oXzYTWrBjBEOBnoyHcUfDEubCnIzjsIGZLfJiwWgkcOPXyQYOsryYc3u1P7kj9znHgOilBgn2faHvAjIHlPfeOvwQBx+T21LXhEEHBkz3Z+hcmGkI1lTev9myceNcWsfDUi1iNkbh5t4FhACL+c7FkDDDaxSubTKZkTDJCazI7UtcnMuO7ob+PAPYFRxuXAsJ/VmH26OQSIP2dfFEsYGX8ogxSn3YIXrFa0SdnwXef8q3nlS2GfYBTV6f+kozQqmzRGCGRGXRHlNR0Xr/cc+/EWk6vdkRrISDgx1e5uG6Pd3RbKt2TpM1TWa0JUcbNiuwB77zy+dL4pomDjdZhGneV+wFxFLRCftRRdhVbWG0sGCFyzdEtvbcLgZw+PdXEj4NtGFq3x5vc0ntlPAx35wpGYzVMkJJ0MoqoDTxrCZTPNuhhNE6inJNmwI5M8umZvH4rFkKqnZNmACr5YOJR9ZMjW5d/Doeh5USOyDnEvcDTD6S6Q2H6jUPUWdZW06z6KUIslEyJDN1fnV/DLk7DJNq3JE04w/vKiHB/OCTWpNI/IgMr+wyEEI+4MDKe7l1iidzVGiJFqwYHQdsTYi4/GY/QlZmi9kmcatuKxbojRlTw4JnOTe+8VdXChov68/bpZAeDPuCZxPI/dcbU9VM5o4kqp08N291OBvp2tqxvXbrxwN+sRm4GfZpqvsi7QOFa8MceSHUvjcJOl+jGbMnI8+0YZfWIW6M1H0WNV8VzY4et4Dy6UeefPugDewYQGNYVyub9kIvWy7E3RaBimbVDeEk8pP6YebD3a6KRVV/TqfbkNR2ys+6qmA8WAme2X/T586LwYjREN2aOJ1Da17TY9JKBbyXuHTtkbf0823kXNJlah+fRbakbumP4fK7E2jdAVI2nRSNdBRQLERQ98wyUeYMY75qsvckgiMM7b+20LknaPk9SV9Yb+Fe6L3RRZ/b7RHCfInRyRVkleOyMNjN7XZ2OOznlD/dsmti8UE9iwRqxKw3O2mHw39+WuqMzRk/kS0Zr2/1Q0XJxIeTNd4vtKZvDgPAzDeqx5Pr/vndsUhXjj9APXIsUTrbsLWEMMDoItLQPcE1l+R2bPD+yMpxj7xZkvicWoitmC0ZCPFOzgdYzZPA7k+TOZPWT3UMTd5o0OPX3mA+asqy4qpFT21J3JGP0RLHMUNas6zs+DYMOKVTxCEKuaN5zFPyBmXdGov6ruO7d/KmUIE623OTZ5YMr+n0w32DDN8fCdLnnM+TKLMtXPEA7RzE1ovGdCaVms/6TnUMTd9pnbLaZqAXZ6abZpl01jdzSe2MkrJ6OuLhkpqB9BJQdD+u00tTIFLJ9w+ME8JLP/IYG9Vo3l/ZO+VFvyff2z8x9hnRHLTvfDc/kzMqwq64AwKt8rb/EiJclI6RKZZbEgpYotL5N1zD7EYccpQDKnrk7uWHiYZZ8TSWVx4HrqMJB0Ie3XnhJPOz8PBahL2RyWk6n+ojWJh0jUw6tAoOSHTIaquhL2XZCmRnD6CHCPnFBakyIChLgSiJOImJXIkxWptY9xWCXJNWTJ1GUENoVU1QomXfLWt/eNXTgOauBTSxINX2X5CqRf78T3Ms/ndpEAEPRMHXO5GUjB1+Im5PIlSbH2jIlh2RjQgg7FXWqR8ln27TnG9kbbPpUSKgt2dqyFUbld9gRIRK/1TD/PF/m+5ZKRNIEGzgXi+NqpD8o8hzZetFl8YjZpA3cmghTKFc0UNaga4nRuZnxuoTvie6GfLYS1x4vI8vSvgxmAnSSERIzAUbD857mrcmh8RfrX3Cz57uoCdRdVTsp/8883HsFsfouAH85FqbzJQlVKBvwjJDFkhHCGkk2M3SSsVW1rLJH17LoDKgIVNRFcByEbMGUlILnEPin0fUTzx/b/QfALJajv+hZaBb7I45sVQMyD6843wFzk2b+CjNcG1bY47ry9SsAnmbwdYUnIfe4zDMDKAJSYvQIIawQpDFX5PIlk0fE10nxb30Pf98xNPZmVQZhEEgSJos5x9OWyuc5ZNprD/YuySJ9xjB/ERivAeDlRPgJbSCcCGPM1hKrqXshTrJEDsGsNpB1CN8m5H8w4SsxUHtw/f7xj3rWYuK010NYtGOz9R/NXL/PLrvcJ5OT73vJDtddmfUrWWMffEhEHJjJwKGeDj508D2vdOHw8b5lNXI56X0XGy0tKrEQOgpko5V9wI0sO+miH+irRjl7q3F8i9D6pOleu1p5VDIvI6Be3lsJ52DZqhNf8MEEvwy7YU0/8OiovWJqDWZtnOFoyXLmgQGFo6N6cvvy27rj6raZvNGGueFOeELUiTCp2aL/2pKNBza0qkelNcu573D15eHlEKW1UY/BUY2nNrUGUFGpuGPMXthcSfnDuWQTSb6GqmB0vmx8AJzPWHSSbKUxCy1ES0lkkCgNpPYrYVvDy9keHaik2+jcJZFtxdV+GVD9Nys1APsNTSeNs88dTYQwhJEiJQw5toDeGLQBUmEUoxCHc2535souOrU9taIrDiumC5LEl6i4QRBywmXMlnGqe2jstcrqDv7RvjYCF/alK4mCBd+oxWHf/wGsl82Y7mzQqAAAAABJRU5ErkJggg==","week":"data:image/png;base64,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","week-active":"data:image/png;base64,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","mine":"data:image/png;base64,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","mine-active":"data:image/png;base64,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"};
+const MEAL_STYLE = {"breakfast":{"bg":"#FAEEDA","fg":"#854F0B","label":"早餐"},"lunch":{"bg":"#EAF3DE","fg":"#3B6D11","label":"午餐"},"snack":{"bg":"#FBEAF0","fg":"#993556","label":"加餐"},"dinner":{"bg":"#E6F1FB","fg":"#0C447C","label":"晚餐"}};
+const PERIOD = DATA.period;
+const DAYS = DATA.days;
+
+const TODAY_OPTS = [
+  { key:'before', label:'期前 9/18（倒计时）', date:'2026-09-18' },
+  { key:'mid',    label:'周中 9/22（进行中）', date:'2026-09-22' },
+  { key:'end',    label:'期末 9/26（最后一天）', date:'2026-09-26' },
+];
+const VIEWS = [ ['today','今日'], ['week','一周'], ['mine','我的'] ];
+const cur = { view:'today', tkey:'mid' };
+
+function todayISO(){ return TODAY_OPTS.find(o=>o.key===cur.tkey).date; }
+function diffDays(a,b){ return Math.round((new Date(a)-new Date(b))/86400000); }
+function addDays(iso,n){ const d=new Date(iso+'T00:00:00'); d.setDate(d.getDate()+n); return d.toISOString().slice(0,10); }
+function fmtMD(iso){ const d=new Date(iso+'T00:00:00'); return (d.getMonth()+1)+'/'+d.getDate(); }
+function wdShort(d){ return (d.weekdayText||'').slice(-1); }
+
+function stateOf(t){
+  if (t < PERIOD.startDate) return 'before';
+  if (t > PERIOD.endDate) return 'after';
+  return 'in-period';
+}
+
+/* ---------- 组件渲染 ---------- */
+function mealBlock(m){
+  const st = MEAL_STYLE[m.meal] || { bg:'#f3eee5', fg:'#7a6a55', label:'餐次' };
+  const title = m.missing ? '<span class="dish miss">未安排</span>' : '<div class="dish">'+esc(m.displayTitle)+'</div>';
+  const opts = (m.options && m.options.length>1) ? '<div class="opts">可选：'+m.options.map(esc).join(' 或 ')+'</div>' : '';
+  return '<div class="meal" style="background:'+st.bg+';color:'+st.fg+'">'
+    + '<span class="mlabel">'+st.label+'</span>'
+    + '<div class="thumb">🍽️</div>'
+    + '<div class="main">'+title+opts+'</div></div>';
+}
+function prepBlock(day){
+  const list = day.prepNotes || [];
+  if (!list.length) return '';
+  const items = list.map(p=>{
+    const t = p.timing==='morning'?'m':p.timing==='evening'?'e':'u';
+    const tt = p.timing==='morning'?'早':p.timing==='evening'?'晚':'·';
+    return '<div class="pi"><span class="tag '+t+'">'+tt+'</span><div><span class="pl">'+esc(p.label||'')+'</span>'
+      + (p.stepsText?' <span class="ps">'+esc(p.stepsText)+'</span>':'')+'</div></div>';
+  }).join('');
+  return '<div class="prep">'+items+'</div>';
+}
+function dayCard(day, hl, compact){
+  const meals = (day.meals||[]).map(mealBlock).join('');
+  return '<div class="dc '+(hl||'')+'">'
+    + '<div class="head"><span class="date">'+fmtMD(day.date)+' '+esc(day.weekdayText)+'</span>'
+    + (hl==='today'?'<span class="badge today">今天</span>':'')
+    + (hl==='tomorrow'?'<span class="badge tomorrow">明天</span>':'')
+    + '</div>' + meals + prepBlock(day) + '</div>';
+}
+function weekNav(t){
+  const inPeriod = t >= PERIOD.startDate && t <= PERIOD.endDate;
+  const sel = inPeriod ? t : PERIOD.startDate;
+  return '<div class="wnav">' + DAYS.map(d=>{
+    const cls = d.date===sel ? 'it on' : (d.date===t ? 'it tdy' : 'it');
+    return '<div class="'+cls+'"><span class="wd">'+wdShort(d)+'</span><span class="dt">'+fmtMD(d.date)+'</span></div>';
+  }).join('') + '</div>';
+}
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
+
+/* ---------- 视图 ---------- */
+function renderToday(){
+  const t = todayISO(), st = stateOf(t);
+  if (st==='before'){
+    const d = diffDays(PERIOD.startDate, t);
+    return '<div class="pg-head"><span class="t">好饭</span></div>'
+      + '<div class="empty"><div class="em">🍚</div><div class="tt">食谱已就绪，还没开饭</div>'
+      + '<div class="ds">距离开饭还有 '+d+' 天（'+fmtMD(PERIOD.startDate)+' - '+fmtMD(PERIOD.endDate)+'）</div>'
+      + '<span class="btn">先看看这期菜单</span></div>';
+  }
+  if (st==='after'){
+    return '<div class="pg-head"><span class="t">好饭</span></div>'
+      + '<div class="empty"><div class="em">📭</div><div class="tt">这一期吃完了</div>'
+      + '<div class="ds">上一份食谱已结束，把新一周的 Excel 导进来吧</div>'
+      + '<span class="btn">导入新食谱</span></div>';
+  }
+  const todayDay = DAYS.find(d=>d.date===t);
+  const tomorrowDay = DAYS.find(d=>d.date===addDays(t,1));
+  const dayN = diffDays(t, PERIOD.startDate)+1;
+  let h = '<div class="pg-head"><span class="t">好饭</span><span class="r">本期 '+fmtMD(PERIOD.startDate)+' - '+fmtMD(PERIOD.endDate)+' ›</span></div>';
+  h += '<div class="hero"><div><div class="title">本期第 <span style="color:#b26a00">'+dayN+'</span> 天</div>'
+     + '<div class="meta">'+esc(PERIOD.startWeekdayText)+'打头 · 家人共用</div></div>'
+     + '<div class="chips"><span class="chip">'+DATA.stats.mealCells+' 道菜</span><span class="chip">'+DATA.stats.prepNotes+' 条备料</span></div></div>';
+  h += weekNav(t);
+  h += '<div class="sec">今天的饭</div>';
+  h += todayDay ? dayCard(todayDay,'today',false) : '<div class="dc"><div class="ds">今天没有安排</div></div>';
+  h += '<div class="sec link">明天吃什么 ›</div>';
+  h += tomorrowDay ? dayCard(tomorrowDay,'tomorrow',false) : '<div class="dc"><span style="font-size:13px;color:#9a8f80">明天的安排还没导入</span></div>';
+  return h;
+}
+function renderWeek(){
+  const t = todayISO();
+  const inPeriod = t>=PERIOD.startDate && t<=PERIOD.endDate;
+  let h = '<div class="pg-head"><span class="t">本期菜单</span><span class="r">'+fmtMD(PERIOD.startDate)+' - '+fmtMD(PERIOD.endDate)+'</span></div>';
+  h += weekNav(t);
+  if (!inPeriod) h += '<div class="sec">今天不在本期里，已为你定位到第一天</div>';
+  h += DAYS.map(d=>{
+    const hl = d.date===t ? 'today' : d.date===addDays(t,1) ? 'tomorrow' : '';
+    return dayCard(d, hl, true);
+  }).join('');
+  return h;
+}
+function renderMine(){
+  return '<div class="pg-head"><span class="t">我的</span></div>'
+    + '<div class="dc"><div class="head"><span class="date">数据统计</span></div>'
+    + '<div class="meta" style="font-size:13px;color:#7a6a55;line-height:2">已导入 '+DAYS.length+' 天食谱 · '+DATA.stats.mealCells+' 道菜 · '+DATA.stats.prepNotes+' 条备料<br>历史周期自动归档</div></div>'
+    + '<div class="dc"><div class="head"><span class="date">历史周期</span></div>'
+    + '<div style="background:#faf5ea;border-radius:12px;padding:14px 16px;margin-bottom:10px;display:flex;justify-content:space-between;font-size:13px"><span>'+fmtMD(PERIOD.startDate)+' - '+fmtMD(PERIOD.endDate)+'</span><span style="color:#c9bda9">›</span></div>'
+    + '<div style="font-size:12px;color:#9a8f80">旧的周期会出现在这里</div></div>';
+}
+
+function render(){
+  const c = document.getElementById('content');
+  c.innerHTML = cur.view==='today' ? renderToday() : cur.view==='week' ? renderWeek() : renderMine();
+  c.scrollTop = 0;
+  document.getElementById('stats').innerHTML =
+    '解析引擎统计<br>周期 <b>'+PERIOD.startDate+'</b> ~ <b>'+PERIOD.endDate+'</b>（'+PERIOD.startWeekdayText+'打头）<br>'
+    + '菜格 <b>'+DATA.stats.mealCells+'</b> · 备料 <b>'+DATA.stats.prepNotes+'</b> · 合并单元格已填充<br>'
+    + '告警 <span class="w">'+(DATA.warnings||[]).map(w=>w.code).join(' / ')+'</span>';
+  syncBtns();
+}
+function syncBtns(){
+  document.querySelectorAll('#vb button').forEach(b=>b.classList.toggle('on', b.dataset.v===cur.view));
+  document.querySelectorAll('#db button').forEach(b=>b.classList.toggle('on', b.dataset.d===cur.tkey));
+  const tb = document.getElementById('tabbar');
+  tb.innerHTML = VIEWS.map(v=>{
+    const base = v[0]==='mine'?'mine':v[0];
+    const ic = cur.view===v[0] ? (ICONS[base+'-active']||'') : (ICONS[base]||'');
+    return '<div class="tab '+(cur.view===v[0]?'on':'')+'" data-v="'+v[0]+'">'
+      + (ic?'<img src="'+ic+'">':'<div style="width:24px;height:24px"></div>')
+      + '<span>'+v[1]+'</span></div>';
+  }).join('');
+  tb.querySelectorAll('.tab').forEach(el=>el.onclick=()=>{ cur.view=el.dataset.v; render(); });
+}
+function init(){
+  document.getElementById('vb').innerHTML = VIEWS.map(v=>'<button data-v="'+v[0]+'">'+v[1]+'</button>').join('');
+  document.querySelectorAll('#vb button').forEach(b=>b.onclick=()=>{ cur.view=b.dataset.v; render(); });
+  document.getElementById('db').innerHTML = TODAY_OPTS.map(o=>'<button data-d="'+o.key+'">'+o.label+'</button>').join('');
+  document.querySelectorAll('#db button').forEach(b=>b.onclick=()=>{ cur.tkey=b.dataset.d; render(); });
+  // hash 直达：#week / #end / #week&d=end
+  const h = location.hash.slice(1);
+  if (h) {
+    h.split('&').forEach(kv=>{
+      const [k,v] = kv.split('=');
+      if (k==='d' && TODAY_OPTS.some(o=>o.key===v)) cur.tkey = v;
+      if (!k && VIEWS.some(x=>x[0]===h)) cur.view = h;
+      if (k==='v' && VIEWS.some(x=>x[0]===v)) cur.view = v;
+    });
+    if (VIEWS.some(x=>x[0]===h)) cur.view = h;
+  }
+  render();
+}
+init();
+</script>
+</body>
+</html>

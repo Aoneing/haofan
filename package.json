@@ -1,0 +1,18 @@
+{
+  "name": "haofan",
+  "version": "0.1.0",
+  "private": true,
+  "description": "好饭 · 家庭一周食谱小程序（微信原生 + 云开发）",
+  "scripts": {
+    "test": "node tests/run.js",
+    "lint": "eslint .",
+    "parse:local": "node scripts/parse-local.js",
+    "preflight": "node scripts/preflight.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "eslint": "^8.57.0"
+  }
+}

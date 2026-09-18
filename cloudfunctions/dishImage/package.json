@@ -1,0 +1,9 @@
+{
+  "name": "dishImage",
+  "version": "1.0.0",
+  "description": "好饭：配图查询 / AI 生成 / 统计",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}

@@ -1,0 +1,31 @@
+# 依赖
+node_modules/
+**/node_modules/
+package-lock.json
+
+# 小程序构建产物
+miniprogram_npm/
+tealconfig.js
+
+# 本地环境与密钥
+.env
+.env.*
+*.local.js
+
+# 编辑器与系统
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# 日志与临时文件
+*.log
+*.tmp
+coverage/
+
+# logo：草稿池与工作脚本不入库，仅保留 README 引用的终稿
+logo/*
+!logo/final/
+logo/final/*
+!logo/final/haofan-logo-final.png

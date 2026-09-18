@@ -1,0 +1,9 @@
+{
+  "name": "menuSave",
+  "version": "1.0.0",
+  "description": "好饭：校对后的周食谱幂等落库",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}

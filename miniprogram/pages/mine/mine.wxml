@@ -1,0 +1,49 @@
+<view class="container">
+  <!-- 数据概览 -->
+  <view class="card">
+    <view class="card-title">数据概览</view>
+    <view class="stats-row">
+      <view class="stats-item">
+        <view class="stats-item__num">{{periods.length}}</view>
+        <view class="muted">期食谱</view>
+      </view>
+      <view class="stats-item">
+        <view class="stats-item__num">{{dishTotal}}</view>
+        <view class="muted">张配图</view>
+      </view>
+    </view>
+    <view wx:if="{{envError}}" class="alert alert--warn" style="margin-top:16rpx">{{envError}}</view>
+  </view>
+
+  <!-- 历史周期 -->
+  <view class="card">
+    <view class="card-title">导入过的食谱</view>
+    <view wx:if="{{!periods.length}}" class="muted">还没有导入记录</view>
+    <view
+      wx:for="{{periods}}"
+      wx:key="_id"
+      class="period-row"
+      data-id="{{item._id}}"
+      bindtap="onPeriodTap"
+    >
+      <text class="period-row__text">{{item.rangeText}}</text>
+      <text class="period-row__arrow">›</text>
+    </view>
+  </view>
+
+  <!-- 操作 -->
+  <view class="card">
+    <view class="card-title">小工具</view>
+    <button class="btn-ghost" style="margin-bottom:16rpx" bindtap="goImport">导入新食谱</button>
+    <button class="btn-ghost" bindtap="clearCache">清除配图缓存</button>
+  </view>
+
+  <!-- 关于 -->
+  <view class="card">
+    <view class="card-title">关于好饭</view>
+    <view class="muted about-line">· 给自己家的一周食谱小程序：Excel 一键进，今天明天随时看。</view>
+    <view class="muted about-line">· 数据全部存在你自己的微信云开发环境里；导出备份 = 留好每次的 Excel 原文件。</view>
+    <view class="muted about-line">· 云开发费用：基础套餐约 19.9 元/月；只用体验版给家人看则 0 元。</view>
+    <view class="muted about-line">· v1.0.0</view>
+  </view>
+</view>

@@ -1,0 +1,46 @@
+{
+  "pages": [
+    "pages/today/today",
+    "pages/week/week",
+    "pages/day/day",
+    "pages/dish/dish",
+    "pages/import/import",
+    "pages/mine/mine"
+  ],
+  "window": {
+    "navigationBarBackgroundColor": "#FFF8EF",
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "好饭",
+    "backgroundColor": "#FFF8EF",
+    "backgroundTextStyle": "dark"
+  },
+  "tabBar": {
+    "color": "#9A8F80",
+    "selectedColor": "#B26A00",
+    "backgroundColor": "#FFFFFF",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/today/today",
+        "text": "今日",
+        "iconPath": "images/tabbar/today.png",
+        "selectedIconPath": "images/tabbar/today-active.png"
+      },
+      {
+        "pagePath": "pages/week/week",
+        "text": "一周",
+        "iconPath": "images/tabbar/week.png",
+        "selectedIconPath": "images/tabbar/week-active.png"
+      },
+      {
+        "pagePath": "pages/mine/mine",
+        "text": "我的",
+        "iconPath": "images/tabbar/mine.png",
+        "selectedIconPath": "images/tabbar/mine-active.png"
+      }
+    ]
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json",
+  "lazyCodeLoading": "requiredComponents"
+}
