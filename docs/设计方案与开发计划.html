@@ -1,0 +1,997 @@
+<meta charset="utf-8">
+<title>好饭 · 家庭一周食谱小程序 设计与开发计划</title>
+<style>
+:root{
+  --bg:#F5F5F3; --card:#FFFFFF; --ink:#1F1F1D; --ink2:#5F5E5A; --ink3:#888780;
+  --line:#E4E3DE; --line2:#D3D1C7;
+  --blue:#185FA5; --blue-bg:#E6F1FB; --blue-ink:#0C447C;
+  --teal:#0F6E56; --teal-bg:#E1F5EE; --teal-ink:#085041;
+  --amber:#BA7517; --amber-bg:#FAEEDA; --amber-ink:#854F0B;
+  --red:#A32D2D; --red-bg:#FCEBEB;
+  --violet:#534AB7; --violet-bg:#EEEDFE; --violet-ink:#3C3489;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Courier New",monospace;
+}
+*{box-sizing:border-box;}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei","Hiragino Sans GB",sans-serif;
+  font-size:14px; line-height:1.75; -webkit-font-smoothing:antialiased;
+}
+main{max-width:900px; margin:0 auto; padding:40px 24px 80px;}
+h1,h2,h3{font-weight:500; margin:0;}
+h1{font-size:28px; line-height:1.4; letter-spacing:-.01em;}
+h2{font-size:20px; margin-bottom:4px;}
+h3{font-size:15px; margin-bottom:6px;}
+p{margin:0 0 12px;}
+code{font-family:var(--mono); font-size:12.5px; background:#F1EFE8; padding:1px 5px; border-radius:4px;}
+a{color:var(--blue); text-decoration:none;}
+
+header.doc{border-bottom:1px solid var(--line); padding-bottom:24px; margin-bottom:28px;}
+.eyebrow{font-size:12px; color:var(--ink3); letter-spacing:.08em; margin-bottom:10px;}
+.lede{color:var(--ink2); margin-top:12px; max-width:66ch;}
+.meta{margin-top:16px; font-size:12px; color:var(--ink3); display:flex; gap:16px; flex-wrap:wrap;}
+
+nav.toc{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px 22px; margin-bottom:32px;}
+nav.toc div{font-size:12px; color:var(--ink3); letter-spacing:.06em; margin-bottom:10px;}
+nav.toc ol{margin:0; padding-left:0; list-style:none; columns:2; column-gap:32px;}
+nav.toc li{margin-bottom:5px; font-size:13px; break-inside:avoid;}
+nav.toc a{color:var(--ink2);}
+nav.toc a:hover{color:var(--blue);}
+
+section{margin-bottom:44px; scroll-margin-top:20px;}
+.sec-head{display:flex; align-items:baseline; gap:10px; border-bottom:1px solid var(--line); padding-bottom:10px; margin-bottom:20px;}
+.sec-num{font-family:var(--mono); font-size:12px; color:var(--ink3); flex:none;}
+.sec-head p{margin:0; color:var(--ink3); font-size:12.5px;}
+
+.card{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:20px 22px; margin-bottom:14px;}
+.card.tight{padding:16px 18px;}
+.card > :last-child{margin-bottom:0;}
+
+.grid{display:grid; gap:12px;}
+.g2{grid-template-columns:repeat(auto-fit,minmax(240px,1fr));}
+.g3{grid-template-columns:repeat(auto-fit,minmax(180px,1fr));}
+.g4{grid-template-columns:repeat(auto-fit,minmax(140px,1fr));}
+
+.metric{background:#F1EFE8; border-radius:8px; padding:14px 16px;}
+.metric .lab{font-size:12px; color:var(--ink2);}
+.metric .val{font-size:20px; font-weight:500; margin-top:2px; line-height:1.3;}
+.metric .sub{font-size:12px; color:var(--ink3); margin-top:2px;}
+
+table{width:100%; border-collapse:collapse; font-size:13px; margin:0 0 14px;}
+th{text-align:left; font-weight:500; color:var(--ink2); font-size:12px; padding:8px 10px; border-bottom:1px solid var(--line2); white-space:nowrap;}
+td{padding:9px 10px; border-bottom:1px solid var(--line); vertical-align:top;}
+tr:last-child td{border-bottom:none;}
+td.k{font-family:var(--mono); font-size:12px; color:var(--blue-ink); white-space:nowrap;}
+
+.tag{display:inline-block; font-size:11.5px; padding:1px 7px; border-radius:20px; font-weight:500; line-height:1.6; white-space:nowrap;}
+.t-blue{background:var(--blue-bg); color:var(--blue-ink);}
+.t-teal{background:var(--teal-bg); color:var(--teal-ink);}
+.t-amber{background:var(--amber-bg); color:var(--amber-ink);}
+.t-red{background:var(--red-bg); color:var(--red);}
+.t-gray{background:#F1EFE8; color:var(--ink2);}
+.t-violet{background:var(--violet-bg); color:var(--violet-ink);}
+
+pre{background:#FAFAF8; border:1px solid var(--line); border-radius:8px; padding:14px 16px; overflow-x:auto; margin:0 0 14px;}
+pre code{background:none; padding:0; font-size:12px; line-height:1.65; color:var(--ink); white-space:pre;}
+
+.note{border-left:2px solid var(--line2); padding:2px 0 2px 14px; color:var(--ink2); font-size:13px; margin:0 0 14px;}
+.note.warn{border-left-color:var(--amber); color:var(--amber-ink); background:var(--amber-bg); border-radius:0 8px 8px 0; padding:10px 14px;}
+.note.stop{border-left-color:var(--red); color:var(--red); background:var(--red-bg); border-radius:0 8px 8px 0; padding:10px 14px;}
+.note.ok{border-left-color:var(--teal); color:var(--teal-ink); background:var(--teal-bg); border-radius:0 8px 8px 0; padding:10px 14px;}
+
+ul.tight{margin:0 0 12px; padding-left:20px;}
+ul.tight li{margin-bottom:5px;}
+ul.tight li:last-child{margin-bottom:0;}
+
+.step{display:flex; gap:14px; padding:14px 0; border-bottom:1px solid var(--line);}
+.step:last-child{border-bottom:none;}
+.step .n{flex:none; width:26px; height:26px; border-radius:50%; background:var(--blue-bg); color:var(--blue-ink); font-size:12.5px; font-weight:500; display:flex; align-items:center; justify-content:center; margin-top:1px;}
+.step .b{min-width:0; flex:1;}
+.step .b h3{margin-bottom:3px;}
+.step .b p{margin:0; color:var(--ink2); font-size:13px;}
+
+.ms{display:flex; gap:14px; padding:16px 0; border-bottom:1px solid var(--line);}
+.ms:last-child{border-bottom:none;}
+.ms .badge{flex:none; width:56px; height:26px; border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:500; font-family:var(--mono);}
+.ms .b{flex:1; min-width:0;}
+.ms .b h3{margin-bottom:4px;}
+.ms .b .dur{float:right; font-size:12px; color:var(--ink3); font-weight:400;}
+.ms ul{margin:6px 0 0; padding-left:18px; font-size:13px; color:var(--ink2);}
+.ms ul li{margin-bottom:3px;}
+.accept{margin-top:8px; font-size:12.5px; color:var(--teal-ink); background:var(--teal-bg); border-radius:6px; padding:7px 11px;}
+
+.flow{display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:12.5px; color:var(--ink2); margin-bottom:14px;}
+.flow .n2{background:var(--card); border:1px solid var(--line2); border-radius:6px; padding:3px 9px;}
+.flow .a{color:var(--ink3);}
+
+footer{border-top:1px solid var(--line); padding-top:18px; font-size:12px; color:var(--ink3);}
+@media print{body{background:#fff;} main{padding:0;} nav.toc{display:none;} section{break-inside:avoid;}}
+</style>
+
+<main>
+
+<header class="doc">
+  <div class="eyebrow">好饭 · 设计与开发计划 · V1.2</div>
+  <h1>好饭</h1>
+  <p class="lede">家庭一周食谱小程序。把一张 Excel 周食谱表变成手机上一眼能看清的「今天吃什么、明天吃什么」。基于对 <code>food(1).xlsx</code> 真实结构的逐格勘查设计，单人开发，微信原生 + 云开发，代码托管于 GitHub。</p>
+  <div class="meta">
+    <span>技术栈：微信原生 + 云开发</span>
+    <span>范围：单用户 / 自家用</span>
+    <span>图文：菜品自动配图</span>
+    <span>工期估算：16–22 人天</span>
+  </div>
+</header>
+
+<nav class="toc">
+  <div>目录</div>
+  <ol>
+    <li><a href="#s1">01 · 产品定义与核心场景</a></li>
+    <li><a href="#s2">02 · 输入数据勘察结论</a></li>
+    <li><a href="#s3">03 · 技术选型与总体架构</a></li>
+    <li><a href="#s4">04 · 数据模型设计</a></li>
+    <li><a href="#s5">05 · 解析层详细设计</a></li>
+    <li><a href="#s6">06 · 页面与交互设计</a></li>
+    <li><a href="#s7">07 · 菜品配图方案</a></li>
+    <li><a href="#s8">08 · 仓库结构与工程规范</a></li>
+    <li><a href="#s9">09 · 分阶段开发计划</a></li>
+    <li><a href="#s10">10 · 风险清单与对策</a></li>
+    <li><a href="#s11">11 · 待确认决策点</a></li>
+    <li><a href="#s12">12 · MVP 范围界定</a></li>
+    <li><a href="#s13">13 · 部署与运维成本</a></li>
+  </ol>
+</nav>
+
+<section id="s1">
+  <div class="sec-head"><span class="sec-num">01</span><h2>产品定义与核心场景</h2></div>
+
+  <p><b>一句话定义：</b>一个只服务自己家的食谱看板。上传一张周食谱 Excel，随时知道今天和明天吃什么、每道菜怎么做、需要提前准备什么。</p>
+
+  <div class="card tight" style="margin-bottom:16px;">
+    <h3>名称与命名落点</h3>
+    <p style="font-size:13px; color:var(--ink2); margin-bottom:8px;">小程序名称 <b>好饭</b>。两个字，口语，问「今天吃什么好饭」时顺手就能想起来。</p>
+    <table style="margin-bottom:0;">
+      <tbody>
+        <tr><td style="width:26%;">小程序对外名称</td><td><b>好饭</b>　<span style="color:var(--ink3); font-size:12.5px;">微信平台内名称唯一，若已被占用，建议退让为「好饭 · 一周食谱」或「好饭食谱」</span></td></tr>
+        <tr><td>首页导航栏标题</td><td>好饭（首页固定）</td></tr>
+        <tr><td>二级页导航栏标题</td><td>动态：如「9月20日 周日」「莲藕消积米糊」「导入食谱」</td></tr>
+        <tr><td>GitHub 仓库名</td><td><code>haofan</code>（与小程序名同源）</td></tr>
+        <tr><td>云开发环境</td><td><code>haofan-prod</code>，日后可扩展 <code>haofan-dev</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="grid g3" style="margin-bottom:16px;">
+    <div class="card tight">
+      <h3>场景 A · 早上</h3>
+      <p style="margin:0; font-size:13px; color:var(--ink2);">打开小程序看今天早餐是什么、米糊要泡什么料。需要「今天」整天的分餐次视图。</p>
+    </div>
+    <div class="card tight">
+      <h3>场景 B · 晚上</h3>
+      <p style="margin:0; font-size:13px; color:var(--ink2);">知道明天吃什么，并把需要解冻、腌制、泡发的东西提前处理掉。需要「明天」摘要 + 提前准备提醒。</p>
+    </div>
+    <div class="card tight">
+      <h3>场景 C · 做饭时</h3>
+      <p style="margin:0; font-size:13px; color:var(--ink2);">点进某道菜看配方和步骤，不用在一格长文字里翻找。需要菜谱详情页。</p>
+    </div>
+  </div>
+
+  <h3 style="margin-top:22px;">三条需求的功能拆解</h3>
+  <table>
+    <thead><tr><th style="width:34%;">你的需求</th><th>实现方式</th></tr></thead>
+    <tbody>
+      <tr><td>上传 Excel，自动对应日期生成一周食谱</td><td>云函数用 SheetJS 解析矩阵表 → 人工校对页确认 → 落库为「一天一条」的文档</td></tr>
+      <tr><td>按天友好展示，今天与明天突出</td><td>首页固定为「今天 + 明天」双卡片，今天按餐次展开，明天给摘要与提前准备；下方接本周横滑速览。必须处理今天不在任何周期内的三种状态</td></tr>
+      <tr><td>基于文字生成图文显示</td><td>一层：菜名归一化后查 <code>dishImages</code> 图库精确命中；二层：按餐次配色的占位图兜底（零请求）；三层：详情页手动触发 AI 生成并缓存</td></tr>
+    </tbody>
+  </table>
+
+  <div class="note">
+    <b>明确的非目标（一期不做）：</b>多人多家庭与账号体系、食谱在线编辑、社交分享与评论、菜谱推荐算法、分享长图海报、H5/App 版本。这些都留到二期，一期先把「导入 → 看今天」这条主链路做扎实。
+  </div>
+</section>
+
+<section id="s2">
+  <div class="sec-head"><span class="sec-num">02</span><h2>输入数据勘察结论</h2><p>对你的 food(1).xlsx 逐格勘查后的结论，解析层的全部设计依据</p></div>
+
+  <div class="grid g4" style="margin-bottom:16px;">
+    <div class="metric"><div class="lab">工作表</div><div class="val">1 个</div><div class="sub">Sheet1，无隐藏表</div></div>
+    <div class="metric"><div class="lab">有效区域</div><div class="val">A1:H11</div><div class="sub">实际 200×26，大量虚高</div></div>
+    <div class="metric"><div class="lab">日期跨度</div><div class="val">7 天</div><div class="sub">9/20–9/26，仅一周</div></div>
+    <div class="metric"><div class="lab">菜品单元</div><div class="val">35 个</div><div class="sub">7 天 × 5 个餐位</div></div>
+  </div>
+
+  <h3>表格是「矩阵式」而不是数据表</h3>
+  <p>这是最重要的一个认知：<b>列是星期，行是餐次</b>。不是常见的「一天一行」。任何按行读的解析器都会解析失败。</p>
+
+  <div class="card">
+<pre><code>        A              B        C        D        E        F        G        H
+ 1   9/20-9/26        周日     周一     周二     周三     周四     周五     周六   ← 表头行
+ 2   早 ┐             早餐主食（7 天各 1 格）                              ← A2:A3 合并
+ 3     ┘             早餐饮品/米糊（7 天各 1 格）                          ← A 列为空
+ 4   中              午餐（7 天各 1 格）
+ 5   加餐            加餐（7 天各 1 格，多为「A/B」二选一）
+ 6   晚              晚餐（7 天各 1 格）
+ 7   食材处理（早）   备料备注（仅 B–F，G/H 空）
+ 8   解冻洗净备用（晚）备料备注（仅 B–G，H 空）
+ 9   （空行，分隔带）
+10   食材准备         B10:H10 合并 = "/排骨/虾"
+11   备餐            B11:H11 合并 = "1.香菇焯水"</code></pre>
+  </div>
+
+  <h3 style="margin-top:22px;">十六项结构陷阱与解析对策</h3>
+  <table>
+    <thead><tr><th style="width:20%;">类别</th><th style="width:38%;">现象</th><th>解析对策</th></tr></thead>
+    <tbody>
+      <tr><td class="k">结构</td><td>矩阵表，列=天、行=餐次</td><td>转置：按「日期列 × 餐次行」笛卡尔展开成记录流</td></tr>
+      <tr><td class="k">结构</td><td>A2:A3 合并，A3 读出来是 null</td><td>A 列前向填充（forward-fill），并把空标签识别为「同餐次续行」</td></tr>
+      <tr><td class="k">结构</td><td>B10:H10、B11:H11 横向合并</td><td>取合并区左上角值，其余列忽略，不做前向填充</td></tr>
+      <tr><td class="k">结构</td><td>第 9 行整行空，是分隔带</td><td>整行非空数 = 0 时跳过，不产出记录</td></tr>
+      <tr><td class="k">结构</td><td>早餐占两行，其余餐次占一行</td><td>早餐建模为两个 slot：主食 + 饮品，不假设「一餐一行」</td></tr>
+      <tr><td class="k">结构</td><td>A 列是桩列，混了餐次与操作说明</td><td>按关键词归类：餐次词 / 备料词 / 全局备餐词，无法归类的保留原文并告警</td></tr>
+      <tr><td class="k">结构</td><td>G7、H7、H8 空（周末无备料说明）</td><td>视为正常缺失，不告警；备料备注允许 undefined</td></tr>
+      <tr><td class="k">边界</td><td>表维度报 200 行 × 26 列，真实只到 H11</td><td>自己扫描非空单元格求边界，<b>禁用</b> <code>max_row</code> 之类的表维度</td></tr>
+      <tr><td class="k">日期</td><td>A1 是文本 <code>9/20-9/26</code>，无年份</td><td>正则提取 M/D，补年份；用表头星期名反推校验，跨年时 end 年 +1</td></tr>
+      <tr><td class="k">日期</td><td>表头是「周日 → 周六」，周日打头</td><td>列序映射必须按 B=周日，不能默认 B=周一；建议用常量表而非取模</td></tr>
+      <tr><td class="k">文本</td><td>菜名与配方混在一格，分隔符不统一</td><td>按 <code>：</code> <code>；</code> <code>换行</code> 三级切分，取第一个命中的位置切；未命中则整格即菜名</td></tr>
+      <tr><td class="k">文本</td><td><code>/</code> 表示「二选一」而非并列</td><td>拆成 <code>options[]</code>，展示为「A 或 B」，不产生两条并列菜品</td></tr>
+      <tr><td class="k">文本</td><td>同格内序号分隔符混用 <code>4.</code> <code>4，</code> <code>3，</code></td><td>步骤拆行用正则 <code>^\s*\d+\s*[.、,，)）]</code> 统一识别，而不是按固定符号切</td></tr>
+      <tr><td class="k">文本</td><td>单位混写：克/g/ml/毫升/个/颗/片/1.5</td><td>只做展示层归一化，不影响匹配；<code>胡萝卜1.5</code> 这类无量词值原样保留</td></tr>
+      <tr><td class="k">文本</td><td>全角半角混用、双空格、尾部多余顿号</td><td>切分前统一规范化：折叠连续空白、去尾部标点、括号统一</td></tr>
+      <tr><td class="k">资源</td><td>表内没有任何图片对象</td><td>配图素材必须另建，见第 07 节的三层方案</td></tr>
+    </tbody>
+  </table>
+
+  <div class="note warn">
+    <b>一个必须提前处理的时间问题：</b>这份表的周期是 <b>2026-09-20 至 09-26</b>，而今天是 09-18（周五）。也就是说，你上传的这份表里，<b>今天和明天都没有数据</b>。首页如果只做「有数据」一种形态，第一次跑起来就是一片空白 —— 这是第 06 节要把首页设计成三态的直接原因。
+  </div>
+</section>
+
+<section id="s3">
+  <div class="sec-head"><span class="sec-num">03</span><h2>技术选型与总体架构</h2><p>微信原生 + 云开发，解析全部下沉到云函数</p></div>
+
+  <table>
+    <thead><tr><th style="width:16%;">层</th><th style="width:30%;">选择</th><th>理由</th></tr></thead>
+    <tbody>
+      <tr><td>前端框架</td><td>微信小程序原生（TypeScript 模板）</td><td>与云开发深度集成，没有额外构建链；TS 能拿到完整的 openapi 类型提示，单人开发时少踩 API 拼写的坑</td></tr>
+      <tr><td>UI 组件</td><td>TDesign 小程序版</td><td>腾讯系，组件覆盖全（Cell / Collapse / Toast / Skeleton / Dialog 都够用），省掉自研交互组件的时间。若想完全掌控样式，也可只用 3–4 个自研组件，不影响架构</td></tr>
+      <tr><td>Excel 解析</td><td>云函数 + SheetJS（xlsx）</td><td><b>关键决策</b>：小程序主包只有 2MB，放不下 xlsx 库；云函数是完整 Node 环境，解析完直接返回结构化 JSON，一次往返</td></tr>
+      <tr><td>数据存储</td><td>云开发数据库</td><td>免运维、免服务器、免备案、免 HTTPS 域名。默认「仅创建者可读写」权限天然满足单用户场景</td></tr>
+      <tr><td>文件存储</td><td>云开发云存储</td><td>图片与原始 Excel 全部走云存储，小程序包体只放图标</td></tr>
+      <tr><td>日期处理</td><td>dayjs（小程序端 + 云函数）</td><td>体积小，ISO 周、加减天、跨月处理都成熟，避免手写 Date 运算出错</td></tr>
+      <tr><td>版本控制</td><td>GitHub + GitHub Actions</td><td>解析器单元测试跑在 CI 上，这是唯一有真实回归风险的部分</td></tr>
+    </tbody>
+  </table>
+
+  <h3 style="margin-top:22px;">云函数职责划分</h3>
+  <table>
+    <thead><tr><th style="width:20%;">云函数</th><th style="width:34%;">职责</th><th>设计要点</th></tr></thead>
+    <tbody>
+      <tr><td class="k">menuParse</td><td>读云存储中的 xlsx → 返回结构化 JSON + 告警列表。<b>不写库</b></td><td>纯函数式，便于单测；输出直接喂给校对页</td></tr>
+      <tr><td class="k">menuSave</td><td>接收校对后的 JSON → 写 periods 与 days</td><td>按 <code>_id</code> 幂等 upsert，重复导入同一周即覆盖，不堆垃圾</td></tr>
+      <tr><td class="k">menuQuery</td><td>按日期查单天、按周期查整周、查今天与明天</td><td>「今天」和「明天」<b>分两次独立查询</b>，因为跨周时它们可能属于不同周期</td></tr>
+      <tr><td class="k">dishImage</td><td>菜名 → 图片：命中查询、生成、写缓存</td><td>生成能力默认关闭，由前端显式触发</td></tr>
+    </tbody>
+  </table>
+
+  <div class="note">
+    <b>为什么解析要分「解析」和「保存」两个云函数？</b>因为这张表的脏数据程度决定了自动解析不可能 100% 准确。<code>menuParse</code> 只负责「尽力解析并如实报告问题」，把结果交给人在手机上校对一次；确认无误后再由 <code>menuSave</code> 落库。这样解析器可以放心地容错，而不必为了自动化去做过度猜测。
+  </div>
+</section>
+
+<section id="s4">
+  <div class="sec-head"><span class="sec-num">04</span><h2>数据模型设计</h2><p>三个集合，一天一条文档</p></div>
+
+  <h3>periods · 食谱周期</h3>
+  <p>一周一条。<b>用日期范围作为主键</b>，重复导入自动覆盖。</p>
+<pre><code>{
+  "_id": "2026-09-20_2026-09-26",     // 天然幂等键
+  "_openid": "oXXXX",
+  "startDate": "2026-09-20",
+  "endDate":   "2026-09-26",
+  "startWeekday": 0,                   // 0=周日
+  "rawRangeText": "9/20-9/26",         // 保留原文，便于回溯
+  "yearAssumed": true,                 // 年份是否为推断值
+  "sourceFileID": "cloud://.../food(1).xlsx",
+  "status": "active",
+  "createdAt": 1758170000000,
+  "updatedAt": 1758170000000
+}</code></pre>
+
+  <h3 style="margin-top:20px;">days · 单日食谱</h3>
+  <p>一天一条，<code>_id</code> 直接用 ISO 日期。首页只需按日期取一条，一次请求拿到当天全部信息。</p>
+<pre><code>{
+  "_id": "2026-09-20",
+  "_openid": "oXXXX",
+  "periodId": "2026-09-20_2026-09-26",
+  "date": "2026-09-20",
+  "weekday": 0,
+  "weekdayText": "周日",
+  "dayIndex": 0,
+
+  "meals": [
+    { "meal": "breakfast", "mealText": "早餐", "slot": 1,
+      "displayTitle": "大米糕", "options": [],
+      "recipe": null, "rawText": "大米糕",
+      "dishKeys": ["大米糕"], "needsReview": false },
+
+    { "meal": "breakfast", "mealText": "早餐饮品", "slot": 2,
+      "displayTitle": "莲藕消积米糊", "options": [],
+      "recipe": "18g 莲藕，18g苹果，18g南瓜，6g小米，300ml 水",
+      "rawText": "莲藕消积米糊：18g 莲藕， 18g苹果，...",
+      "dishKeys": ["莲藕消积米糊"], "needsReview": false },
+
+    { "meal": "snack", "mealText": "加餐", "slot": 1,
+      "displayTitle": "酸奶 或 六物饮", "options": ["酸奶", "六物饮"],
+      "recipe": null, "rawText": "酸奶/六物饮",
+      "dishKeys": ["酸奶", "六物饮"], "needsReview": false }
+  ],
+
+  "prepNotes": [
+    { "label": "食材处理（早）", "timing": "morning",
+      "steps": ["洋葱1，茄子1，胡萝卜1，西红柿半个，土豆泥1，西兰花1",
+                "羊肚菌洗净温水泡半小时，面条煮好，鸡蛋碎炒好，西红柿去皮"] }
+  ],
+
+  "globalPrep": { "食材准备": "/排骨/虾", "备餐": "1.香菇焯水" }
+}</code></pre>
+
+  <p><b>关键字段说明：</b></p>
+  <table>
+    <thead><tr><th style="width:20%;">字段</th><th>用途</th></tr></thead>
+    <tbody>
+      <tr><td class="k">meals[].slot</td><td>区分早餐的主食行与饮品行（1 / 2）。其余餐次固定为 1</td></tr>
+      <tr><td class="k">displayTitle</td><td>界面上直接显示的菜名。含二选一时为「A 或 B」</td></tr>
+      <tr><td class="k">options[]</td><td>二选一的候选项。非空时界面渲染成选择态，而不是两条菜</td></tr>
+      <tr><td class="k">recipe</td><td>菜名之下的配方与步骤原文，保留换行。菜谱详情页直接渲染</td></tr>
+      <tr><td class="k">rawText</td><td>单元格原文，永不清洗。校对出问题时可以回查原始内容</td></tr>
+      <tr><td class="k">dishKeys[]</td><td>归一化后的菜名，用来查配图。<b>展示用 displayTitle，查图用 dishKeys</b>，两者解耦</td></tr>
+      <tr><td class="k">needsReview</td><td>解析器标记的可疑项，导入校对页高亮提示</td></tr>
+      <tr><td class="k">prepNotes[].timing</td><td>备料备注的执行时间（morning / evening / unknown）。第 11 节有一个歧义待你确认</td></tr>
+    </tbody>
+  </table>
+
+  <h3 style="margin-top:20px;">dishImages · 菜名配图映射</h3>
+  <p>全局共享、跨周复用。<code>_id</code> 就是归一化后的菜名，天然去重。</p>
+<pre><code>{
+  "_id": "大米糕",                     // 归一化菜名
+  "_openid": "oXXXX",
+  "fileID": "cloud://xxx/dishes/大米糕.webp",
+  "source": "manual",                  // manual | ai | library
+  "status": "ready",                   // ready | generating | failed | placeholder
+  "prompt": null,                      // AI 生成时用的提示词，便于复现
+  "hitCount": 3,                       // 被命中次数，用来判断哪些菜最值得配图
+  "createdAt": 1758170000000,
+  "updatedAt": 1758170000000
+}</code></pre>
+
+  <div class="note ok">
+    <b>菜名归一化函数</b>是配图体系的地基，两端要共用同一份实现（放在 <code>shared/normalize.ts</code>，小程序端与云函数各引用一份编译产物）：
+  </div>
+<pre><code>function normalizeDishKey(name) {
+  return String(name)
+    .replace(/[\s\u3000]+/g, "")     // 去所有空白（含全角空格）
+    .replace(/^\d+\s*[.、,，)）]/, "") // 去开头序号
+    .replace(/[，、;；。,.]+$/, "")   // 去尾部标点
+    .replace(/[（(][^）)]*[)）]/g, "") // 去括号备注
+    .replace(/[＋+]/g, "")            // 去加号
+    .trim();
+}</code></pre>
+</section>
+
+<section id="s5">
+  <div class="sec-head"><span class="sec-num">05</span><h2>解析层详细设计</h2><p>整个项目风险最高的部分，也是应该最先写、最先测的部分</p></div>
+
+  <h3>十步解析算法</h3>
+  <div class="card">
+    <div class="step"><div class="n">1</div><div class="b"><h3>读表</h3><p>SheetJS 以 <code>header:1, defval:null, raw:false</code> 读出二维数组。按字符串读，避免日期序列号把文本日期吃掉。</p></div></div>
+    <div class="step"><div class="n">2</div><div class="b"><h3>自扫边界</h3><p>遍历二维数组求非空单元格的 min/max 行列。<b>不使用表维度</b> —— 这份表会报 200 行，直接扫会产出巨型空表。</p></div></div>
+    <div class="step"><div class="n">3</div><div class="b"><h3>定位表头行</h3><p>在边界内逐行扫描，找到第一行含有 ≥5 个匹配 <code>/^周[一二三四五六日天]$/</code> 的单元格的行。记下这些单元格的列号与星期值，得到「日期列映射」。</p></div></div>
+    <div class="step"><div class="n">4</div><div class="b"><h3>解析周区间</h3><p>从表头行左侧取 <code>9/20-9/26</code>，正则 <code>(\d{1,2})\/(\d{1,2})\s*[-~至]\s*(\d{1,2})\/(\d{1,2})</code> 提取。补年份：默认当前年；若推算出的起始日星期与表头首列星期不符，则试 ±1 年。若结束月 &lt; 开始月，结束年 +1（跨年周）。</p></div></div>
+    <div class="step"><div class="n">5</div><div class="b"><h3>生成日期序列</h3><p>用 dayjs 从起始日推进 7 天，与日期列一一对应。用每个日期的实际星期名与表头文字做逐列校验，不符则发 W003。</p></div></div>
+    <div class="step"><div class="n">6</div><div class="b"><h3>A 列前向填充</h3><p>向下遍历表头行之后的行，A 列为空时沿用上一个非空值。这一步解决 A2:A3 合并；同时记录「本行 A 列是否为空」，空的即为同餐次续行。</p></div></div>
+    <div class="step"><div class="n">7</div><div class="b"><h3>行归类</h3><p>按 A 列标签把行分成四类：餐次行（早/中/加餐/晚）、备料行（含「食材处理」「解冻」「备料」）、全局备餐行（「食材准备」「备餐」）、分隔行（整行空）。无法归类的行保留原文并发 W010。</p></div></div>
+    <div class="step"><div class="n">8</div><div class="b"><h3>转置展开</h3><p>对每个日期列 × 每个餐次行取单元格，产出一条 meal 记录；对备料行取文本归入 <code>prepNotes</code>；对全局备餐的合并单元格只取左上角值。</p></div></div>
+    <div class="step"><div class="n">9</div><div class="b"><h3>菜名切分</h3><p>先规范化文本，再找第一个 <code>：</code> / <code>；</code> / <code>换行</code> 的位置切分。切分前处理后得到 dishName，切分后得到 recipe。命中 <code>/</code> 时拆成 options。</p></div></div>
+    <div class="step"><div class="n">10</div><div class="b"><h3>产出与告警</h3><p>输出 <code>{ period, days[], warnings[] }</code>。days 覆盖全部 7 天（含空天），空缺项标 missing，不跳过 —— 首页三态需要知道「这一天存在但没内容」和「这一天不在周期内」的区别。</p></div></div>
+  </div>
+
+  <h3 style="margin-top:22px;">菜名切分的核心实现</h3>
+<pre><code>const SPLITTERS = ["：", ":", "；", ";", "\n"];
+
+function splitDish(cellText) {
+  if (!cellText || !cellText.trim()) {
+    return { displayTitle: "", options: [], recipe: null, needsReview: false };
+  }
+
+  // 1) 规范化：折叠空白、去尾部标点，但保留换行用于步骤拆分
+  let text = String(cellText)
+    .replace(/[\u3000]/g, " ")
+    .replace(/[ \t]{2,}/g, " ")
+    .trim();
+
+  // 2) 找第一个分隔符的位置
+  let cut = -1;
+  for (const s of SPLITTERS) {
+    const i = text.indexOf(s);
+    if (i &gt;= 0 &amp;&amp; (cut &lt; 0 || i &lt; cut)) cut = i;
+  }
+
+  let namePart = cut &gt;= 0 ? text.slice(0, cut) : text;
+  let recipe   = cut &gt;= 0 ? text.slice(cut + 1).trim() : null;
+
+  // 3) 清掉菜名里的序号与尾部标点
+  namePart = namePart
+    .replace(/^\s*\d+\s*[.、,，)）]\s*/, "")
+    .replace(/[，、;；。,.]+$/, "")
+    .trim();
+
+  // 4) 二选一："/" 拆成 options，不产生并列菜品
+  const options = namePart.split("/").map(s =&gt; s.trim()).filter(Boolean);
+
+  const displayTitle = options.length &gt; 1
+    ? options.join(" 或 ")
+    : (options[0] || namePart);
+
+  // 5) 可疑项标记：切分后菜名仍然过长，说明分隔符没命中
+  const needsReview = displayTitle.length &gt; 20 || options.some(o =&gt; o.length &gt; 16);
+
+  return { displayTitle, options: options.length &gt; 1 ? options : [], recipe, needsReview };
+}</code></pre>
+
+  <h3 style="margin-top:22px;">告警码表</h3>
+  <table>
+    <thead><tr><th style="width:12%;">码</th><th style="width:12%;">级别</th><th style="width:38%;">触发条件</th><th>处理</th></tr></thead>
+    <tbody>
+      <tr><td class="k">W001</td><td><span class="tag t-red">阻断</span></td><td>找不到表头行（无 ≥5 个星期单元格）</td><td>中止导入，提示「表格模板不匹配」并展示期望格式</td></tr>
+      <tr><td class="k">W002</td><td><span class="tag t-amber">警告</span></td><td>年份是推断值（本表必然触发）</td><td>校对页顶部显示年份选择器，默认推断值，需用户确认</td></tr>
+      <tr><td class="k">W003</td><td><span class="tag t-amber">警告</span></td><td>表头星期名与日期推算的星期不一致</td><td>逐列列出冲突，让用户选以哪个为准</td></tr>
+      <tr><td class="k">W004</td><td><span class="tag t-blue">提示</span></td><td>检测到合并单元格并已自动填充</td><td>展示填充前后对照，可回退</td></tr>
+      <tr><td class="k">W005</td><td><span class="tag t-amber">警告</span></td><td>某天某餐次为空</td><td>在校对页标注空缺，允许留空保存</td></tr>
+      <tr><td class="k">W006</td><td><span class="tag t-amber">警告</span></td><td>菜名切分可疑（长度超阈值）</td><td>高亮该行，附原文，允许手动改菜名与配方</td></tr>
+      <tr><td class="k">W007</td><td><span class="tag t-blue">提示</span></td><td>单元格含 <code>/</code>，已按二选一处理</td><td>展示拆分结果，可切回「并列两道菜」</td></tr>
+      <tr><td class="k">W008</td><td><span class="tag t-amber">警告</span></td><td>与已有周期日期重叠</td><td>让用户选「覆盖 / 跳过 / 并存」</td></tr>
+      <tr><td class="k">W009</td><td><span class="tag t-blue">提示</span></td><td>同周内出现重复菜名</td><td>提示可批量套用同一张配图</td></tr>
+      <tr><td class="k">W010</td><td><span class="tag t-amber">警告</span></td><td>行标签无法归类</td><td>保留原文，标记为「未识别备注」在校对页人工归类</td></tr>
+    </tbody>
+  </table>
+
+  <div class="note ok">
+    <b>把这张表本身存成测试固件。</b><code>tests/fixtures/food-week.xlsx</code> 直接用你这份文件，CI 里跑断言：解析出 7 天、35 个菜品单元、2 条备料备注、2 条全局备餐、边界收在 H11、W002/W004/W007 按预期触发。以后家人改了表格版式，一跑测试就知道解析器有没有被改坏。
+  </div>
+</section>
+
+<section id="s6">
+  <div class="sec-head"><span class="sec-num">06</span><h2>页面与交互设计</h2><p>三 tab + 三个二级页</p></div>
+
+  <h3>信息架构</h3>
+  <div class="flow">
+    <span class="n2">今日（首页）</span><span class="a">·</span>
+    <span class="n2">一周</span><span class="a">·</span>
+    <span class="n2">我的</span>
+  </div>
+  <table>
+    <thead><tr><th style="width:22%;">页面</th><th style="width:14%;">类型</th><th>职责</th></tr></thead>
+    <tbody>
+      <tr><td class="k">pages/today</td><td><span class="tag t-blue">tab</span></td><td>首页。今天卡片（按餐次展开）+ 明天卡片（摘要 + 提前准备）+ 本周横滑速览。三态处理</td></tr>
+      <tr><td class="k">pages/week</td><td><span class="tag t-blue">tab</span></td><td>整周宫格，7 张日卡片。顶部带菜名搜索，输入关键字可直接跳到对应那天</td></tr>
+      <tr><td class="k">pages/mine</td><td><span class="tag t-blue">tab</span></td><td>已导入周期列表、导入入口、图片缓存统计与清理、关于</td></tr>
+      <tr><td class="k">pages/day</td><td><span class="tag t-gray">二级</span></td><td>某天完整详情：全部餐次 + 该天的备料备注步骤</td></tr>
+      <tr><td class="k">pages/dish</td><td><span class="tag t-gray">二级</span></td><td>菜谱详情：大图 + 菜名 + 配方步骤（recipe 原文按行渲染）+ 「生成配图」按钮</td></tr>
+      <tr><td class="k">pages/import</td><td><span class="tag t-gray">二级</span></td><td>导入向导三步：选文件 → 校对 → 完成</td></tr>
+    </tbody>
+  </table>
+
+  <h3 style="margin-top:22px;">首页三态逻辑（体验核心）</h3>
+  <p>首页渲染前先判断今天落在哪个状态。<b>今天与明天要分别查询</b>，因为周日晚上「明天」已经属于下一个周期了。</p>
+<pre><code>function resolveDayState(dateStr, periods) {
+  const p = periods.find(p =&gt; p.startDate &lt;= dateStr &amp;&amp; dateStr &lt;= p.endDate);
+  if (p) return { state: "in-period", period: p };
+
+  const next = periods
+    .filter(p =&gt; p.startDate &gt; dateStr)
+    .sort((a, b) =&gt; a.startDate.localeCompare(b.startDate))[0];
+
+  if (next) {
+    return { state: "before-period", period: next, gapDays: diffDays(dateStr, next.startDate) };
+  }
+  return { state: "after-period" };
+}</code></pre>
+
+  <table>
+    <thead><tr><th style="width:18%;">状态</th><th style="width:30%;">触发条件</th><th>首页呈现</th></tr></thead>
+    <tbody>
+      <tr><td><span class="tag t-teal">in-period</span></td><td>今天落在某个周期内</td><td>今天卡片按餐次逐行展开（早 / 早餐饮品 / 中 / 加餐 / 晚），每行左侧配图缩略图；明天卡片折叠为摘要行 + 提前准备提示条</td></tr>
+      <tr><td><span class="tag t-amber">before-period</span></td><td>今天在已有周期之前（<b>你当前就是这种</b>）</td><td>显示「N 天后开始新一周食谱」的大数字倒计时 + 该周第一天预览 + 可点进完整周视图</td></tr>
+      <tr><td><span class="tag t-gray">after-period</span></td><td>今天晚于所有周期</td><td>空态卡片「上一周食谱已结束」+ 周期区间 + 「去导入新一周」主按钮</td></tr>
+    </tbody>
+  </table>
+
+  <div class="note">
+    <b>「提前准备」提示条的设计</b>：你的表格里第 7 行「食材处理（早）」、第 8 行「解冻洗净备用（晚）」和「备餐」行，本质是<b>前置准备信息</b>，散落在表格底部很容易被忽略。首页把它们提炼成明天卡片下方的一条橙色提示，例如「提前准备：牛肉腌制 · 鳕鱼去腥」。这是这个产品相对「直接看 Excel」最明显的增量价值。
+  </div>
+
+  <h3 style="margin-top:22px;">可复用组件</h3>
+  <table>
+    <thead><tr><th style="width:24%;">组件</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td class="k">day-card</td><td>单日卡片。今日 / 明日 / 周视图三处复用，通过 <code>variant</code> 控制展开或折叠</td></tr>
+      <tr><td class="k">meal-row</td><td>餐次行。左侧配图缩略图，右侧菜名与餐次标签。支持渲染 options 二选一态</td></tr>
+      <tr><td class="k">dish-thumb</td><td>菜品缩略图。含三种状态：加载中骨架 / 命中图片 / 占位色块，失败自动降级</td></tr>
+      <tr><td class="k">prep-tip</td><td>提前准备提示条，橙色系，可展开看完整步骤</td></tr>
+      <tr><td class="k">period-empty</td><td>周期空态，三态中后两态复用</td></tr>
+      <tr><td class="k">review-row</td><td>导入校对页的菜名编辑行，带告警标记与原文展开</td></tr>
+    </tbody>
+  </table>
+
+  <h3 style="margin-top:22px;">导入向导三步</h3>
+  <div class="card">
+    <div class="step"><div class="n">1</div><div class="b"><h3>选文件</h3><p>调用 <code>wx.chooseMessageFile</code> 从聊天会话中选 xlsx。注意：<b>微信小程序没有通用的文件选择器</b>，只能从聊天记录里选。所以这一页必须写清引导文案：「先把表格发到文件传输助手，再回来选」。</p></div></div>
+    <div class="step"><div class="n">2</div><div class="b"><h3>上传并解析</h3><p>上传到云存储拿 fileID，调 <code>menuParse</code>，拿回结构化 JSON 与告警列表。显示解析进度与告警计数。</p></div></div>
+    <div class="step"><div class="n">3</div><div class="b"><h3>校对并保存</h3><p>顶部确认年份；按告警高亮可疑菜名，支持点击改成「菜名 / 配方」两栏；确认后调 <code>menuSave</code> 落库，跳回首页。</p></div></div>
+  </div>
+</section>
+
+<section id="s7">
+  <div class="sec-head"><span class="sec-num">07</span><h2>菜品配图方案</h2><p>三层兜底，默认不自动烧钱</p></div>
+
+  <div class="note stop">
+    <b>前提：你的表格里没有任何图片对象。</b>配图素材必须从零建立，这是需求 3 的主要工作量来源。
+  </div>
+
+  <h3>三层策略</h3>
+  <table>
+    <thead><tr><th style="width:10%;">层</th><th style="width:24%;">策略</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td><span class="tag t-teal">一层</span></td><td>图库精确命中</td><td>菜名归一化后查 <code>dishImages._id</code>，命中即用。命中后 <code>hitCount + 1</code>，用来统计哪些菜最常吃、最值得配真图</td></tr>
+      <tr><td><span class="tag t-blue">二层</span></td><td>占位图兜底</td><td>纯 WXSS 渲染，<b>零网络请求</b>。按餐次配色 + 菜名首字，例如早餐用暖橙底 + 「大」。这层保证「没有图也好看」，是整个方案能成立的关键</td></tr>
+      <tr><td><span class="tag t-violet">三层</span></td><td>手动触发 AI 生成</td><td>菜谱详情页一个「生成配图」按钮 → 云函数调文生图 → 存云存储 → 写回 dishImages。生成一次，全局永久复用</td></tr>
+    </tbody>
+  </table>
+
+  <h3 style="margin-top:22px;">占位图配色（按餐次）</h3>
+  <table>
+    <thead><tr><th style="width:20%;">餐次</th><th style="width:20%;">底色</th><th style="width:20%;">文字色</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td>早餐</td><td><span class="tag t-amber">#FAEEDA</span></td><td><span class="tag t-amber">#854F0B</span></td><td>暖橙，对应清晨</td></tr>
+      <tr><td>午餐</td><td><span class="tag" style="background:#EAF3DE;color:#3B6D11;">#EAF3DE</span></td><td><span class="tag" style="background:#EAF3DE;color:#3B6D11;">#3B6D11</span></td><td>草绿，对应正餐</td></tr>
+      <tr><td>加餐</td><td><span class="tag" style="background:#FBEAF0;color:#993556;">#FBEAF0</span></td><td><span class="tag" style="background:#FBEAF0;color:#993556;">#993556</span></td><td>浅粉，对应点心</td></tr>
+      <tr><td>晚餐</td><td><span class="tag t-blue">#E6F1FB</span></td><td><span class="tag t-blue">#0C447C</span></td><td>靛蓝，对应傍晚</td></tr>
+    </tbody>
+  </table>
+
+  <h3 style="margin-top:22px;">为什么把 AI 生成做成手动触发</h3>
+  <ul class="tight">
+    <li><b>成本可控。</b>一周 35 道菜，如果导入即全部生成，一次导入就是 35 次调用。手动触发后，只有你真的想看的那几道菜会被生成。</li>
+    <li><b>合规更简单。</b>AI 生成内容在小程序里需要内容安全机制。低频、手动、有明确用户意图的生成，比批量自动生成容易说明和管控。</li>
+    <li><b>效果更好。</b>自动生成的图你多半不会看，手动点的那些才是你真关心的菜，值得花时间调提示词。</li>
+  </ul>
+
+  <h4 style="font-size:13.5px; font-weight:500; margin:16px 0 8px;">提示词模板</h4>
+<pre><code>家常菜摄影，{菜名}，白色陶瓷盘俯拍，
+自然光从左上，浅色木质桌面，暖色调，
+食物占画面主体，无文字，无水印，正方形构图</code></pre>
+
+  <h4 style="font-size:13.5px; font-weight:500; margin:16px 0 8px;">图片规格与容量</h4>
+  <div class="grid g3">
+    <div class="metric"><div class="lab">存储格式</div><div class="val">WebP</div><div class="sub">质量 70</div></div>
+    <div class="metric"><div class="lab">长边</div><div class="val">640 px</div><div class="sub">详情页原图够用</div></div>
+    <div class="metric"><div class="lab">单图体积</div><div class="val">40–80 KB</div><div class="sub">基础套餐 2GB 容量（库+存储共享）约可放 2 万张</div></div>
+  </div>
+</section>
+
+<section id="s8">
+  <div class="sec-head"><span class="sec-num">08</span><h2>仓库结构与工程规范</h2><p>GitHub 单人协作的最小可用约定</p></div>
+
+  <h3>目录结构</h3>
+<pre><code>haofan/                             # GitHub 仓库：好饭
+├─ .github/
+│  └─ workflows/ci.yml              # lint + 解析器单测
+├─ miniprogram/                     # 小程序前端
+│  ├─ app.ts / app.json / app.wxss
+│  ├─ pages/
+│  │  ├─ today/                     # 首页：今天 + 明天（三态）
+│  │  ├─ week/                      # 一周视图 + 搜索
+│  │  ├─ day/                       # 单日详情
+│  │  ├─ dish/                      # 菜谱详情
+│  │  ├─ import/                    # 导入向导三步
+│  │  └─ mine/
+│  ├─ components/
+│  │  ├─ day-card/  meal-row/  dish-thumb/
+│  │  └─ prep-tip/  period-empty/  review-row/
+│  ├─ utils/
+│  │  ├─ date.ts                    # 日期与周计算
+│  │  ├─ api.ts                     # 云函数调用封装
+│  │  ├─ normalize.ts               # 菜名归一化（与云函数共用源码）
+│  │  └─ const.ts                   # 餐次常量、配色映射
+│  └─ styles/
+├─ cloudfunctions/
+│  ├─ menuParse/
+│  │  ├─ index.ts
+│  │  └─ lib/
+│  │     ├─ parseExcel.ts           # ★ 核心解析器
+│  │     ├─ normalize.ts
+│  │     └─ validate.ts             # 告警码产出
+│  ├─ menuSave/index.ts
+│  ├─ menuQuery/index.ts
+│  └─ dishImage/index.ts
+├─ tests/
+│  ├─ fixtures/food-week.xlsx       # ★ 就用你这份表当固件
+│  └─ parseExcel.test.ts
+├─ docs/
+│  ├─ 设计方案与开发计划.html        # 本文件
+│  ├─ 解析规则.md                    # 算法与告警码的详细说明
+│  └─ adr/                          # 架构决策记录
+├─ README.md
+├─ CHANGELOG.md
+├─ .gitignore
+├─ .eslintrc.cjs / .prettierrc
+├─ tsconfig.json
+└─ project.config.json</code></pre>
+
+  <h3 style="margin-top:22px;">工程规范</h3>
+  <table>
+    <thead><tr><th style="width:22%;">项</th><th>约定</th></tr></thead>
+    <tbody>
+      <tr><td>提交信息</td><td>Conventional Commits：<code>feat:</code> <code>fix:</code> <code>docs:</code> <code>refactor:</code> <code>test:</code> <code>chore:</code>。单人开发也值得写，因为 <code>CHANGELOG</code> 可以自动生成</td></tr>
+      <tr><td>分支</td><td><code>main</code> 始终可发布；功能走 <code>feat/xxx</code> 短分支，做完即合、即删</td></tr>
+      <tr><td>CI</td><td>push 与 PR 时跑 ESLint + Prettier 检查 + <code>npm test</code>（解析器）。解析测试挂了直接拦住合并</td></tr>
+      <tr><td>忽略清单</td><td><code>node_modules/</code>、<code>cloudfunctions/*/node_modules/</code>、<code>miniprogram_npm/</code>、<code>.env</code>、<code>*.log</code>、<code>dist/</code></td></tr>
+      <tr><td>密钥</td><td>任何 SecretId / SecretKey / AI 服务密钥一律走云函数环境变量，<b>不入库</b>。小程序 AppID 与云环境 ID 不敏感，可以入库</td></tr>
+      <tr><td>文档同步</td><td>解析规则改动必须同时更新 <code>docs/解析规则.md</code> 与固件测试断言，否则视为未完成</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="s9">
+  <div class="sec-head"><span class="sec-num">09</span><h2>分阶段开发计划</h2><p>7 个里程碑，按「风险最高的先做」排序</p></div>
+
+  <div class="card">
+    <div class="ms">
+      <div class="badge" style="background:var(--violet-bg); color:var(--violet-ink);">M0</div>
+      <div class="b">
+        <h3>环境与骨架<span class="dur">0.5 人天</span></h3>
+        <ul>
+          <li>注册小程序 AppID，开通云开发环境</li>
+          <li>建 GitHub 仓库、目录骨架、ESLint + Prettier + CI</li>
+          <li>配上 tabBar 与三个空页面，确认真机预览通路</li>
+        </ul>
+        <div class="accept">验收：clone 下来能起模拟器看到 tabBar 三个页面；push 后 Actions 是绿的</div>
+      </div>
+    </div>
+
+    <div class="ms">
+      <div class="badge" style="background:var(--red-bg); color:var(--red);">M1</div>
+      <div class="b">
+        <h3>解析器<span class="dur">3–4 人天</span></h3>
+        <p style="margin:0 0 6px; font-size:13px; color:var(--ink2);">全项目最高风险，必须最先做。这部分做通了，后面都是体力活；做不通，后面做多少都没用。</p>
+        <ul>
+          <li>实现十步解析算法，覆盖第 02 节的 16 项陷阱</li>
+          <li>告警码体系 W001–W010</li>
+          <li>把 food(1).xlsx 存成固件，写完整断言</li>
+          <li>把解析器拆成不依赖云环境的纯函数，本地 <code>npm test</code> 就能跑</li>
+        </ul>
+        <div class="accept">验收：<code>npm test</code> 全绿；对固件输出 7 天 / 35 个菜品单元 / 2 条备料备注 / 2 条全局备餐，边界收在 H11，W002、W004、W007 按预期触发</div>
+      </div>
+    </div>
+
+    <div class="ms">
+      <div class="badge" style="background:var(--red-bg); color:var(--red);">M2</div>
+      <div class="b">
+        <h3>导入闭环<span class="dur">2–3 人天</span></h3>
+        <ul>
+          <li><code>wx.chooseMessageFile</code> 选表 → 上传云存储 → menuParse</li>
+          <li>校对页：年份确认、告警高亮、菜名与配方两栏编辑</li>
+          <li>menuSave 幂等落库</li>
+        </ul>
+        <div class="accept">验收：真机从「文件传输助手」选表，走完三步，云数据库里出现 7 条 days 与 1 条 periods；重复导入同一周不产生重复数据</div>
+      </div>
+    </div>
+
+    <div class="ms">
+      <div class="badge" style="background:var(--amber-bg); color:var(--amber-ink);">M3</div>
+      <div class="b">
+        <h3>首页今日 / 明日<span class="dur">3–4 人天</span></h3>
+        <p style="margin:0 0 6px; font-size:13px; color:var(--ink2);">产品体验的核心，你需求 2 的全部内容都在这里。</p>
+        <ul>
+          <li>三态判定与渲染：in-period / before-period / after-period</li>
+          <li>今天卡片按餐次展开（含早餐两行结构）</li>
+          <li>明天卡片摘要 + 提前准备提示条</li>
+          <li>本周横滑速览，点击进入单日详情</li>
+        </ul>
+        <div class="accept">验收：把系统日期分别改到 09-18（周期前）、09-20（周期内）、09-27（周期后），三种形态都正确渲染；09-26 当天「明天」能正确取到下一周期的数据</div>
+      </div>
+    </div>
+
+    <div class="ms">
+      <div class="badge" style="background:var(--amber-bg); color:var(--amber-ink);">M4</div>
+      <div class="b">
+        <h3>周视图 / 单日 / 菜谱详情<span class="dur">2–3 人天</span></h3>
+        <ul>
+          <li>pages/week 整周宫格 + 菜名搜索</li>
+          <li>pages/day 单日详情（含该天备料步骤）</li>
+          <li>pages/dish 菜谱详情，recipe 按行渲染成步骤列表</li>
+          <li>抽出 day-card / meal-row 组件，回填到首页复用</li>
+        </ul>
+        <div class="accept">验收：从首页点任一道菜，三跳内到达详情且能看到配方步骤；周视图七天数据与 Excel 逐格核对一致</div>
+      </div>
+    </div>
+
+    <div class="ms">
+      <div class="badge" style="background:var(--blue-bg); color:var(--blue-ink);">M5</div>
+      <div class="b">
+        <h3>菜品配图<span class="dur">3–4 人天</span></h3>
+        <ul>
+          <li>dishImages 集合与查询逻辑</li>
+          <li>按餐次配色的占位图组件（零请求，先让界面完整）</li>
+          <li>dish-thumb 三态：骨架 / 图片 / 占位降级</li>
+          <li>详情页「生成配图」按钮 → AI 生成 → 压 WebP → 存云存储 → 写缓存</li>
+        </ul>
+        <div class="accept">验收：没有任何图片时界面完整不崩；同一道菜第二次进入命中缓存，不重复调用生成接口；单图体积控制在 80KB 以内</div>
+      </div>
+    </div>
+
+    <div class="ms">
+      <div class="badge" style="background:var(--teal-bg); color:var(--teal-ink);">M6</div>
+      <div class="b">
+        <h3>打磨与发布<span class="dur">2–3 人天</span></h3>
+        <ul>
+          <li>加载骨架屏、错误态、网络异常提示</li>
+          <li>真机适配：iPhone 与 Android 各一台，重点看长菜名换行与小屏适配</li>
+          <li>小程序分类、隐私协议、审核材料提交</li>
+          <li>写 README 与使用说明（给家人看的那份）</li>
+        </ul>
+        <div class="accept">验收：两台真机无布局错乱；审核通过并可在自己微信中使用</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid g3" style="margin-top:16px;">
+    <div class="metric"><div class="lab">总计估算</div><div class="val">16–22 人天</div><div class="sub">按业余时间约 3–5 周</div></div>
+    <div class="metric"><div class="lab">关键路径</div><div class="val">M1 → M2 → M3</div><div class="sub">其余模块可并行或延后</div></div>
+    <div class="metric"><div class="lab">第一个可用版本</div><div class="val">M0–M4</div><div class="sub">约 11–15 人天</div></div>
+  </div>
+
+  <div class="note">
+    <b>排期建议：</b>M1（解析器）不要在云函数里调试。先写成一个独立的 Node 脚本，用固件在本地把 35 个单元格的输出全部打出来逐格核对，确认无误后再搬进云函数。云函数的调试往返成本是本地脚本的十倍以上，这一步偷懒会亏回去。
+  </div>
+</section>
+
+<section id="s10">
+  <div class="sec-head"><span class="sec-num">10</span><h2>风险清单与对策</h2></div>
+
+  <table>
+    <thead><tr><th style="width:26%;">风险</th><th style="width:10%;">影响</th><th>对策</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>家人下周改了表格版式</td><td><span class="tag t-red">高</span></td>
+        <td>解析器全量容错 + 告警码 + 校对页人工兜底；固件测试挡住回归；<code>docs/解析规则.md</code> 写清依赖了哪些结构假设</td>
+      </tr>
+      <tr>
+        <td>小程序只能从聊天会话选文件，用户不知道怎么导入</td><td><span class="tag t-amber">中</span></td>
+        <td>导入首屏直接给图文引导：「把 Excel 发到文件传输助手 → 回来点选文件」。这是平台限制，绕不过去，只能把引导做清楚</td>
+      </tr>
+      <tr>
+        <td>表格日期没有年份，跨年时错位</td><td><span class="tag t-amber">中</span></td>
+        <td>用表头星期名反推校验年份；校对页显式展示推断依据并要求确认；跨年周（如 12/28–1/3）单独处理结束年 +1</td>
+      </tr>
+      <tr>
+        <td>菜名切分错误，导致配图错配、界面难看</td><td><span class="tag t-amber">中</span></td>
+        <td>长度阈值触发 W006 高亮；校对页支持手动拆分菜名与配方；<code>rawText</code> 永远保留原文可回查</td>
+      </tr>
+      <tr>
+        <td>AI 生图成本失控</td><td><span class="tag t-amber">中</span></td>
+        <td>默认关闭自动生成，改手动触发；生成结果永久缓存；<code>hitCount</code> 排序，只给你最常吃的菜生成</td>
+      </tr>
+      <tr>
+        <td>云存储容量与云函数调用额度</td><td><span class="tag" style="background:#F1EFE8;color:#5F5E5A;">低</span></td>
+        <td>图片统一压成 WebP、长边 640、质量 70；「我的」页显示用量与一键清理未被引用的图片</td>
+      </tr>
+      <tr>
+        <td>云数据库权限配置错误导致数据外泄</td><td><span class="tag t-red">高</span></td>
+        <td>保持默认「仅创建者可读写」，靠 <code>_openid</code> 天然隔离。<b>绝对不要</b>为了图省事改成「所有人可读」</td>
+      </tr>
+      <tr>
+        <td>主包超过 2MB 编译失败</td><td><span class="tag" style="background:#F1EFE8;color:#5F5E5A;">低</span></td>
+        <td>所有图片走云存储，本地只放十几个图标；xlsx 库只存在于云函数，不打包进小程序</td>
+      </tr>
+      <tr>
+        <td>小程序审核被驳回</td><td><span class="tag t-amber">中</span></td>
+        <td>分类选「工具」；如启用 AI 生图，需准备好内容安全机制说明与用户可关闭的入口；单用户工具类通常审核较宽松</td>
+      </tr>
+      <tr>
+        <td>云开发套餐到期未续费，环境被释放、数据清除</td><td><span class="tag t-red">高</span></td>
+        <td>到期前 7 天公众号通知，到期后 7 天内可续费找回，第 8 天释放且不可恢复。对策：预充值并开自动续费（需切换为腾讯云支付）；dishImages 每月导出 JSON 备份；periods 与 days 可从源 Excel 幂等重建（见第 13 节）</td>
+      </tr>
+      <tr>
+        <td>备料行的「早 / 晚」语义判断错，提示条给错时间</td><td><span class="tag t-amber">中</span></td>
+        <td>建模为可编辑的 <code>timing</code> 字段；校对页允许逐条改标签；见第 11 节待确认项</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="s11">
+  <div class="sec-head"><span class="sec-num">11</span><h2>待你确认的决策点</h2><p>这几项会实际影响实现，先按我的默认判断写了，你随时可以改</p></div>
+
+  <table>
+    <thead><tr><th style="width:32%;">问题</th><th style="width:30%;">我的默认处理</th><th>需要你确认什么</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>「食材处理（早）」和「解冻洗净备用（晚）」里的<b>早 / 晚</b>，指的是「早上做的前置处理 / 晚上做的前置处理」，还是「对应早餐 / 对应晚餐」？</td>
+        <td>按<b>执行时间</b>建模，归入 <code>prepNotes[].timing</code>（morning / evening），首页提示条按时间显示</td>
+        <td>从内容看更像执行时间（第 8 行写的是「米糊备好、软饭备好」，和早餐午餐更相关）。但这直接影响提示条出现在哪张卡片上，需要你确认</td>
+      </tr>
+      <tr>
+        <td>加餐里的 <code>/</code>（如「酸奶/六物饮」）是<b>二选一</b>还是两道都要？</td>
+        <td>按<b>二选一</b>建模，拆成 <code>options[]</code>，界面显示「酸奶 或 六物饮」</td>
+        <td>如果实际是「两样都吃」，改成一个开关即可，数据模型不用动</td>
+      </tr>
+      <tr>
+        <td>表格没有年份，导入时如何处理？</td>
+        <td>默认按<b>就近未来周</b>推断年份，校对页显式显示并要求确认</td>
+        <td>是否接受这个默认值？（用表头星期名反推可以校验，本表 9/20 确为周日，推断是对的）</td>
+      </tr>
+      <tr>
+        <td>是否需要独立的「菜谱库」页，浏览做过的所有菜？</td>
+        <td>一期不做，菜名搜索放在「一周」页顶部</td>
+        <td>如果你会想「上次那个米糊怎么做的」，那值得独立成一页，加约 1 人天</td>
+      </tr>
+      <tr>
+        <td>「分享长图」要不要排进二期？</td>
+        <td>一期不做，但数据模型已预留（<code>meals[].recipe</code> 结构足够渲染海报）</td>
+        <td>确认是否会发给家人群，决定是否提前设计分享链路</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="s12">
+  <div class="sec-head"><span class="sec-num">12</span><h2>MVP 范围界定</h2><p>什么算「做完了」</p></div>
+
+  <div class="grid g3">
+    <div class="card">
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+        <span class="tag t-amber">v0.1</span><span style="font-size:12px; color:var(--ink3);">M0–M4 · 11–15 人天</span>
+      </div>
+      <p style="font-size:13px; margin-bottom:8px;"><b>自己家能用了。</b></p>
+      <ul class="tight" style="font-size:13px; color:var(--ink2);">
+        <li>导入 Excel 并校对落库</li>
+        <li>首页三态，今天与明天清晰可读</li>
+        <li>周视图、单日、菜谱详情</li>
+        <li>配图用占位色块</li>
+      </ul>
+      <p style="font-size:12.5px; color:var(--ink3); margin:8px 0 0;">到这一步就已经比直接翻 Excel 好用得多。</p>
+    </div>
+
+    <div class="card">
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+        <span class="tag t-blue">v0.2</span><span style="font-size:12px; color:var(--ink3);">M5 · 3–4 人天</span>
+      </div>
+      <p style="font-size:13px; margin-bottom:8px;"><b>体验完整。</b></p>
+      <ul class="tight" style="font-size:13px; color:var(--ink2);">
+        <li>dishImages 图库与命中逻辑</li>
+        <li>详情页一键生成配图</li>
+        <li>图片缓存与降级链路</li>
+      </ul>
+      <p style="font-size:12.5px; color:var(--ink3); margin:8px 0 0;">需求 3 完整落地。</p>
+    </div>
+
+    <div class="card">
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+        <span class="tag t-teal">v1.0</span><span style="font-size:12px; color:var(--ink3);">M6 · 2–3 人天</span>
+      </div>
+      <p style="font-size:13px; margin-bottom:8px;"><b>能长期用。</b></p>
+      <ul class="tight" style="font-size:13px; color:var(--ink2);">
+        <li>加载与错误态完整</li>
+        <li>真机适配通过</li>
+        <li>过审上线</li>
+        <li>README 与家人使用说明</li>
+      </ul>
+      <p style="font-size:12.5px; color:var(--ink3); margin:8px 0 0;">可以交付给家人日常使用。</p>
+    </div>
+  </div>
+
+  <div class="note ok" style="margin-top:16px;">
+    <b>下一步建议：</b>直接开工 M0 + M1。M1 的解析器可以先不开小程序，用一个本地 Node 脚本 + 你这份 Excel，把 35 个菜品单元全部打出来逐格核对。确认解析结果对了，后面就是照着本文件填页面。
+  </div>
+</section>
+
+<section id="s13">
+  <div class="sec-head"><span class="sec-num">13</span><h2>部署与运维成本</h2><p>一次性部署链路 + 长期持有成本，价格按 2026-09 官方计费文档核实</p></div>
+
+  <h3>部署链路（一次性）</h3>
+  <div class="card">
+    <div class="step"><div class="n">1</div><div class="b"><h3>注册与开通</h3><p>在 mp.weixin.qq.com 用<b>个人主体</b>注册小程序，免费，拿到 AppID；微信开发者工具里开通云开发，创建环境 <code>haofan-prod</code>。全程不需要服务器、域名、HTTPS 证书，也不需要备案。</p></div></div>
+    <div class="step"><div class="n">2</div><div class="b"><h3>初始化云端</h3><p>云数据库建 <code>periods</code> / <code>days</code> / <code>dishImages</code> 三个集合，权限保持默认「仅创建者可读写」；四个云函数在开发者工具里右键「上传并部署：云端安装依赖」；AI 生图的 API Key 写入云函数环境变量，不入代码库。</p></div></div>
+    <div class="step"><div class="n">3</div><div class="b"><h3>建立发布通路</h3><p>两条路并行：日常自用走<b>体验版</b> —— 开发者工具上传 → 版本管理里设为体验版 → 手机扫码即用，家人拉进体验成员名单即可，不等审核；对外正式版走「提交审核 → 通过后发布」，审核一般 1–2 天。</p></div></div>
+  </div>
+
+  <div class="note">
+    <b>两条通路怎么选：</b>只给自己家，体验版就够 —— 每次改完代码上传并设为体验版，扫码即用。只有当你想让家人能直接在微信里搜到、或用到需要正式版权限的接口时才走审核。注意一个联动规则：<b>一旦正式发布，免费体验环境会在上线后第 15 天到期</b>，届时需转付费套餐。
+  </div>
+
+  <h3 style="margin-top:22px;">现金成本</h3>
+  <table>
+    <thead><tr><th style="width:26%;">项目</th><th style="width:22%;">费用</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td>小程序注册</td><td><b>0 元</b></td><td>个人主体注册免费。只有企业主体才有 300 元/年认证费，自家使用用不上</td></tr>
+      <tr><td>云开发免费体验环境</td><td><b>0 元</b></td><td>每个小程序账号可创建 1 个，配额与基础套餐相同（40,000 资源点/月）。小程序未上线期间免费；单次有效期 6 个月，到期前 1 个月内可续。活动截至 2026-12-31</td></tr>
+      <tr><td>云开发基础套餐</td><td><b>19.9 元/月</b> ≈ 239 元/年</td><td>原价 39 元/月，5 折为长期折扣。含调用次数 20 万次/月、容量 2GB、CDN 流量 5GB、云函数资源 10 万 GBs、QPS 500</td></tr>
+      <tr><td>AI 文生图</td><td><b>约 0.14–0.2 元/张</b></td><td>国内主流（万相 t2i-flash 0.14 元/张、豆包 Seedream 约 0.2 元/张）。手动触发 + 永久缓存，一年生成 200 张也就三四十元</td></tr>
+      <tr><td>服务器 / 域名 / HTTPS / 备案</td><td><b>0 元</b></td><td>云开发全托管，这些环节整个不存在</td></tr>
+      <tr><td>年审 / 认证续费</td><td><b>0 元</b></td><td>个人主体小程序无年审</td></tr>
+    </tbody>
+  </table>
+
+  <div class="note ok">
+    <b>合计：</b>走体验版可长期 0 元；正式发布后约 <b>240–300 元/年</b>（套餐 239 + 生图几十元），折合每天不到 1 块钱。
+  </div>
+
+  <h3 style="margin-top:22px;">用量对账：这个项目吃不满配额</h3>
+  <p>按「一周导入一次、全家每天打开几次」估算月用量：</p>
+  <table>
+    <thead><tr><th style="width:34%;">计费项</th><th style="width:22%;">基础套餐配额</th><th style="width:26%;">本项目预估月用量</th><th>占比</th></tr></thead>
+    <tbody>
+      <tr><td>调用次数（云函数 + 数据库读写 + 云存储上传下载合并池）</td><td>20 万次</td><td>3,000–8,000 次</td><td>&lt;5%</td></tr>
+      <tr><td>容量（数据库 + 云存储共享）</td><td>2 GB</td><td>&lt;50 MB（图片每年新增约 20 MB）</td><td>&lt;3%</td></tr>
+      <tr><td>CDN 流量</td><td>5 GB</td><td>0.1–0.5 GB</td><td>&lt;10%</td></tr>
+      <tr><td>云函数资源使用量</td><td>10 万 GBs</td><td>&lt;20 GBs（解析一次约 0.5 GBs）</td><td>&lt;0.1%</td></tr>
+      <tr><td>QPS</td><td>500</td><td>单用户 &lt;1</td><td>可忽略</td></tr>
+    </tbody>
+  </table>
+
+  <div class="note">
+    换算成资源点：基础套餐每月给 40,000 点，本项目预估消耗 <b>不到 200 点</b>。这不是「配额够不够用」的问题，是用不到 1% 的问题。哪怕家人加用量翻十倍，也依然是基础套餐。
+  </div>
+
+  <h3 style="margin-top:22px;">两条持有策略</h3>
+  <table>
+    <thead><tr><th style="width:20%;"></th><th style="width:40%;">策略 A · 体验版长期用</th><th>策略 B · 正式发布 + 基础套餐</th></tr></thead>
+    <tbody>
+      <tr><td><b>现金成本</b></td><td>0 元</td><td>约 239 元/年</td></tr>
+      <tr><td><b>使用入口</b></td><td>扫体验版二维码，或点聊天里分享的体验版卡片</td><td>微信搜索「好饭」、我的小程序列表</td></tr>
+      <tr><td><b>家人如何用</b></td><td>需先加入体验成员名单（有名额上限，全家够用）</td><td>无需配置</td></tr>
+      <tr><td><b>审核</b></td><td>不需要</td><td>每次发版提交审核，1–2 天</td></tr>
+      <tr><td><b>免费环境</b></td><td>可长期续（单次 6 个月，到期前 1 个月内续）</td><td>上线后 15 天到期，须转付费套餐</td></tr>
+      <tr><td><b>适合阶段</b></td><td>M0–M4 开发期，以及只求自己家能用的任何时候</td><td>想把它当正经产品长期养、或要做二期分享功能时</td></tr>
+    </tbody>
+  </table>
+
+  <div class="note ok">
+    <b>推荐节奏：先 A 后 B。</b>开发期与第一年都走体验版，零成本；等你想让家人搜得到、或启动二期（分享长图）时再转正式版。转化是平滑的 —— 同一套代码，只是多一次审核，云开发环境原样保留。
+  </div>
+
+  <h3 style="margin-top:22px;">时间与运维成本</h3>
+  <table>
+    <thead><tr><th style="width:30%;">事项</th><th style="width:20%;">频率</th><th>耗时</th></tr></thead>
+    <tbody>
+      <tr><td>导入新一周 Excel</td><td>每周</td><td>1–2 分钟（选文件 → 校对 → 保存）</td></tr>
+      <tr><td>日常使用</td><td>每天</td><td>0（正常使用即维护）</td></tr>
+      <tr><td>服务器运维、系统补丁、证书续期</td><td>—</td><td><b>0</b>，没有服务器</td></tr>
+      <tr><td>依赖升级（如 xlsx 安全补丁）</td><td>每季度</td><td>约 10 分钟</td></tr>
+      <tr><td>微信平台规则调整的适配</td><td>偶发</td><td>偶尔半小时</td></tr>
+      <tr><td>dishImages 导出备份</td><td>每月</td><td>1 分钟（可做成云函数一键导出 JSON）</td></tr>
+    </tbody>
+  </table>
+
+  <div class="note">
+    全年维护时间合计<b>约 2 小时</b>，其中 80% 是每周那 1–2 分钟的导入。没有任何需要「值班」的环节。
+  </div>
+
+  <div class="note warn">
+    <b>唯一真正会咬人的运维风险：套餐到期 → 数据清除。</b>到期前 7 天开始公众号隔天通知，到期次日起 7 天内可续费找回，第 8 天系统释放资源，数据不可恢复。对策有三层：腾讯云账户预充值 + 开自动续费（注意自动续费只支持腾讯云支付，需从微信支付切换）；「我的」页加一个 dishImages 一键导出，每月点一次；periods 与 days 本来就能从源 Excel 幂等重建。
+  </div>
+
+  <div class="note ok">
+    <b>这个项目有一块天然的安全垫：Excel 本身就是全量备份。</b><code>periods</code> 与 <code>days</code> 的主键设计成日期幂等，就是为了「数据库丢了 → 把源表格重新导入一遍」这条恢复路径。真正不可再生、值得单独备份的只有 <code>dishImages</code>（图片文件 + 菜名映射）。所以灾难恢复的完整动作 = 重导 Excel + 恢复一份 JSON + 图片文件还在云存储（或另存一份），十分钟以内。
+  </div>
+</section>
+
+<footer>
+  <p style="margin:0 0 6px;"><b style="font-weight:500; color:var(--ink2);">好饭</b> · 家庭一周食谱小程序 · 基于对 <code>food(1).xlsx</code> 的逐格结构勘察生成</p>
+  <p style="margin:0 0 6px;">V1.2 · 2026-09-18　新增第 13 节「部署与运维成本」；修正云存储容量估算（基础套餐 2GB）</p>
+  <p style="margin:0 0 6px;">V1.1 · 2026-09-18　项目定名「好饭」，同步更新仓库名与云环境命名</p>
+  <p style="margin:0;">V1.0 · 2026-09-18　初版，含解析算法、数据模型、页面设计与分阶段计划</p>
+</footer>
+
+</main>
