@@ -7,5 +7,5 @@
  *   · 有多个云环境（测试/生产等）时：填上你要用的那一个
  */
 module.exports = {
-  cloudEnv: '',
+  cloudEnv: 'cloud1-d1g8yreir12ed382c',
 };

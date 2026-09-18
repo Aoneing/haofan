@@ -11,6 +11,7 @@ tealconfig.js
 .env
 .env.*
 *.local.js
+project.private.config.json
 
 # 编辑器与系统
 .DS_Store
