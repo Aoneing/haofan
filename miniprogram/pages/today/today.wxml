@@ -22,6 +22,7 @@
         day="{{todayDay}}"
         images="{{todayImages}}"
         highlight="today"
+        expandable="{{true}}"
         bind:daytap="onDayTap"
         bind:dishtap="onDishTap"
       />
@@ -36,6 +37,9 @@
       day="{{tomorrowDay}}"
       images="{{tomorrowImages}}"
       highlight="tomorrow"
+      expandable="{{true}}"
+      bind:daytap="onDayTap"
+      bind:dishtap="onDishTap"
     />
     <view wx:else class="card muted">明天的安排还没导入</view>
   </block>

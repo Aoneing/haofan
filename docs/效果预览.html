@@ -56,18 +56,23 @@
   .chip { font-size:11px; background:#faf5ea; color:#854f0b; border-radius:999px; padding:3px 10px; }
   /* ---------- 周导航（新） ---------- */
   .wnav {
-    display:flex; background:#fff; border-radius:18px; padding:7px 6px; margin-bottom:14px;
+    display:flex; align-items:center; background:#fff; border-radius:10px; padding:3px 4px; margin-bottom:12px;
     box-shadow:0 4px 16px rgba(122,96,66,.06);
   }
   .wnav .it {
-    flex:1; display:flex; flex-direction:column; align-items:center; padding:7px 0 6px;
-    border-radius:12px; cursor:pointer; transition:background .2s;
+    flex:1; display:flex; align-items:center; justify-content:center; padding:5px 0;
+    border-radius:6px; cursor:pointer; transition:background .2s;
   }
-  .wnav .it .wd { font-size:13px; font-weight:600; color:#7a6a55; }
-  .wnav .it .dt { font-size:11px; color:#9a8f80; margin-top:2px; }
+  .wnav .it .wd { font-size:13px; font-weight:600; color:#7a6a55; line-height:1.1; }
   .wnav .it.on { background:#b26a00; box-shadow:0 4px 12px rgba(178,106,0,.3); }
-  .wnav .it.on .wd, .wnav .it.on .dt { color:#fff; }
+  .wnav .it.on .wd { color:#fff; }
   .wnav .it.tdy .wd { color:#b26a00; }
+  /* ---------- 一周页：吸顶头部（当前日小字 + 周导航常驻） ---------- */
+  .wk-sticky { position:sticky; top:0; z-index:20; background:#fff8ef; padding-bottom:4px; transition:box-shadow .2s; }
+  .wk-sticky.pinned { box-shadow:0 8px 16px rgba(122,96,66,.14); }
+  .wk-meta { display:flex; align-items:baseline; justify-content:space-between; padding:0 4px 5px; }
+  .wk-day { font-size:12px; font-weight:700; color:#b26a00; }
+  .wk-range { font-size:11px; color:#9a8f80; }
   /* ---------- 日卡 ---------- */
   .dc { background:#fff; border-radius:20px; padding:16px; margin-bottom:14px; box-shadow:0 4px 16px rgba(122,96,66,.06); }
   .dc.today { background:#fff7ea; box-shadow:0 6px 20px rgba(178,106,0,.14); }
@@ -90,6 +95,22 @@
   .meal .dish { font-size:15px; font-weight:700; }
   .meal .opts { font-size:12px; opacity:.85; margin-top:2px; }
   .meal .miss { opacity:.45; font-weight:400; }
+  /* ---------- 今日页：点开看（默认不配图，点击展开） ---------- */
+  .meal.xp { cursor:pointer; transition:padding .26s, transform .12s; }
+  .meal.xp:active { transform:scale(.985); }
+  .meal.xp.open { align-items:flex-start; padding:12px; }
+  .meal .dishrow { display:flex; align-items:center; flex-wrap:wrap; }
+  .meal .dish { transition:font-size .24s; }
+  .meal.xp.open .dish { font-size:19px; }
+  .meal .caret { margin-left:auto; padding-left:8px; opacity:.5; font-size:12px; line-height:1; transition:transform .28s; }
+  .meal.xp.open .caret { transform:rotate(180deg); }
+  .meal .xthumb { width:0; opacity:0; overflow:hidden; flex-shrink:0; display:flex; align-items:center; transition:width .28s, opacity .24s, margin-right .28s; }
+  .meal.xp.open .xthumb { width:66px; opacity:1; margin-right:12px; }
+  .meal .xthumb .thumb { width:66px; height:66px; margin-right:0; }
+  .meal .xbody { max-height:0; opacity:0; overflow:hidden; margin-top:0; transition:max-height .4s cubic-bezier(.22,.61,.36,1), opacity .28s, margin-top .4s cubic-bezier(.22,.61,.36,1); }
+  .meal.xp.open .xbody { max-height:800px; opacity:1; margin-top:6px; }
+  .meal .recipe { display:block; font-size:12px; opacity:.78; white-space:pre-line; line-height:1.55; }
+  .meal .detail { display:inline-block; margin-top:8px; font-size:12px; font-weight:700; padding:3px 11px; border-radius:999px; background:rgba(255,255,255,.7); }
   .prep { margin-top:12px; background:rgba(255,255,255,.6); border-radius:12px; padding:10px 12px; }
   .prep .pi { display:flex; margin-bottom:6px; font-size:12px; }
   .prep .pi:last-child { margin-bottom:0; }
@@ -161,14 +182,29 @@ function stateOf(t){
 }
 
 /* ---------- 组件渲染 ---------- */
-function mealBlock(m){
+function mealBlock(m, i, xp){
   const st = MEAL_STYLE[m.meal] || { bg:'#f3eee5', fg:'#7a6a55', label:'餐次' };
-  const title = m.missing ? '<span class="dish miss">未安排</span>' : '<div class="dish">'+esc(m.displayTitle)+'</div>';
+  const dish = m.missing ? '<span class="dish miss">未安排</span>' : '<span class="dish">'+esc(m.displayTitle)+'</span>';
+  const dishBlock = m.missing ? '<span class="dish miss">未安排</span>' : '<div class="dish">'+esc(m.displayTitle)+'</div>';
   const opts = (m.options && m.options.length>1) ? '<div class="opts">可选：'+m.options.map(esc).join(' 或 ')+'</div>' : '';
-  return '<div class="meal" style="background:'+st.bg+';color:'+st.fg+'">'
+  const recipe = m.recipe ? '<div class="recipe">'+esc(m.recipe)+'</div>' : '';
+  const thumb = '<div class="thumb">🍽️</div>';
+  // 非今日页：静态展示（配图 + 做法全展开）
+  if (!xp){
+    return '<div class="meal" style="background:'+st.bg+';color:'+st.fg+'">'
+      + '<span class="mlabel">'+st.label+'</span>'
+      + thumb
+      + '<div class="main">'+dishBlock+opts+recipe+'</div></div>';
+  }
+  // 今日页：默认收起且不配图，点击整行展开
+  return '<div class="meal xp" data-i="'+i+'" style="background:'+st.bg+';color:'+st.fg+'">'
     + '<span class="mlabel">'+st.label+'</span>'
-    + '<div class="thumb">🍽️</div>'
-    + '<div class="main">'+title+opts+'</div></div>';
+    + '<div class="xthumb">'+thumb+'</div>'
+    + '<div class="main">'
+    + '<div class="dishrow">'+dish+'<span class="caret">▾</span></div>'
+    + opts
+    + '<div class="xbody">'+recipe+'<span class="detail">菜品详情 ›</span></div>'
+    + '</div></div>';
 }
 function prepBlock(day){
   const list = day.prepNotes || [];
@@ -181,8 +217,8 @@ function prepBlock(day){
   }).join('');
   return '<div class="prep">'+items+'</div>';
 }
-function dayCard(day, hl, compact){
-  const meals = (day.meals||[]).map(mealBlock).join('');
+function dayCard(day, hl, compact, xp){
+  const meals = (day.meals||[]).map((m,i)=>mealBlock(m,i,xp)).join('');
   return '<div class="dc '+(hl||'')+'">'
     + '<div class="head"><span class="date">'+fmtMD(day.date)+' '+esc(day.weekdayText)+'</span>'
     + (hl==='today'?'<span class="badge today">今天</span>':'')
@@ -192,9 +228,10 @@ function dayCard(day, hl, compact){
 function weekNav(t){
   const inPeriod = t >= PERIOD.startDate && t <= PERIOD.endDate;
   const sel = inPeriod ? t : PERIOD.startDate;
-  return '<div class="wnav">' + DAYS.map(d=>{
+  return '<div class="wnav">' + DAYS.map((d,i)=>{
     const cls = d.date===sel ? 'it on' : (d.date===t ? 'it tdy' : 'it');
-    return '<div class="'+cls+'"><span class="wd">'+wdShort(d)+'</span><span class="dt">'+fmtMD(d.date)+'</span></div>';
+    // 只留周几，去掉日期，尽量少占高度
+    return '<div class="'+cls+'" data-i="'+i+'"><span class="wd">'+wdShort(d)+'</span></div>';
   }).join('') + '</div>';
 }
 function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
@@ -224,22 +261,69 @@ function renderToday(){
      + '<div class="chips"><span class="chip">'+DATA.stats.mealCells+' 道菜</span><span class="chip">'+DATA.stats.prepNotes+' 条备料</span></div></div>';
   h += weekNav(t);
   h += '<div class="sec">今天的饭</div>';
-  h += todayDay ? dayCard(todayDay,'today',false) : '<div class="dc"><div class="ds">今天没有安排</div></div>';
+  h += todayDay ? dayCard(todayDay,'today',false,true) : '<div class="dc"><div class="ds">今天没有安排</div></div>';
   h += '<div class="sec link">明天吃什么 ›</div>';
-  h += tomorrowDay ? dayCard(tomorrowDay,'tomorrow',false) : '<div class="dc"><span style="font-size:13px;color:#9a8f80">明天的安排还没导入</span></div>';
+  h += tomorrowDay ? dayCard(tomorrowDay,'tomorrow',false,true) : '<div class="dc"><span style="font-size:13px;color:#9a8f80">明天的安排还没导入</span></div>';
   return h;
 }
 function renderWeek(){
   const t = todayISO();
   const inPeriod = t>=PERIOD.startDate && t<=PERIOD.endDate;
   let h = '<div class="pg-head"><span class="t">本期菜单</span><span class="r">'+fmtMD(PERIOD.startDate)+' - '+fmtMD(PERIOD.endDate)+'</span></div>';
-  h += weekNav(t);
+  // 吸顶区：当前日期小字 + 周导航，滚动时一直常驻顶部
+  h += '<div class="wk-sticky" id="wkSticky">'
+     + '<div class="wk-meta"><span class="wk-day" id="wkDay">'+dayLabelOf(t)+'</span>'
+     + '<span class="wk-range">本期 '+fmtMD(PERIOD.startDate)+' - '+fmtMD(PERIOD.endDate)+'</span></div>'
+     + weekNav(t)
+     + '</div>';
   if (!inPeriod) h += '<div class="sec">今天不在本期里，已为你定位到第一天</div>';
-  h += DAYS.map(d=>{
+  h += DAYS.map((d,i)=>{
     const hl = d.date===t ? 'today' : d.date===addDays(t,1) ? 'tomorrow' : '';
-    return dayCard(d, hl, true);
+    return '<div id="day-'+i+'">'+dayCard(d, hl, true, true)+'</div>';
   }).join('');
   return h;
+}
+/* 一周页：吸顶条上的「周三 9/23」小字 */
+function dayLabelOf(date){
+  const d = DAYS.find(x=>x.date===date);
+  const base = (d ? (d.weekdayText||'') : '') + ' ' + fmtMD(date);
+  return date===todayISO() ? base+' · 今天' : base;
+}
+/* 一周页：滚动到某一天，留出吸顶条高度 */
+function scrollToDay(i){
+  const contentEl = document.getElementById('content');
+  const el = document.getElementById('day-'+i);
+  const sticky = document.getElementById('wkSticky');
+  if (!contentEl || !el) return;
+  const cRect = contentEl.getBoundingClientRect();
+  const top = el.getBoundingClientRect().top - cRect.top + contentEl.scrollTop
+            - ((sticky ? sticky.offsetHeight : 0) + 6);
+  contentEl.scrollTo({ top: Math.max(0, top), behavior:'smooth' });
+}
+/* 一周页：滚动联动——手滑也能自动更新「现在看的是周几」 */
+function syncWeekScroll(){
+  const contentEl = document.getElementById('content');
+  if (!contentEl || cur.view!=='week') return;
+  const sticky = document.getElementById('wkSticky');
+  const dayEl = document.getElementById('wkDay');
+  if (!sticky || !dayEl) return;
+  const st = contentEl.scrollTop;
+  sticky.classList.toggle('pinned', st > 28);
+  const cRect = contentEl.getBoundingClientRect();
+  const anchor = st + sticky.offsetHeight + 8;
+  let idx = 0;
+  for (let i=0;i<DAYS.length;i++){
+    const el = document.getElementById('day-'+i);
+    if (!el) continue;
+    const docTop = el.getBoundingClientRect().top - cRect.top + st;
+    if (docTop <= anchor) idx = i;
+  }
+  dayEl.textContent = dayLabelOf(DAYS[idx].date);
+  const todayIdx = DAYS.findIndex(d=>d.date===todayISO());
+  document.querySelectorAll('.wnav .it').forEach((el,i)=>{
+    el.classList.toggle('on', i===idx);
+    el.classList.toggle('tdy', i===todayIdx && i!==idx);
+  });
 }
 function renderMine(){
   return '<div class="pg-head"><span class="t">我的</span></div>'
@@ -289,6 +373,21 @@ function init(){
     });
     if (VIEWS.some(x=>x[0]===h)) cur.view = h;
   }
+  // 一周页：点周几滚到那天；滚动时吸顶条常驻并联动高亮
+  const contentEl = document.getElementById('content');
+  contentEl.addEventListener('scroll', syncWeekScroll);
+  contentEl.addEventListener('click', e=>{
+    const navItem = e.target.closest('.wnav .it');
+    if (navItem && navItem.dataset.i !== undefined) { scrollToDay(Number(navItem.dataset.i)); return; }
+    const detail = e.target.closest('.detail');
+    if (detail) { alert('（预览）跳转菜品详情页'); return; }
+    const meal = e.target.closest('.meal.xp');
+    if (!meal) return;
+    const card = meal.parentElement;
+    const wasOpen = meal.classList.contains('open');
+    card.querySelectorAll('.meal.xp.open').forEach(el=>el.classList.remove('open'));
+    if (!wasOpen) meal.classList.add('open');
+  });
   render();
 }
 init();

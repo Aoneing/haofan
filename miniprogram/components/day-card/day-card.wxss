@@ -54,6 +54,17 @@
 .dc__meal:last-of-type {
   margin-bottom: 0;
 }
+/* 可展开模式：整行可点，轻微按压缩反馈 + 展开时顶部对齐 */
+.dc__meal--tap {
+  transition: transform 0.12s ease, padding 0.26s ease;
+}
+.dc__meal--hover {
+  transform: scale(0.985);
+}
+.dc__meal--open {
+  align-items: flex-start;
+  padding: 24rpx 20rpx;
+}
 .dc__meal-label {
   writing-mode: vertical-rl;
   text-orientation: upright;
@@ -64,10 +75,19 @@
   opacity: 0.85;
   flex-shrink: 0;
 }
+
+/* 配图区：首页默认收为 0 宽淡出，点开餐次后淡入（图源后续阶段接入） */
+.dc__thumb {
+  flex-shrink: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  transition: width 0.28s ease, opacity 0.24s ease, margin-right 0.28s ease;
+}
+
 .dc__meal-main {
   flex: 1;
   min-width: 0;
-  margin-left: 20rpx;
 }
 .dc__dish-row {
   display: flex;
@@ -77,6 +97,10 @@
 .dc__dish {
   font-size: 30rpx;
   font-weight: 600;
+  transition: font-size 0.24s ease;
+}
+.dc__dish--big {
+  font-size: 38rpx;
 }
 .dc__dish--missing {
   color: inherit;
@@ -90,11 +114,45 @@
   border-radius: 8rpx;
   padding: 2rpx 10rpx;
 }
+/* 展开指示箭头（仅可展开模式） */
+.dc__caret {
+  margin-left: auto;
+  padding-left: 16rpx;
+  font-size: 26rpx;
+  line-height: 1;
+  opacity: 0.5;
+  flex-shrink: 0;
+  transition: transform 0.28s ease;
+}
+.dc__meal--open .dc__caret {
+  transform: rotate(180deg);
+}
 .dc__options {
   display: block;
   font-size: 24rpx;
   opacity: 0.85;
   margin-top: 4rpx;
+}
+
+/* 静态紧凑模式（未开 expandable 的紧凑卡片）：不展示做法，维持原有紧凑观感
+   注：周视图已改用可展开模式，此规则仅兜底，避免与展开动画冲突 */
+.dc--static.dc--compact .dc__expand {
+  display: none;
+}
+
+/* 展开区（做法 + 详情入口）：仅可展开模式下限制高度并做过渡 */
+.dc--expandable .dc__expand {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  margin-top: 0;
+  transition: max-height 0.4s cubic-bezier(0.22, 0.61, 0.36, 1), opacity 0.28s ease,
+    margin-top 0.4s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+.dc--expandable .dc__expand--open {
+  max-height: 900rpx;
+  opacity: 1;
+  margin-top: 10rpx;
 }
 .dc__recipe {
   display: block;
@@ -102,6 +160,15 @@
   opacity: 0.75;
   margin-top: 6rpx;
   white-space: pre-line;
+}
+.dc__detail {
+  display: inline-block;
+  margin-top: 12rpx;
+  font-size: 24rpx;
+  font-weight: 600;
+  padding: 6rpx 20rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.7);
 }
 
 /* 备料：浅米色块替代分割线 */

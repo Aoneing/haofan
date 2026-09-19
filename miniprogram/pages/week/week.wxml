@@ -11,22 +11,29 @@
   </block>
 
   <block wx:else>
+    <!-- 顶部大标题：随滚动自然上移滚出 -->
     <view class="week-header">
       <view class="week-header__title">本期菜单</view>
       <view class="muted">{{periodRange}}</view>
     </view>
 
-    <!-- 星期导航：默认选中今天，点击滚动到对应日 -->
-    <view class="week-nav">
-      <view
-        wx:for="{{navDays}}"
-        wx:key="date"
-        class="week-nav__item {{item.selected ? 'week-nav__item--on' : item.isToday ? 'week-nav__item--today' : ''}}"
-        data-index="{{index}}"
-        bindtap="onNavTap"
-      >
-        <text class="week-nav__wd">{{item.weekdayText}}</text>
-        <text class="week-nav__date">{{item.dateText}}</text>
+    <!-- 吸顶区：当前日期小字 + 星期导航，滚动时始终常驻顶部不消失 -->
+    <view class="wk-sticky {{headerFolded ? 'wk-sticky--pinned' : ''}}">
+      <view class="wk-sticky__meta">
+        <text class="wk-sticky__day">{{activeDayText}}</text>
+        <text class="wk-sticky__range">本期 {{periodRange}}</text>
+      </view>
+
+      <view class="week-nav">
+        <view
+          wx:for="{{navDays}}"
+          wx:key="date"
+          class="week-nav__item {{index === activeIndex ? 'week-nav__item--on' : ''}} {{item.isToday && index !== activeIndex ? 'week-nav__item--today' : ''}}"
+          data-index="{{index}}"
+          bindtap="onNavTap"
+        >
+          <text class="week-nav__wd">{{item.weekdayText}}</text>
+        </view>
       </view>
     </view>
 
@@ -35,9 +42,11 @@
         day="{{item.day}}"
         images="{{item.images}}"
         compact="{{true}}"
+        expandable="{{true}}"
         highlight="{{item.highlight}}"
         bind:daytap="onDayTap"
         bind:dishtap="onDishTap"
+        bind:expandchange="onCardExpand"
       />
     </view>
   </block>

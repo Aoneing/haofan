@@ -1,4 +1,7 @@
-<view wx:if="{{vm}}" class="dc {{highlight === 'today' ? 'dc--today' : highlight === 'tomorrow' ? 'dc--tomorrow' : ''}}">
+<view
+  wx:if="{{vm}}"
+  class="dc {{highlight === 'today' ? 'dc--today' : highlight === 'tomorrow' ? 'dc--tomorrow' : ''}} {{compact ? 'dc--compact' : ''}} {{expandable ? 'dc--expandable' : 'dc--static'}}"
+>
   <view class="dc__head" catchtap="onTap">
     <text class="dc__date">{{vm.dateText}}</text>
     <text wx:if="{{highlight === 'today'}}" class="dc__badge dc__badge--today">今天</text>
@@ -10,23 +13,48 @@
   <view
     wx:for="{{vm.meals}}"
     wx:key="index"
-    class="dc__meal"
+    class="dc__meal {{expandable ? 'dc__meal--tap' : ''}} {{item.expanded ? 'dc__meal--open' : ''}}"
     style="background:{{item.bg}};color:{{item.fg}}"
+    hover-class="{{expandable ? 'dc__meal--hover' : 'none'}}"
+    hover-stay-time="80"
+    data-index="{{index}}"
+    catchtap="onMealTap"
   >
     <text class="dc__meal-label">{{item.mealText}}</text>
-    <dish-thumb title="{{item.title}}" url="{{item.imageUrl}}" size="{{compact ? 72 : 96}}" />
+
+    <!-- 配图：首页默认不可见（0 宽淡出），点开后才淡入；图源后续阶段接入 -->
+    <view
+      class="dc__thumb"
+      style="width:{{item.showThumb ? item.thumbSize : 0}}rpx;opacity:{{item.showThumb ? 1 : 0}};margin-right:{{item.showThumb ? 20 : 0}}rpx"
+    >
+      <dish-thumb title="{{item.title}}" url="{{item.imageUrl}}" size="{{item.thumbSize}}" />
+    </view>
+
     <view class="dc__meal-main">
       <view class="dc__dish-row">
         <text
-          class="dc__dish {{item.missing ? 'dc__dish--missing' : ''}}"
+          class="dc__dish {{item.missing ? 'dc__dish--missing' : ''}} {{item.bigTitle ? 'dc__dish--big' : ''}}"
+          data-index="{{index}}"
           data-key="{{item.key}}"
           data-title="{{item.title}}"
           catchtap="onDishTap"
         >{{item.title}}</text>
         <text wx:if="{{item.needsReview}}" class="dc__tag">待校对</text>
+        <text wx:if="{{expandable}}" class="dc__caret">▾</text>
       </view>
       <text wx:if="{{item.optionsText}}" class="dc__options">可选：{{item.optionsText}}</text>
-      <text wx:if="{{!compact && item.recipe}}" class="dc__recipe">{{item.recipe}}</text>
+
+      <!-- 展开区：做法 + 详情入口（首页默认收起） -->
+      <view class="dc__expand {{item.showBody ? 'dc__expand--open' : ''}}">
+        <text wx:if="{{item.recipe}}" class="dc__recipe">{{item.recipe}}</text>
+        <view
+          wx:if="{{expandable}}"
+          class="dc__detail"
+          data-key="{{item.key}}"
+          data-title="{{item.title}}"
+          catchtap="onDishDetail"
+        >菜品详情 ›</view>
+      </view>
     </view>
   </view>
 
