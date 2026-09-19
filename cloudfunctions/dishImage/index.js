@@ -16,9 +16,17 @@ const _ = db.command;
  *  3. 前端兜底  —— 未命中且未配置生图服务时，用菜名首字文字占位
  *
  * 生图服务配置（云函数「配置 → 环境变量」）：
- *  IMAGE_API_URL    例如 https://api.openai.com/v1/images/generations（或任意兼容网关）
- *  IMAGE_API_KEY    对应 Bearer Token
- *  IMAGE_API_MODEL  可选，默认 gpt-image-1
+ *  IMAGE_API_URL       例如 https://open.bigmodel.cn/api/paas/v4/images/generations
+ *                      注意：云函数在境内节点，api.openai.com 不可达，必须用境内兼容网关
+ *  IMAGE_API_KEY       对应 Bearer Token
+ *  IMAGE_API_MODEL     可选，默认 gpt-image-1
+ *  IMAGE_API_SIZE      可选，默认 1024x1024（向接口请求的尺寸，各家支持的写法不同，
+ *                      如通义万相用 1024*1024；1024x1024 是兼容面最广的一个）
+ *  IMAGE_TARGET_SIZE   可选，默认 640 —— 落库前缩到的长边像素
+ *  IMAGE_TARGET_QUALITY 可选，默认 70 —— JPEG 质量（40–95）
+ *
+ * 落库前一律压缩：设计文档 07 节要求单图 40–80KB，直接存 1024 PNG 约 1–2MB，
+ * 会白白吃掉云开发 2GB 共享容量。压缩用纯 JS 的 jimp，失败则原样保存不阻断。
  */
 
 function postJson(urlStr, headers, body) {
@@ -65,6 +73,52 @@ function postJson(urlStr, headers, body) {
     req.write(payload);
     req.end();
   });
+}
+
+/** 下载外链图片（部分接口返回 url 而非 b64_json） */
+function download(url) {
+  return new Promise((resolve, reject) => {
+    const mod = url.indexOf('http:') === 0 ? http : https;
+    const req = mod.get(url, (res) => {
+      const chunks = [];
+      res.on('data', (c) => chunks.push(c));
+      res.on('end', () => resolve(Buffer.concat(chunks)));
+    });
+    req.on('error', reject);
+    req.setTimeout(60000, () => req.destroy(new Error('图片下载超时')));
+  });
+}
+
+/**
+ * 落库前压缩：缩到长边 IMAGE_TARGET_SIZE（默认 640）并重编码为 JPEG。
+ * 设计文档要求 WebP / 640px / 40–80KB；云函数里用纯 JS 的 jimp 最稳（无原生编译依赖）。
+ * 压缩失败不阻断——宁可存一张大图，也不能因为压缩失败就没有图。
+ */
+async function compressForStorage(buffer) {
+  const target = Math.max(128, Number(process.env.IMAGE_TARGET_SIZE || 640));
+  const quality = Math.min(95, Math.max(40, Number(process.env.IMAGE_TARGET_QUALITY || 70)));
+  try {
+    const Jimp = require('jimp');
+    const img = await Jimp.read(buffer);
+    if (img.bitmap.width > target || img.bitmap.height > target) {
+      img.scaleToFit(target, target);
+    }
+    img.quality(quality);
+    const out = await img.getBufferAsync(Jimp.MIME_JPEG);
+    // 纯色/简单图转成 JPEG 反而更大，这种就别压了，直接用原图
+    if (out.length >= buffer.length) return { buffer: buffer, ext: detectExt(buffer) };
+    return { buffer: out, ext: 'jpg' };
+  } catch (e) {
+    console.warn('[dishImage] compress skipped, keep original:', e && e.message);
+    return { buffer: buffer, ext: detectExt(buffer) };
+  }
+}
+
+/** 按文件头判断原始格式，兜底为 png */
+function detectExt(buffer) {
+  if (buffer.length > 8 && buffer[0] === 0x89 && buffer[1] === 0x50) return 'png';
+  if (buffer.length > 3 && buffer[0] === 0xff && buffer[1] === 0xd8) return 'jpg';
+  return 'png';
 }
 
 /** { keys: [...] } → { map: { 菜名: fileID }, missing: [...] }，批量给周视图/日视图用 */
@@ -117,39 +171,33 @@ async function generate(event) {
     title +
     '」。俯拍视角，白瓷餐具，木质餐桌，柔和自然光，温暖色调，食物清晰占满画面主体，背景干净，无文字无水印。';
 
+  const size = process.env.IMAGE_API_SIZE || '1024x1024';
+
   const apiRes = await postJson(
     apiUrl,
     { Authorization: 'Bearer ' + apiKey },
-    { model, prompt, n: 1, size: '1024x1024' }
+    { model, prompt, n: 1, size }
   );
 
   const item = apiRes && apiRes.data && apiRes.data[0];
   if (!item) return { ok: false, message: '生图接口未返回图片数据' };
 
-  let cloudPath = 'dish-images/' + encodeURIComponent(key) + '-' + Date.now() + '.png';
-  let fileID;
-
+  let raw;
   if (item.b64_json) {
-    const buffer = Buffer.from(item.b64_json, 'base64');
-    const up = await cloud.uploadFile({ cloudPath, fileContent: buffer });
-    fileID = up.fileID;
+    raw = Buffer.from(item.b64_json, 'base64');
   } else if (item.url) {
     // 接口给外链时中转下载再入云存储，避免外链过期
-    const bin = await new Promise((resolve, reject) => {
-      const mod = item.url.indexOf('http:') === 0 ? http : https;
-      const req = mod.get(item.url, (res) => {
-        const chunks = [];
-        res.on('data', (c) => chunks.push(c));
-        res.on('end', () => resolve(Buffer.concat(chunks)));
-      });
-      req.on('error', reject);
-      req.setTimeout(60000, () => req.destroy(new Error('图片下载超时')));
-    });
-    const up = await cloud.uploadFile({ cloudPath, fileContent: bin });
-    fileID = up.fileID;
+    raw = await download(item.url);
   } else {
     return { ok: false, message: '生图接口返回格式无法识别' };
   }
+
+  // 落库前压缩到设计文档要求的规格（640px / JPEG q70 ≈ 40–80KB）
+  const packed = await compressForStorage(raw);
+  const cloudPath =
+    'dish-images/' + encodeURIComponent(key) + '-' + Date.now() + '.' + packed.ext;
+  const up = await cloud.uploadFile({ cloudPath, fileContent: packed.buffer });
+  const fileID = up.fileID;
 
   await db.collection('dishImages').doc(key).set({
     data: {
@@ -158,11 +206,14 @@ async function generate(event) {
       prompt,
       source: 'ai',
       model,
+      requestSize: size,
+      bytes: packed.buffer.length,
+      rawBytes: raw.length,
       generatedAt: db.serverDate(),
     },
   });
 
-  return { ok: true, key, fileID };
+  return { ok: true, key, fileID, bytes: packed.buffer.length, rawBytes: raw.length };
 }
 
 /** 配图库统计（我的页展示） */

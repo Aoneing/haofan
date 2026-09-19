@@ -4,6 +4,7 @@
   "description": "好饭：配图查询 / AI 生成 / 统计",
   "main": "index.js",
   "dependencies": {
-    "wx-server-sdk": "~2.6.3"
+    "wx-server-sdk": "~2.6.3",
+    "jimp": "^0.22.12"
   }
 }
