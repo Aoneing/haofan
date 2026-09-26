@@ -5,6 +5,9 @@
   "main": "index.js",
   "dependencies": {
     "wx-server-sdk": "~2.6.3",
-    "jimp": "^0.22.12"
+    "@jimp/core": "^0.22.12",
+    "@jimp/jpeg": "^0.22.12",
+    "@jimp/png": "^0.22.12",
+    "@jimp/plugin-resize": "^0.22.12"
   }
 }

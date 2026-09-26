@@ -94,17 +94,35 @@ function download(url) {
  * 设计文档要求 WebP / 640px / 40–80KB；云函数里用纯 JS 的 jimp 最稳（无原生编译依赖）。
  * 压缩失败不阻断——宁可存一张大图，也不能因为压缩失败就没有图。
  */
+let Jimp = null;
+/** 按需装配 jimp：只装裁剪涉及的 4 个子包（5.4MB / 31 包），不用完整 jimp（25.8MB / 60 包） */
+function getJimp() {
+  if (Jimp) return Jimp;
+  // 注意：组装入口是 @jimp/custom，不是 @jimp/core（core 导出的是 Jimp 类本身）
+  const configure = require('@jimp/custom').default;
+  const jpeg = require('@jimp/jpeg');
+  const png = require('@jimp/png');
+  const resize = require('@jimp/plugin-resize');
+  // 只需要「读 PNG/JPEG → 缩放 → 编码 JPEG」，不引 gif/bmp/tiff/字体等用不到的能力
+  // 注：@jimp/plugin-resize 只提供 resize()，没有 scaleToFit()（那在另一个包），所以自己算尺寸
+  Jimp = configure({ types: [jpeg, png], plugins: [resize] });
+  return Jimp;
+}
+
 async function compressForStorage(buffer) {
   const target = Math.max(128, Number(process.env.IMAGE_TARGET_SIZE || 640));
   const quality = Math.min(95, Math.max(40, Number(process.env.IMAGE_TARGET_QUALITY || 70)));
   try {
-    const Jimp = require('jimp');
-    const img = await Jimp.read(buffer);
-    if (img.bitmap.width > target || img.bitmap.height > target) {
-      img.scaleToFit(target, target);
+    const J = getJimp();
+    const img = await J.read(buffer);
+    const { width, height } = img.bitmap;
+    // 长边缩到 target，短边等比；已比 target 小的图不放大
+    const scale = Math.min(target / width, target / height, 1);
+    if (scale < 1) {
+      img.resize(Math.round(width * scale), Math.round(height * scale));
     }
     img.quality(quality);
-    const out = await img.getBufferAsync(Jimp.MIME_JPEG);
+    const out = await img.getBufferAsync(J.MIME_JPEG);
     // 纯色/简单图转成 JPEG 反而更大，这种就别压了，直接用原图
     if (out.length >= buffer.length) return { buffer: buffer, ext: detectExt(buffer) };
     return { buffer: out, ext: 'jpg' };
