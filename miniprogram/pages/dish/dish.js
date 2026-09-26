@@ -28,15 +28,17 @@ Page({
   },
 
   onShow() {
-    // 先看缓存，缓存没有再查一次库
-    const cached = imageStore.get(this.data.key);
-    if (cached) {
-      this.setData({ url: cached });
-    } else if (this.data.key) {
-      imageStore.hydrate([this.data.key]).then(() => {
-        this.setData({ url: imageStore.get(this.data.key) });
-      });
-    }
+    const key = this.data.key;
+    if (!key) return;
+    // 先用缓存里的链接立即渲染（imageStore 内部按 TTL 判断，没过期不会多发请求）
+    const cached = imageStore.get(key);
+    if (cached) this.setData({ url: cached });
+    // 再后台刷一次：临时链接会过期，重进页面时顺手换一张新的
+    imageStore.hydrate([key]).then(() => {
+      if (this.data.generating) return; // 正在生成时不要抢 UI
+      const fresh = imageStore.get(key);
+      if (fresh && fresh !== this.data.url) this.setData({ url: fresh });
+    });
   },
 
   onUnload() {
@@ -79,12 +81,14 @@ Page({
     });
     this._applied = false;
 
-    // 发起生成，但不拿它的返回当结论：返回可能因为超时永远不来，也可能晚于轮询结果到达
+    // 发起生成，但不拿它的返回当结论：返回可能因为超时永远不来，也可能晚于轮询结果到达。
+    // force：已经配过图时按钮是「换一张配图」，要真的重生成，否则云函数幂等会原样返回旧图。
     api
-      .image('generate', { key, title: this.data.title })
+      .image('generate', { key, title: this.data.title, force: !!this.data.url })
       .then((res) => {
         if (res && res.ok && res.fileID) {
-          this._applyImage(key, res.fileID, '配图已更新');
+          // 返回里带的是 https 临时链接；万一没带，就交给下面的轮询去取
+          if (res.url) this._applyImage(key, res.url, '配图已更新');
           return;
         }
         if (res && res.pending) return; // 后台还在生成，交给轮询
@@ -108,7 +112,7 @@ Page({
     this._startPoll(key);
   },
 
-  /** 轮询图库，直到拿到 fileID 或超过 POLL_MAX_MS */
+  /** 轮询图库，直到拿到图或超过 POLL_MAX_MS。resolve 返回的是 https 临时链接。 */
   _startPoll(key) {
     this._stopPoll();
     this._pollDeadline = Date.now() + POLL_MAX_MS;
@@ -117,9 +121,9 @@ Page({
       api
         .image('resolve', { keys: [key] })
         .then((res) => {
-          const fileID = res && res.map ? res.map[key] : '';
-          if (fileID) {
-            this._applyImage(key, fileID, '配图已更新');
+          const url = res && res.map ? res.map[key] : '';
+          if (url) {
+            this._applyImage(key, url, '配图已更新');
             return true; // 已拿到图，停轮
           }
           return false;
@@ -161,12 +165,12 @@ Page({
     if (tip !== this.data.genTip) this.setData({ genTip: tip });
   },
 
-  _applyImage(key, fileID, msg) {
+  _applyImage(key, url, msg) {
     if (this._applied) return;
     this._applied = true;
-    imageStore.set(key, fileID); // 写内存缓存，回列表/周视图立刻能复用
+    imageStore.set(key, url); // 写内存缓存，回列表/周视图立刻能复用
     this._stop('got image');
-    this.setData({ url: fileID });
+    this.setData({ url });
     wx.showToast({ title: msg, icon: 'success' });
   },
 

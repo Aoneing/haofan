@@ -28,6 +28,13 @@ const _ = db.command;
  *
  * 落库前一律压缩：设计文档 07 节要求单图 40–80KB，直接存 1024 PNG 约 1–2MB，
  * 会白白吃掉云开发 2GB 共享容量。压缩用纯 JS 的 jimp，失败则原样保存不阻断。
+ *
+ * 关于「图片怎么送到前端」（重要，2026-09-26 踩过）：
+ *  本环境云存储权限被锁死为「仅创建者可读写」（免费套餐下控制台改权限会提示「请升级至付费版」）。
+ *  配图是云函数上传的，客户端不是「创建者」⇒ 把 cloud:// 直接填进 image 的 src 会被拒，
+ *  表现为图区空白 + wx.previewImage 一直转圈。
+ *  ⇒ 因此所有出参统一用管理员身份换成 https 临时链接（见 toTempUrls），前端只用 https。
+ *  私有读的临时链接有有效期（约 2 小时），前端只在内存里缓存并按 TTL 定期重取。
  */
 
 function postJson(urlStr, headers, body) {
@@ -140,7 +147,30 @@ function detectExt(buffer) {
   return 'png';
 }
 
-/** { keys: [...] } → { map: { 菜名: fileID }, missing: [...] }，批量给周视图/日视图用 */
+/**
+ * fileID → https 临时链接（批量）。
+ *
+ * 云函数是管理员身份，能换出带签名的链接给客户端用；客户端自己调会被权限拒绝。
+ * 注意：接口一次最多 50 个 fileID，超出必须分批，否则报错。
+ */
+async function toTempUrls(fileIDs) {
+  const list = (fileIDs || []).filter(Boolean);
+  const map = {};
+  for (let i = 0; i < list.length; i += 50) {
+    const chunk = list.slice(i, i + 50);
+    try {
+      const res = await cloud.getTempFileURL({ fileList: chunk });
+      (res && res.fileList ? res.fileList : []).forEach((f) => {
+        if (f && f.fileID && f.tempFileURL) map[f.fileID] = f.tempFileURL;
+      });
+    } catch (e) {
+      console.warn('[dishImage] getTempFileURL failed:', e && e.message);
+    }
+  }
+  return map;
+}
+
+/** { keys: [...] } → { map: { 菜名: https临时链接 }, missing: [...] }，批量给周视图/日视图用 */
 async function resolve(event) {
   const raw = Array.isArray(event.keys) ? event.keys : [];
   const uniq = [];
@@ -160,11 +190,22 @@ async function resolve(event) {
     .limit(100)
     .get();
 
-  const map = {};
+  const files = {}; // 菜名 -> fileID（原始，备排查用）
   res.data.forEach((doc) => {
-    if (doc.fileID) map[doc._id] = doc.fileID;
+    if (doc.fileID) files[doc._id] = doc.fileID;
   });
-  return { ok: true, map, missing: uniq.filter((k) => !map[k]) };
+
+  // 客户端读不了私有文件，统一换成 https 临时链接再返回
+  const urls = await toTempUrls(Object.keys(files).map((k) => files[k]));
+  const map = {}; // 菜名 -> https 临时链接（前端直接用于 image / previewImage）
+  Object.keys(files).forEach((k) => {
+    if (urls[files[k]]) map[k] = urls[files[k]];
+  });
+  if (Object.keys(files).length && !Object.keys(map).length) {
+    console.warn('[dishImage] resolve 有 fileID 但临时链接全部换取失败，检查云存储文件是否存在');
+  }
+
+  return { ok: true, map, files, missing: uniq.filter((k) => !files[k]) };
 }
 
 /** 生图幂等窗口：同一 key 在这段时间内重复请求直接复用，不重复调接口（重复调用＝重复扣费） */
@@ -217,14 +258,19 @@ async function generate(event) {
   const title = String(event.title || '').trim() || key;
   if (!key) return { ok: false, message: '缺少 key（归一化菜名）' };
 
-  // 0. 幂等保护：成品直接复用；生成中/冷却期直接返回，不重复计费
+  // 0. 幂等保护：成品直接复用；生成中/冷却期直接返回，不重复计费。
+  //    force=true 表示用户明确点了「换一张配图」，此时要真的重生成（否则按钮永远换不了图）。
+  //    注意：pending 窗口对 force 依然生效 —— 连点两下仍会被挡住，不会重复扣费。
+  const force = !!event.force;
   const prev = await readDoc(key);
   if (prev) {
-    if (prev.fileID) {
+    if (prev.fileID && !force) {
+      const cachedUrls = await toTempUrls([prev.fileID]);
       return {
         ok: true,
         key,
         fileID: prev.fileID,
+        url: cachedUrls[prev.fileID] || '',
         cached: true,
         bytes: prev.bytes,
         rawBytes: prev.rawBytes,
@@ -331,6 +377,7 @@ async function generate(event) {
       ok: true,
       key,
       fileID,
+      url: (await toTempUrls([fileID]))[fileID] || '',
       bytes: packed.buffer.length,
       rawBytes: raw.length,
       genMs: Date.now() - t0,

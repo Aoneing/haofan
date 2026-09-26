@@ -27,7 +27,7 @@
       class="dc__thumb"
       style="width:{{item.showThumb ? item.thumbSize : 0}}rpx;opacity:{{item.showThumb ? 1 : 0}};margin-right:{{item.showThumb ? 20 : 0}}rpx"
     >
-      <dish-thumb title="{{item.title}}" url="{{item.imageUrl}}" size="{{item.thumbSize}}" />
+      <dish-thumb title="{{item.title}}" url="{{item.imageUrl}}" imgkey="{{item.key}}" size="{{item.thumbSize}}" />
     </view>
 
     <view class="dc__meal-main">

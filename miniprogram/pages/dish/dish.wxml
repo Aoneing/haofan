@@ -1,7 +1,7 @@
 <view class="container">
   <view class="card dish-card">
     <view class="dish-hero" bindtap="preview">
-      <dish-thumb title="{{title}}" url="{{url}}" size="{{420}}" />
+      <dish-thumb title="{{title}}" url="{{url}}" imgkey="{{key}}" size="{{420}}" />
       <view wx:if="{{url}}" class="dish-hero__tip">点击查看大图</view>
       <view wx:else class="dish-hero__tip">还没有配图，点击下方生成</view>
     </view>
