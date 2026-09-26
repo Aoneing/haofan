@@ -3,6 +3,7 @@
 const cloud = require('wx-server-sdk');
 const https = require('https');
 const http = require('http');
+const net = require('net');
 
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
 
@@ -234,6 +235,117 @@ async function generate(event) {
   return { ok: true, key, fileID, bytes: packed.buffer.length, rawBytes: raw.length };
 }
 
+/**
+ * diag —— 逐阶段自检，用于排查 generate 报 -3 Upstream error。
+ * 每一「段」完成会先打 console.log 再往下走，即使进程中途被打死，
+ * 云函数日志里也能看到最后一条 [diag] 标记，从而定位死在哪一段。
+ */
+async function diag(event) {
+  const steps = [];
+  const t0 = Date.now();
+  const mb = () => Math.round(process.memoryUsage().rss / 1048576);
+  const mark = function (name, extra) {
+    const line = name + (extra ? ' :: ' + extra : '');
+    console.log('[dishImage][diag] ' + line + ' (+' + (Date.now() - t0) + 'ms, rss=' + mb() + 'MB)');
+    steps.push(line);
+  };
+
+  mark('start', 'NODE=' + process.version);
+
+  // 1. 环境变量
+  const apiUrl = process.env.IMAGE_API_URL;
+  const apiKey = process.env.IMAGE_API_KEY;
+  const model = process.env.IMAGE_API_MODEL || 'gpt-image-1';
+  const masked = apiKey ? apiKey.slice(0, 6) + '...' + apiKey.slice(-4) + '(len=' + apiKey.length + ')' : '(empty)';
+  mark('env', 'url=' + !!apiUrl + ' urlHost=' + (safeHost(apiUrl)) + ' key=' + masked + ' model=' + model);
+
+  // 2. DNS + TCP 443 连通性（验证公网出口，不依赖业务代码）
+  const host = safeHost(apiUrl);
+  if (host) {
+    await new Promise((done) => {
+      const sock = net.connect(443, host, () => {
+        mark('tcp-ok', host + ':443');
+        sock.destroy();
+        done();
+      });
+      sock.setTimeout(10000, () => {
+        mark('tcp-timeout', host + ':443');
+        sock.destroy();
+        done();
+      });
+      sock.on('error', (e) => {
+        mark('tcp-err', host + ' :: ' + e.message);
+        done();
+      });
+    });
+  }
+
+  // 3. 真实生图请求（只计时、不落库）
+  let genMs = -1;
+  let genInfo = '';
+  if (apiUrl && apiKey) {
+    const t1 = Date.now();
+    try {
+      const apiRes = await postJson(
+        apiUrl,
+        { Authorization: 'Bearer ' + apiKey },
+        {
+          model,
+          prompt: '一道家常辅食的照片：「番茄炒蛋」，俯拍，白瓷盘，自然光。',
+          n: 1,
+          size: process.env.IMAGE_API_SIZE || '1024x1024',
+        }
+      );
+      genMs = Date.now() - t1;
+      const item = apiRes && apiRes.data && apiRes.data[0];
+      genInfo = item
+        ? (item.b64_json ? 'b64=' + item.b64_json.length : '') + (item.url ? 'url=' + item.url.slice(0, 60) : '') +
+          ' contentFilter=' + JSON.stringify(apiRes.content_filter || null)
+        : 'no-data ' + JSON.stringify(apiRes).slice(0, 200);
+      mark('gen-ok', genMs + 'ms ' + genInfo);
+    } catch (e) {
+      genMs = Date.now() - t1;
+      mark('gen-err', genMs + 'ms ' + String(e && e.message).slice(0, 300));
+    }
+  } else {
+    mark('gen-skip', '未配置，跳过');
+  }
+
+  // 4. 压缩依赖可用性
+  try {
+    require('@jimp/custom');
+    mark('slim-jimp-ok');
+  } catch (e1) {
+    try {
+      require('jimp');
+      mark('legacy-jimp-ok', '(旧版依赖还在)');
+    } catch (e2) {
+      mark('jimp-missing', e1.message.slice(0, 80));
+    }
+  }
+
+  mark('end', 'total=' + (Date.now() - t0) + 'ms');
+
+  return {
+    ok: true,
+    diag: {
+      steps: steps,
+      totalMs: Date.now() - t0,
+      genMs: genMs,
+      rssMB: mb(),
+      memoryLimitHint: '若 end 缺失且最后停在 gen-*，多半是内存/超时被打死',
+    },
+  };
+}
+
+function safeHost(urlStr) {
+  try {
+    return new URL(String(urlStr)).hostname;
+  } catch (e) {
+    return '';
+  }
+}
+
 /** 配图库统计（我的页展示） */
 async function stats() {
   const total = await db.collection('dishImages').count();
@@ -250,6 +362,8 @@ exports.main = async (event) => {
         return await generate(event || {});
       case 'stats':
         return await stats();
+      case 'diag':
+        return await diag(event || {});
       default:
         return { ok: false, message: '未知 action：' + action };
     }
