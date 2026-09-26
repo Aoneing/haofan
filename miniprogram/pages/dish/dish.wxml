@@ -11,10 +11,12 @@
       class="btn-primary"
       style="margin-top:32rpx"
       loading="{{generating}}"
+      disabled="{{generating}}"
       bindtap="generate"
     >
-      {{url ? '换一张配图' : '生成 AI 配图'}}
+      {{generating ? '生成中…' : (url ? '换一张配图' : '生成 AI 配图')}}
     </button>
+    <view wx:if="{{generating}}" class="dish-gen-tip">{{genTip}}</view>
     <view class="muted dish-note">
       配图按「归一化菜名」全库复用：同一个菜名在一周里出现多次，用的都是同一张图。
       生成的图片会存进云存储，下次直接复用。

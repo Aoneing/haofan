@@ -167,11 +167,86 @@ async function resolve(event) {
   return { ok: true, map, missing: uniq.filter((k) => !map[k]) };
 }
 
-/** { key, title? } → 生成一张配图，上传云存储，写入 dishImages */
+/** 生图幂等窗口：同一 key 在这段时间内重复请求直接复用，不重复调接口（重复调用＝重复扣费） */
+const PENDING_WINDOW_MS = 3 * 60 * 1000;
+/** 连续失败冷却：接口异常时不反复烧钱 */
+const FAIL_COOLDOWN_MS = 2 * 60 * 1000;
+const FAIL_COOLDOWN_THRESHOLD = 3;
+
+/** Date / ISO 字符串 / 时间戳 → 毫秒，取不到就返回 0（当作很久以前） */
+function toMs(v) {
+  if (!v) return 0;
+  if (v instanceof Date) return v.getTime();
+  if (typeof v === 'number') return v;
+  const t = Date.parse(v);
+  return isNaN(t) ? 0 : t;
+}
+
+/** 读一条配图记录；不存在时 db 会抛错，统一按「没有」处理 */
+async function readDoc(key) {
+  try {
+    const res = await db.collection('dishImages').doc(key).get();
+    return (res && res.data) || null;
+  } catch (e) {
+    return null;
+  }
+}
+
+/** 写状态标记（pending / ready / failed）。写失败不能阻断主流程 */
+async function markDoc(key, data) {
+  try {
+    await db
+      .collection('dishImages')
+      .doc(key)
+      .set({ data: Object.assign({ updatedAt: db.serverDate() }, data) });
+  } catch (e) {
+    console.warn('[dishImage] markDoc failed:', e && e.message);
+  }
+}
+
+/**
+ * { key, title? } → 生成一张配图，上传云存储，写入 dishImages
+ *
+ * 关于耗时：单张生图实测 20–90 秒，可能超过调用方（客户端 / 控制台「云端测试」）的等待上限。
+ * 调用方超时会断开并报错，但云函数仍在后台跑完并落库 —— 所以调用方报错 ≠ 生成失败。
+ * 因此：本函数保持「同步跑完再返回」以保证一定能落库；前端改为发起后轮询 resolve，
+ * 不依赖这一次调用的返回值。详见 miniprogram/pages/dish/dish.js。
+ */
 async function generate(event) {
   const key = String(event.key || '').trim();
   const title = String(event.title || '').trim() || key;
   if (!key) return { ok: false, message: '缺少 key（归一化菜名）' };
+
+  // 0. 幂等保护：成品直接复用；生成中/冷却期直接返回，不重复计费
+  const prev = await readDoc(key);
+  if (prev) {
+    if (prev.fileID) {
+      return {
+        ok: true,
+        key,
+        fileID: prev.fileID,
+        cached: true,
+        bytes: prev.bytes,
+        rawBytes: prev.rawBytes,
+      };
+    }
+    if (prev.status === 'pending' && Date.now() - toMs(prev.pendingAt) < PENDING_WINDOW_MS) {
+      return { ok: true, key, pending: true, message: '上一张还在生成中' };
+    }
+    if (
+      prev.status === 'failed' &&
+      (prev.failCount || 0) >= FAIL_COOLDOWN_THRESHOLD &&
+      Date.now() - toMs(prev.failedAt) < FAIL_COOLDOWN_MS
+    ) {
+      const wait = Math.ceil((FAIL_COOLDOWN_MS - (Date.now() - toMs(prev.failedAt))) / 1000);
+      return {
+        ok: false,
+        key,
+        code: 'COOLDOWN',
+        message: '连续生成失败，已暂停 ' + wait + ' 秒以免继续消耗额度，请稍后再试',
+      };
+    }
+  }
 
   const apiUrl = process.env.IMAGE_API_URL;
   const apiKey = process.env.IMAGE_API_KEY;
@@ -192,34 +267,44 @@ async function generate(event) {
 
   const size = process.env.IMAGE_API_SIZE || '1024x1024';
 
-  const apiRes = await postJson(
-    apiUrl,
-    { Authorization: 'Bearer ' + apiKey },
-    { model, prompt, n: 1, size }
-  );
+  await markDoc(key, {
+    title,
+    status: 'pending',
+    pendingAt: new Date(),
+    failCount: (prev && prev.failCount) || 0,
+  });
 
-  const item = apiRes && apiRes.data && apiRes.data[0];
-  if (!item) return { ok: false, message: '生图接口未返回图片数据' };
+  const t0 = Date.now();
+  console.log('[dishImage] generate start', key, 'model=' + model, 'size=' + size);
 
-  let raw;
-  if (item.b64_json) {
-    raw = Buffer.from(item.b64_json, 'base64');
-  } else if (item.url) {
-    // 接口给外链时中转下载再入云存储，避免外链过期
-    raw = await download(item.url);
-  } else {
-    return { ok: false, message: '生图接口返回格式无法识别' };
-  }
+  try {
+    const apiRes = await postJson(
+      apiUrl,
+      { Authorization: 'Bearer ' + apiKey },
+      { model, prompt, n: 1, size }
+    );
 
-  // 落库前压缩到设计文档要求的规格（640px / JPEG q70 ≈ 40–80KB）
-  const packed = await compressForStorage(raw);
-  const cloudPath =
-    'dish-images/' + encodeURIComponent(key) + '-' + Date.now() + '.' + packed.ext;
-  const up = await cloud.uploadFile({ cloudPath, fileContent: packed.buffer });
-  const fileID = up.fileID;
+    const item = apiRes && apiRes.data && apiRes.data[0];
+    if (!item) throw new Error('生图接口未返回图片数据');
 
-  await db.collection('dishImages').doc(key).set({
-    data: {
+    let raw;
+    if (item.b64_json) {
+      raw = Buffer.from(item.b64_json, 'base64');
+    } else if (item.url) {
+      // 接口给外链时中转下载再入云存储，避免外链过期（智谱的链接 30 天失效）
+      raw = await download(item.url);
+    } else {
+      throw new Error('生图接口返回格式无法识别');
+    }
+
+    // 落库前压缩到设计文档要求的规格（640px / JPEG q70 ≈ 40–80KB）
+    const packed = await compressForStorage(raw);
+    const cloudPath =
+      'dish-images/' + encodeURIComponent(key) + '-' + Date.now() + '.' + packed.ext;
+    const up = await cloud.uploadFile({ cloudPath, fileContent: packed.buffer });
+    const fileID = up.fileID;
+
+    await markDoc(key, {
       fileID,
       title,
       prompt,
@@ -228,11 +313,42 @@ async function generate(event) {
       requestSize: size,
       bytes: packed.buffer.length,
       rawBytes: raw.length,
+      status: 'ready',
       generatedAt: db.serverDate(),
-    },
-  });
+      // 智谱返回的 content_filter 自带安全判定，落库备查（P-1 内容安全）
+      contentFilter: apiRes.content_filter || null,
+    });
 
-  return { ok: true, key, fileID, bytes: packed.buffer.length, rawBytes: raw.length };
+    console.log(
+      '[dishImage] generate done',
+      key,
+      Date.now() - t0 + 'ms',
+      'bytes=' + packed.buffer.length,
+      'rawBytes=' + raw.length
+    );
+
+    return {
+      ok: true,
+      key,
+      fileID,
+      bytes: packed.buffer.length,
+      rawBytes: raw.length,
+      genMs: Date.now() - t0,
+    };
+  } catch (e) {
+    const msg = (e && e.message) || '生图失败';
+    console.error('[dishImage] generate failed', key, Date.now() - t0 + 'ms', msg);
+    await markDoc(key, {
+      title,
+      status: 'failed',
+      failCount: ((prev && prev.failCount) || 0) + 1,
+      lastError: String(msg).slice(0, 300),
+      failedAt: new Date(),
+      // 保留上一次成功的图，避免失败后连旧图也丢了
+      fileID: (prev && prev.fileID) || '',
+    });
+    return { ok: false, key, code: 'GENERATE_FAILED', message: msg, genMs: Date.now() - t0 };
+  }
 }
 
 /**
@@ -346,9 +462,12 @@ function safeHost(urlStr) {
   }
 }
 
-/** 配图库统计（我的页展示） */
+/** 配图库统计（我的页展示）。只数真正有图的，pending / failed 占位记录不算 */
 async function stats() {
-  const total = await db.collection('dishImages').count();
+  const total = await db
+    .collection('dishImages')
+    .where({ fileID: _.exists(true) })
+    .count();
   return { ok: true, total: total.total };
 }
 
