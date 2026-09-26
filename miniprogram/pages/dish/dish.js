@@ -2,9 +2,12 @@
 const api = require('../../utils/api');
 const imageStore = require('../../utils/imageStore');
 
-// 轮询间隔与总时长上限。生图实测 20–90 秒，取 120 秒留足余量。
+// 轮询节奏：生图实测 30 秒～2 分钟+（模型波动大），前 90 秒每 3 秒一次，
+// 之后降到每 10 秒一次，总上限 4 分钟。就算超时，图大概率也已落库，重进页面即可看到。
 const POLL_INTERVAL_MS = 3000;
-const POLL_MAX_MS = 120000;
+const POLL_INTERVAL_SLOW_MS = 10000;
+const POLL_SLOW_AFTER_MS = 90000;
+const POLL_MAX_MS = 240000;
 
 Page({
   data: {
@@ -127,15 +130,20 @@ Page({
           if (Date.now() >= this._pollDeadline) {
             this._stop('轮询超时');
             wx.showModal({
-              title: '还在生成中',
+              title: '生成比预期慢',
               content:
-                'AI 生图这次超过 2 分钟了，可能还在排队，也可能是模型超时失败了。\n\n建议：稍等一会儿重进这个页面，图可能已经好了；还是没有的话，说明本次生成失败，请再点一次。',
+                '已经等了 4 分钟还没拿到结果。不过别担心：就算这里超时，云端也常会继续跑完。\n\n最简单的确认方式：退出本页再进来——图已经好了就会直接显示；还是没有的话，再点一次生成即可。',
               showCancel: false,
             });
             return;
           }
           this._setTip();
-          this._pollTimer = setTimeout(tick, POLL_INTERVAL_MS);
+          // 前段密轮询（3 秒），90 秒后转疏（10 秒）：生图大概率落库在 2 分钟后，省请求也不错过
+          const elapsed = POLL_MAX_MS - (this._pollDeadline - Date.now());
+          this._pollTimer = setTimeout(
+            tick,
+            elapsed < POLL_SLOW_AFTER_MS ? POLL_INTERVAL_MS : POLL_INTERVAL_SLOW_MS
+          );
         });
     };
 
@@ -148,8 +156,8 @@ Page({
     const sec = Math.round((POLL_MAX_MS - (this._pollDeadline - Date.now())) / 1000);
     const tip =
       sec < 45
-        ? 'AI 生成中，通常需要 30～60 秒，可以先做别的事'
-        : '还在生成中，已等待 ' + sec + ' 秒…（超过 2 分钟可能本次失败）';
+        ? 'AI 生成中，通常需要 30～120 秒，可以先做别的事'
+        : '还在生成中，已等待 ' + sec + ' 秒…（中途退出也没关系，重进本页就能看到）';
     if (tip !== this.data.genTip) this.setData({ genTip: tip });
   },
 
