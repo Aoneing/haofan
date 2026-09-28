@@ -13,8 +13,8 @@
   <view
     wx:for="{{vm.meals}}"
     wx:key="index"
-    class="dc__meal {{expandable ? 'dc__meal--tap' : ''}} {{item.expanded ? 'dc__meal--open' : ''}} {{item.emphasize ? 'dc__meal--main' : item.isMain ? 'dc__meal--main-off' : ''}}"
-    style="background:{{item.bg}};color:{{item.fg}}"
+    class="dc__meal {{expandable ? 'dc__meal--tap' : ''}} {{item.expanded ? 'dc__meal--open' : ''}} {{item.emphasize ? 'dc__meal--main' : item.deemphasize ? 'dc__meal--sub' : ''}}"
+    style="background:{{item.bg}};color:{{item.fg}};border-left:{{item.bar}}"
     hover-class="{{expandable ? 'dc__meal--hover' : 'none'}}"
     hover-stay-time="80"
     data-index="{{index}}"

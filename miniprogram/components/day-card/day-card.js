@@ -57,13 +57,20 @@ Component({
           // 主餐（午餐/晚餐）：只有页面开了 highlightKey 才生效
           const isMain = isMainMeal(m.meal);
           const emphasize = highlightKey && isMain;
+          // 「主角上抬 + 配角后退」两条一起做，单靠加深主餐底色是不够的：
+          // 同色系浅色之间的色差肉眼几乎读不出来（第一版就是这么没效果的）
+          const deemphasize = highlightKey && !isMain;
           return {
             mealText: m.mealText || style.label,
             bg: emphasize ? style.bgStrong || style.bg : style.bg,
             fg: style.fg,
+            // 主餐左侧竖条取文字色，不额外引颜色；色块之间的差异常常读不出来，
+            // 但一条饱和的竖条不会被眼睛漏掉
+            bar: emphasize ? '10rpx solid ' + (style.fg || '#7A6A55') : 'none',
             meal: m.meal, // 主餐判定结果要落到 class 上，WXML 里不再做字符串比较
             isMain,
             emphasize,
+            deemphasize,
             key,
             title: m.missing ? '未安排' : m.displayTitle,
             recipe: m.recipe || '',

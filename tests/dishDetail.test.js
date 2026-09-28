@@ -163,6 +163,20 @@ t('const：每个餐次都有加深底色 bgStrong（突出主餐用）', () => 
   });
 });
 
+t('★ const：主餐底色与常规底色的亮度差要看得出来（第一版就是差太小等于没做）', () => {
+  // 感知亮度 0.299R + 0.587G + 0.114B。同色系浅色之间差不到 20/255 时，
+  // 在手机上是看不出来的——第一版 lunch #EAF3DE→#D6EEBD 就是这个量级，被判「没突出」。
+  const lum = (hex) => {
+    const n = parseInt(hex.slice(1), 16);
+    return 0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255);
+  };
+  consts.MAIN_MEALS.forEach((meal) => {
+    const s = consts.MEAL_STYLE[meal];
+    const d = Math.abs(lum(s.bg) - lum(s.bgStrong));
+    assert.ok(d >= 20, meal + ' 的亮度差只有 ' + d.toFixed(1) + '（<20 肉眼读不出来）');
+  });
+});
+
 t('const：主餐只有午餐和晚餐', () => {
   assert.strictEqual(consts.isMainMeal('lunch'), true);
   assert.strictEqual(consts.isMainMeal('dinner'), true);
@@ -179,6 +193,18 @@ t('day-card：主餐判定落到 vm 上，且受 highlightKey 开关控制', () 
   assert.ok(/bg:\s*emphasize \? style\.bgStrong/.test(CARD_JS), '突出时底色换成加深版');
   assert.ok(/highlightKey:\s*\{\s*type:\s*Boolean/.test(CARD_JS), 'highlightKey 要是 Boolean 属性');
   assert.ok(/'day, images, expandable, compact, highlightKey'/.test(CARD_JS), '开关变化要触发重建');
+});
+
+t('day-card：配角也要后退（只抬主角是不够的，对比才看得出来）', () => {
+  assert.ok(/const deemphasize = highlightKey && !isMain;/.test(CARD_JS), 'vm 要有 deemphasize');
+  assert.ok(/^\s+deemphasize,$/m.test(CARD_JS), 'deemphasize 要进 vm');
+  assert.ok(/item\.deemphasize \? 'dc__meal--sub' : ''/.test(CARD_WXML), '配角要挂 dc__meal--sub');
+  assert.ok(/\.dc--keymeal \.dc__meal--sub\s*\{[^}]*opacity/.test(CARD_WXSS), '配角要有透明度弱化');
+});
+
+t('day-card：主餐左侧竖条（最醒目的一处差异，也用来判断有没有生效）', () => {
+  assert.ok(/bar:\s*emphasize \? '10rpx solid '/.test(CARD_JS), 'vm 要算出 bar');
+  assert.ok(/border-left:\{\{item\.bar\}\}/.test(CARD_WXML), '竖条要落到内联样式上');
 });
 
 t('day-card.wxml：主餐挂 dc__meal--main，卡片根挂 dc--keymeal', () => {

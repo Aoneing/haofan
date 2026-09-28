@@ -65,24 +65,39 @@
   align-items: flex-start;
   padding: 24rpx 20rpx;
 }
-/* 主餐突出（午餐/晚餐）：底色已在 JS 侧换成同色系加深版，这里补立体阴影与字号，
-   让「今天主要吃啥」一眼扫到，而不是平铺四行一样重 */
+/* 主餐突出（午餐/晚餐）。
+   第一版只把底色加深一档 + 淡阴影 + 字号 30→34rpx，在手机上几乎看不出来。
+   改成「主角上抬 + 配角后退」双管齐下才有对比：
+     主餐 = 饱和底色 + 左侧饱和竖条 + 大内边距 + 硬阴影 + 菜名放大加粗
+     其余 = 整块透明度压到 0.55，往背景里退 */
 .dc--keymeal .dc__meal--main {
-  padding: 26rpx 22rpx;
-  margin-bottom: 20rpx;
-  box-shadow: 0 8rpx 22rpx rgba(122, 96, 66, 0.16);
+  padding: 30rpx 22rpx 30rpx 30rpx;
+  margin-bottom: 22rpx;
+  box-shadow: 0 10rpx 26rpx rgba(122, 96, 66, 0.26);
 }
 .dc--keymeal .dc__meal--main .dc__dish {
-  font-size: 34rpx;
+  font-size: 38rpx;
   font-weight: 700;
   letter-spacing: 1rpx;
 }
 .dc--keymeal .dc__meal--main .dc__meal-label {
-  font-size: 28rpx;
+  font-size: 30rpx;
   font-weight: 700;
   opacity: 1;
 }
-/* 未开突出开关时，主餐只留一个「可识别」的标记 class，不改观感（dc__meal--main-off 无样式） */
+.dc--keymeal .dc__meal--main .dc__options {
+  font-size: 26rpx;
+}
+/* 配角后退：早餐/加餐整块淡出，让主餐成为视线落点 */
+.dc--keymeal .dc__meal--sub {
+  opacity: 0.55;
+  padding: 16rpx 20rpx;
+  margin-bottom: 14rpx;
+}
+.dc--keymeal .dc__meal--sub .dc__dish {
+  font-size: 27rpx;
+  font-weight: 400;
+}
 
 .dc__meal-label {
   writing-mode: vertical-rl;

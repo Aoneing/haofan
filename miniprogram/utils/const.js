@@ -3,10 +3,10 @@
 // 为什么要单独一份加深色而不是加边框/阴影了事：餐次块本身就是色块，描边会被底色吃掉，
 // 只有把底色饱和度提上去才看得出层次。
 const MEAL_STYLE = {
-  breakfast: { bg: '#FAEEDA', bgStrong: '#F6E2BC', fg: '#854F0B', label: '早餐' },
-  lunch: { bg: '#EAF3DE', bgStrong: '#D6EEBD', fg: '#3B6D11', label: '午餐' },
-  snack: { bg: '#FBEAF0', bgStrong: '#F8DAE5', fg: '#993556', label: '加餐' },
-  dinner: { bg: '#E6F1FB', bgStrong: '#CFE5F8', fg: '#0C447C', label: '晚餐' },
+  breakfast: { bg: '#FAEEDA', bgStrong: '#F7DFB4', fg: '#854F0B', label: '早餐' },
+  lunch: { bg: '#EAF3DE', bgStrong: '#C2E69C', fg: '#3B6D11', label: '午餐' },
+  snack: { bg: '#FBEAF0', bgStrong: '#F7D3E0', fg: '#993556', label: '加餐' },
+  dinner: { bg: '#E6F1FB', bgStrong: '#AFD8F5', fg: '#0C447C', label: '晚餐' },
 };
 
 // 一天里的主餐：午餐 + 晚餐。早餐/加餐属于配角，视觉上要退一层。
