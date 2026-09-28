@@ -233,6 +233,99 @@ function readJSON(p) {
   }
 })();
 
+/* ---------- 6.5 隐私接口清单（提审前要对着后台核一遍） ---------- */
+/**
+ * 微信把一批接口按「类别」归到「用户隐私保护指引」下管。就算我们并没有真的从用户身上
+ * 采集个人信息（比如只是让用户把屏幕上的做法复制走），只要调了这些 API，提审时就会被
+ * 检测出来。若在提审的「用户隐私保护设置」里勾了「未采集用户隐私」，平台会**回收权限** ——
+ * 后果不是驳回，而是发布后功能静默失效（复制没反应、选不出文件），比驳回严重得多。
+ *
+ * 所以这里做的是「只读清点」：把代码里实际用到的隐私接口列出来，
+ * 提醒要在 MP 后台 → 设置 → 服务内容声明 → 用户隐私保护指引 里声明对应类型。
+ * 不做阻断：这类声明的如实与否只能由开发者判断，机器拦不了。
+ *
+ * 官方对照表：https://developers.weixin.qq.com/miniprogram/dev/framework/user-privacy/miniprogram-intro.html
+ */
+const PRIVACY_API_MAP = [
+  { api: 'setClipboardData', type: '读取你的剪切板' },
+  { api: 'getClipboardData', type: '读取你的剪切板' },
+  { api: 'chooseMessageFile', type: '收集你选中的文件' },
+  { api: 'chooseImage', type: '收集你选中的照片或视频信息' },
+  { api: 'chooseMedia', type: '收集你选中的照片或视频信息' },
+  { api: 'chooseVideo', type: '收集你选中的照片或视频信息' },
+  { api: 'chooseLocation', type: '收集你选择的位置信息' },
+  { api: 'choosePoi', type: '收集你选择的位置信息' },
+  { api: 'chooseAddress', type: '收集你的地址' },
+  { api: 'getLocation', type: '收集你的位置信息' },
+  { api: 'getFuzzyLocation', type: '收集你的位置信息' },
+  { api: 'getWeRunData', type: '收集你的微信运动步数' },
+  { api: 'chooseInvoice', type: '收集你的发票信息' },
+  { api: 'chooseInvoiceTitle', type: '收集你的发票信息' },
+  { api: 'chooseLicensePlate', type: '收集你的车牌号' },
+  { api: 'startRecord', type: '访问你的麦克风' },
+  { api: 'saveImageToPhotosAlbum', type: '使用你的相册（仅写入）权限' },
+  { api: 'saveVideoToPhotosAlbum', type: '使用你的相册（仅写入）权限' },
+  { api: 'addPhoneContact', type: '使用你的通讯录（仅写入）权限' },
+  { api: 'addPhoneCalendar', type: '使用你的日历（仅写入）权限' },
+  { api: 'startAccelerometer', type: '调用你的加速传感器' },
+  { api: 'startCompass', type: '调用你的磁场传感器' },
+  { api: 'startGyroscope', type: '调用你的陀螺仪传感器' },
+  { api: 'startDeviceMotionListening', type: '调用你的方向传感器' },
+];
+
+(function checkPrivacyApis() {
+  const files = [];
+  function walk(dir, skip) {
+    if (!exists(dir)) return;
+    fs.readdirSync(dir, { withFileTypes: true }).forEach((ent) => {
+      if (skip.indexOf(ent.name) >= 0) return;
+      const full = path.join(dir, ent.name);
+      if (ent.isDirectory()) walk(full, skip);
+      else if (/\.(js|wxml)$/.test(ent.name)) files.push(full);
+    });
+  }
+  walk(MP, ['node_modules']);
+
+  // opentype / open-type 也算（组件形态）
+  const hits = []; // { file, api, type, n }
+  files.forEach((f) => {
+    const src = fs.readFileSync(f, 'utf8');
+    PRIVACY_API_MAP.forEach((item) => {
+      // 计数而不是只判有无：同一个文件里多处调用要如实报出来，否则会低估改动面
+      const n = (src.match(new RegExp('wx\\.' + item.api, 'g')) || []).length;
+      if (n > 0) hits.push({ file: path.relative(ROOT, f), api: item.api, type: item.type, n });
+    });
+    if (/open-type="[^"]*getPhoneNumber/.test(src)) {
+      hits.push({ file: path.relative(ROOT, f), api: 'getPhoneNumber', type: '收集你的手机号', n: 1 });
+    }
+    if (/open-type="[^"]*chooseAvatar/.test(src)) {
+      hits.push({ file: path.relative(ROOT, f), api: 'chooseAvatar', type: '收集你的昵称、头像', n: 1 });
+    }
+  });
+
+  if (!hits.length) {
+    ok('隐私接口', '未用到任何需声明的隐私接口');
+  } else {
+    const types = [];
+    hits.forEach((h) => {
+      if (types.indexOf(h.type) < 0) types.push(h.type);
+    });
+    const calls = hits.reduce((s, h) => s + h.n, 0);
+    warn(
+      '隐私接口',
+      calls +
+        ' 次调用 / ' +
+        types.length +
+        ' 个隐私类型：' +
+        types.join('、') +
+        '\n      · 提审前需在 MP 后台「设置 → 服务内容声明 → 用户隐私保护指引」声明这些类型并填写用途' +
+        '\n      · 若提审时勾「未采集用户隐私」，平台会回收权限，发布后这些接口静默失效（errno 112 / privacy api banned）' +
+        '\n      · 明细：' +
+        hits.map((h) => h.api + '×' + h.n + '@' + h.file).join('，')
+    );
+  }
+})();
+
 /* ---------- 汇总 ---------- */
 const ICON = { ok: '  OK   ', warn: ' WARN  ', fail: ' FAIL  ' };
 const fails = checks.filter((c) => c.level === 'fail');
