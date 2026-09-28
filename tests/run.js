@@ -13,6 +13,7 @@ const suites = [
   require('./parseExcel.test.js'),
   require('./imageTempUrl.test.js'),
   require('./ingredientPrep.test.js'),
+  require('./dishDetail.test.js'),
 ];
 
 let passed = 0;

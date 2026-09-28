@@ -2,6 +2,7 @@
 const api = require('../../utils/api');
 const imageStore = require('../../utils/imageStore');
 const dateUtil = require('../../utils/date');
+const dishNav = require('../../utils/dishNav');
 
 Page({
   data: {
@@ -96,8 +97,10 @@ Page({
     wx.navigateTo({ url: '/pages/day/day?date=' + e.detail.date });
   },
   onDishTap(e) {
-    const { key, title } = e.detail;
+    const { key, title, recipe } = e.detail;
     if (!key) return;
+    // 同 day 页：做法走内存中转，不塞 url
+    dishNav.put(key, { recipe: recipe || '' });
     wx.navigateTo({
       url: '/pages/dish/dish?key=' + encodeURIComponent(key) + '&title=' + encodeURIComponent(title || ''),
     });

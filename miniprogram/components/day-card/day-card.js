@@ -1,5 +1,5 @@
 // components/day-card/day-card.js
-const { MEAL_STYLE } = require('../../utils/const');
+const { MEAL_STYLE, isMainMeal } = require('../../utils/const');
 const dateUtil = require('../../utils/date');
 
 const FALLBACK_STYLE = { bg: '#F3EEE5', fg: '#7A6A55' };
@@ -14,6 +14,9 @@ Component({
     highlight: { type: String, value: '' }, // '' | 'today' | 'tomorrow'
     // 可展开模式（今日页）：默认收起且不配图；点某一餐展开——文字放大 + 配图占位区淡入
     expandable: { type: Boolean, value: false },
+    // 突出主餐（午餐/晚餐）：单日详情页打开。早餐/加餐相应退一层，一眼就能分清主次。
+    // 做成开关而不是写死：周视图/校对页走的也是同一个卡片，不能顺带改掉它们的观感。
+    highlightKey: { type: Boolean, value: false },
   },
 
   data: {
@@ -22,7 +25,7 @@ Component({
   },
 
   observers: {
-    'day, images, expandable, compact'(day) {
+    'day, images, expandable, compact, highlightKey'(day) {
       if (!day) {
         this.setData({ vm: null, expandedIndex: -1 });
         return;
@@ -42,6 +45,7 @@ Component({
       const imgs = this.data.images || {};
       const expandable = this.data.expandable;
       const compact = this.data.compact;
+      const highlightKey = this.data.highlightKey;
       return {
         date: day.date,
         dateText: dateUtil.fmtCN(day.date),
@@ -50,10 +54,16 @@ Component({
           // dishKey 是配图与详情页的主键；必须透传给 WXML，否则点菜品无法跳转
           const key = (m.dishKeys && m.dishKeys[0]) || '';
           const expanded = expandable && idx === expandedIndex;
+          // 主餐（午餐/晚餐）：只有页面开了 highlightKey 才生效
+          const isMain = isMainMeal(m.meal);
+          const emphasize = highlightKey && isMain;
           return {
             mealText: m.mealText || style.label,
-            bg: style.bg,
+            bg: emphasize ? style.bgStrong || style.bg : style.bg,
             fg: style.fg,
+            meal: m.meal, // 主餐判定结果要落到 class 上，WXML 里不再做字符串比较
+            isMain,
+            emphasize,
             key,
             title: m.missing ? '未安排' : m.displayTitle,
             recipe: m.recipe || '',
@@ -116,9 +126,11 @@ Component({
     },
 
     goDish(e) {
-      const { key, title } = e.currentTarget.dataset;
+      const { key, title, recipe } = e.currentTarget.dataset;
       if (key) {
-        this.triggerEvent('dishtap', { key, title });
+        // recipe 必须一起带出去：详情页要展示做法，而做法只在 day 文档里，
+        // 详情页拿不到这一天的原始数据（它只有菜名这一个主键）。
+        this.triggerEvent('dishtap', { key, title, recipe: recipe || '' });
       }
     },
   },

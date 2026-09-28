@@ -1,21 +1,36 @@
-<view class="container">
-  <view class="card dish-card">
-    <view class="dish-hero" bindtap="preview">
-      <dish-thumb
-        title="{{title}}"
-        url="{{url}}"
-        imgkey="{{key}}"
-        size="{{420}}"
-        bindimgerror="onThumbError"
-      />
-      <view wx:if="{{url}}" class="dish-hero__tip">点击查看大图</view>
-      <view wx:else class="dish-hero__tip">还没有配图，点击下方生成</view>
+<!-- 菜品详情：全屏大图 + 做法 + AI 生成入口
+     布局要点：图区顶到屏幕左右边缘（满屏宽），高度按屏幕比例算，
+     下方做法区从图底露出一条边，提示「还能往下滚」。 -->
+<view class="dish">
+  <view class="dish__hero" style="height:{{heroH}}rpx" bindtap="preview">
+    <dish-thumb
+      title="{{title}}"
+      url="{{url}}"
+      imgkey="{{key}}"
+      size="{{heroW}}"
+      height="{{heroH}}"
+      radius="{{0}}"
+      bindimgerror="onThumbError"
+    />
+    <view class="dish__hero-bar">
+      <view class="dish__hero-title">{{title}}</view>
+      <view class="dish__hero-tip">{{url ? '点击查看大图' : '还没有配图，点击下方生成'}}</view>
     </view>
-    <view class="dish-title">{{title}}</view>
-    <view class="muted dish-key">配图主键：{{key}}</view>
+  </view>
+
+  <view class="dish__panel">
+    <!-- 做法：跳转进来时由 day 页带过来，不在这里重新查库 -->
+    <view class="dish-sec">
+      <view class="dish-sec__hd">
+        <text class="dish-sec__title">做法</text>
+        <text wx:if="{{hasRecipe}}" class="dish-sec__act" catchtap="copyRecipe">复制</text>
+      </view>
+      <view wx:if="{{hasRecipe}}" class="dish-recipe" bindlongpress="copyRecipe">{{recipe}}</view>
+      <view wx:else class="dish-recipe dish-recipe--empty">这份食谱没有记录做法</view>
+    </view>
+
     <button
-      class="btn-primary"
-      style="margin-top:32rpx"
+      class="btn-primary dish-gen"
       loading="{{generating}}"
       disabled="{{generating}}"
       bindtap="generate"
@@ -45,5 +60,6 @@
       配图按「归一化菜名」全库复用：同一个菜名在一周里出现多次，用的都是同一张图。
       生成的图片会存进云存储，下次直接复用。
     </view>
+    <view class="muted dish-key">配图主键：{{key}}</view>
   </view>
 </view>

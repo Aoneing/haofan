@@ -1,6 +1,6 @@
 <view
   class="thumb {{src ? 'thumb--img' : 'thumb--ph'}}"
-  style="width:{{size}}rpx;height:{{size}}rpx"
+  style="width:{{size}}rpx;height:{{height > 0 ? height : size}}rpx;border-radius:{{radius}}rpx"
 >
   <image
     wx:if="{{src}}"
@@ -10,5 +10,5 @@
     lazy-load="{{true}}"
     binderror="onImgError"
   />
-  <text wx:else class="thumb__ph">{{phChar}}</text>
+  <text wx:else class="thumb__ph" style="font-size:{{phSize}}rpx">{{phChar}}</text>
 </view>

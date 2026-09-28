@@ -11,11 +11,17 @@ Component({
     title: { type: String, value: '' },
     url: { type: String, value: '' }, // https 临时链接（由云函数换取，不能用 cloud://）
     imgkey: { type: String, value: '' }, // 归一化菜名，仅在「链接失效自愈」时需要
-    size: { type: Number, value: 96 }, // rpx
+    size: { type: Number, value: 96 }, // rpx，宽
+    // 高（rpx）。0 = 与 size 相同（正方形）。详情页全屏大图用它压成 4:3 一类的比例，
+    // 否则满屏宽的图会是正方形，把下方内容全顶出屏幕。
+    height: { type: Number, value: 0 },
+    // 圆角（rpx）。列表里用 16 保持卡片感；详情页全屏大图传 0，图要顶到屏幕边缘。
+    radius: { type: Number, value: 16 },
   },
 
   data: {
     phChar: '食',
+    phSize: 32, // 占位首字的字号，随 size 缩放：全屏大图的占位字也要跟着变大
     src: '', // 实际渲染用的链接；自愈后会覆盖掉传入的 url
   },
 
@@ -23,6 +29,10 @@ Component({
     title(v) {
       const t = String(v || '').trim();
       this.setData({ phChar: t ? t.charAt(0) : '食' });
+    },
+    size(v) {
+      const s = Number(v) || 96;
+      this.setData({ phSize: Math.max(24, Math.round(s * 0.34)) });
     },
     url(v) {
       // 外部给了新链接：重置自愈计数，并覆盖上一次的自愈结果

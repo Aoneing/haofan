@@ -2,6 +2,7 @@
 const api = require('../../utils/api');
 const imageStore = require('../../utils/imageStore');
 const dateUtil = require('../../utils/date');
+const dishNav = require('../../utils/dishNav');
 
 // 滚动定位 / 联动判定都按「吸顶条下方一点点」算，避免标题被吸顶条盖住
 const ANCHOR_GAP = 12;
@@ -202,8 +203,10 @@ Page({
   },
 
   onDishTap(e) {
-    const { key, title } = e.detail;
+    const { key, title, recipe } = e.detail;
     if (!key) return;
+    // 同 day 页：做法走内存中转，不塞 url
+    dishNav.put(key, { recipe: recipe || '' });
     wx.navigateTo({
       url: '/pages/dish/dish?key=' + encodeURIComponent(key) + '&title=' + encodeURIComponent(title || ''),
     });

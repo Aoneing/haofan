@@ -65,6 +65,25 @@
   align-items: flex-start;
   padding: 24rpx 20rpx;
 }
+/* 主餐突出（午餐/晚餐）：底色已在 JS 侧换成同色系加深版，这里补立体阴影与字号，
+   让「今天主要吃啥」一眼扫到，而不是平铺四行一样重 */
+.dc--keymeal .dc__meal--main {
+  padding: 26rpx 22rpx;
+  margin-bottom: 20rpx;
+  box-shadow: 0 8rpx 22rpx rgba(122, 96, 66, 0.16);
+}
+.dc--keymeal .dc__meal--main .dc__dish {
+  font-size: 34rpx;
+  font-weight: 700;
+  letter-spacing: 1rpx;
+}
+.dc--keymeal .dc__meal--main .dc__meal-label {
+  font-size: 28rpx;
+  font-weight: 700;
+  opacity: 1;
+}
+/* 未开突出开关时，主餐只留一个「可识别」的标记 class，不改观感（dc__meal--main-off 无样式） */
+
 .dc__meal-label {
   writing-mode: vertical-rl;
   text-orientation: upright;

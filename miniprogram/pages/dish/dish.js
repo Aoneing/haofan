@@ -1,6 +1,8 @@
-// pages/dish/dish.js — 单品配图详情 + AI 生成入口
+// pages/dish/dish.js — 单品详情：全屏大图 + 做法 + AI 生成入口
 const api = require('../../utils/api');
 const imageStore = require('../../utils/imageStore');
+const dishNav = require('../../utils/dishNav');
+const layout = require('../../utils/layout');
 
 // 轮询节奏：生图实测 30 秒～2 分钟+（模型波动大），前 90 秒每 3 秒一次，
 // 之后降到每 10 秒一次，总上限 4 分钟。就算超时，图大概率也已落库，重进页面即可看到。
@@ -15,7 +17,12 @@ Page({
   data: {
     key: '',
     title: '',
+    recipe: '', // 做法：从 day 页跳转时带过来（长文本走 dishNav 中转，不进 url）
     url: '',
+    // 全屏大图：宽度恒为满屏 750rpx，高度按屏幕比例算，保证下方做法露出一截
+    heroW: 750,
+    heroH: layout.HERO_FALLBACK_RPX,
+    hasRecipe: false,
     generating: false,
     genTip: '',
     // 诊断面板
@@ -31,7 +38,28 @@ Page({
   onLoad(options) {
     const key = decodeURIComponent(options.key || '');
     const title = decodeURIComponent(options.title || '') || key;
-    this.setData({ key, title });
+    // 做法优先取中转站（day 页跳转前 put 进来的，长度不受限）；
+    // 取不到再看 url 上有没有带短的，两条路都没有就是这份食谱本来没写做法。
+    const carried = dishNav.take(key) || {};
+    const recipe = decodeURIComponent(options.recipe || '') || carried.recipe || '';
+
+    // 全屏大图高度：拿不到窗口尺寸就用兜底值，不能让页面因为一次 API 失败就崩
+    let heroH = layout.HERO_FALLBACK_RPX;
+    try {
+      const win = wx.getSystemInfoSync();
+      heroH = layout.calcHeroHeight(win.windowWidth, win.windowHeight);
+    } catch (e) {
+      console.warn('[dish] 读窗口尺寸失败，用兜底图高：', e && e.message);
+    }
+
+    this.setData({
+      key,
+      title,
+      recipe,
+      hasRecipe: !!recipe,
+      heroW: 750,
+      heroH,
+    });
     this._pollTimer = null;
     this._pollDeadline = 0;
     this._applied = false; // 同一轮只允许提示一次，避免「生成返回」与「轮询命中」重复弹窗
@@ -157,6 +185,16 @@ Page({
   onThumbError() {
     this._imgErrs = (this._imgErrs || 0) + 1;
     if (this.data.diagOpen) this._runDiag();
+  },
+
+  /** 复制做法：做法常在「边看边做」的场景里被抄走，长按/点一下就能复制最省事 */
+  copyRecipe() {
+    const text = this.data.recipe;
+    if (!text) {
+      wx.showToast({ title: '这份食谱没有记录做法', icon: 'none' });
+      return;
+    }
+    wx.setClipboardData({ data: text });
   },
 
   preview() {

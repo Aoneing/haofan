@@ -2,6 +2,7 @@
 const api = require('../../utils/api');
 const imageStore = require('../../utils/imageStore');
 const dateUtil = require('../../utils/date');
+const dishNav = require('../../utils/dishNav');
 
 Page({
   data: {
@@ -67,8 +68,10 @@ Page({
   },
 
   onDishTap(e) {
-    const { key, title } = e.detail;
+    const { key, title, recipe } = e.detail;
     if (!key) return;
+    // 做法可能上百字，拼进 url 会撞上 navigateTo 的长度上限，先放内存中转站
+    dishNav.put(key, { recipe: recipe || '' });
     wx.navigateTo({
       url: '/pages/dish/dish?key=' + encodeURIComponent(key) + '&title=' + encodeURIComponent(title || ''),
     });

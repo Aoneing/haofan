@@ -1,36 +1,92 @@
-.dish-card {
-  text-align: center;
-  padding: 40rpx 32rpx;
+/* 菜品详情页：全屏布局。
+   图区不再包在 .card 里 —— 卡片有 24rpx 圆角和 32rpx 外边距，图会被「框」住，
+   看着就不像全屏。现在图直接顶到屏幕左右边缘，内容面板浮在下方。 */
+.dish {
+  padding-bottom: 48rpx;
 }
-.dish-hero {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin-bottom: 24rpx;
+
+.dish__hero {
+  position: relative;
+  width: 750rpx;
+  overflow: hidden;
+  background: #f2ead9;
 }
-.dish-hero__tip {
-  margin-top: 16rpx;
+/* 底部渐变条：图是浅色时白字也要看得清，同时把菜名压在图上，节省竖向空间 */
+.dish__hero-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 64rpx 32rpx 28rpx;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.5));
+}
+.dish__hero-title {
+  color: #ffffff;
+  font-size: 42rpx;
+  font-weight: 700;
+  line-height: 1.3;
+  text-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.35);
+}
+.dish__hero-tip {
+  margin-top: 6rpx;
   font-size: 22rpx;
-  color: #9a8f80;
+  color: rgba(255, 255, 255, 0.85);
 }
-.dish-title {
-  font-size: 36rpx;
+
+.dish__panel {
+  padding: 28rpx 32rpx 0;
+}
+
+/* 做法 */
+.dish-sec {
+  background: #ffffff;
+  border-radius: 24rpx;
+  padding: 24rpx 28rpx;
+  box-shadow: 0 4rpx 16rpx rgba(122, 96, 66, 0.06);
+}
+.dish-sec__hd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10rpx;
+}
+.dish-sec__title {
+  font-size: 28rpx;
   font-weight: 700;
   color: #3d332b;
 }
-.dish-key {
-  margin-top: 8rpx;
-  word-break: break-all;
+.dish-sec__act {
+  font-size: 24rpx;
+  color: #b07a4a;
 }
-.dish-note {
-  margin-top: 20rpx;
-  text-align: left;
+.dish-recipe {
+  font-size: 28rpx;
+  line-height: 1.8;
+  color: #4a3f33;
+  word-break: break-word;
+  white-space: pre-line; /* 做法里保留了 Excel 的换行，要原样断行 */
+}
+.dish-recipe--empty {
+  font-size: 24rpx;
+  color: #9a8f80;
+}
+
+.dish-gen {
+  margin-top: 28rpx;
 }
 .dish-gen-tip {
   margin-top: 16rpx;
   font-size: 22rpx;
   line-height: 1.6;
+  text-align: center;
   color: #b07a4a;
+}
+.dish-key {
+  margin-top: 12rpx;
+  word-break: break-all;
+}
+.dish-note {
+  margin-top: 20rpx;
 }
 
 /* ---- 诊断面板 ---- */
