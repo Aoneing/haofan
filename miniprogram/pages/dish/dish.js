@@ -78,7 +78,21 @@ Page({
         const r0 = (rep.results || [])[0];
         if (r0) {
           lines.push('DB 记录：status=' + (r0.status || '?') + ' bytes=' + (r0.bytes || '?'));
-          lines.push('HTTPS 实测：' + (r0.httpErr ? 'ERR ' + r0.httpErr : 'HTTP ' + r0.httpStatus));
+          // 只在真的探测过时才显示 HTTP 结果：没探测过就显示 undefined 会误导
+          if (typeof r0.httpStatus === 'number') {
+            lines.push('HTTPS 实测：' + (r0.httpErr ? 'ERR ' + r0.httpErr : 'HTTP ' + r0.httpStatus));
+          } else if (r0.step) {
+            lines.push('当前阶段：' + r0.step);
+          }
+        }
+        // ASCII 对照结果是判断「存储链路是否健康」的关键，单独突出
+        if (rep.asciiProbe) {
+          const ap = rep.asciiProbe;
+          lines.push(
+            '★ 存储链路对照（纯 ASCII 探针）：' +
+              (ap.err ? 'ERR ' + ap.err : 'HTTP ' + ap.status) +
+              (ap.status === 200 ? ' ⇒ 权限/链接/域名都正常' : ' ⇒ 存储链路有问题')
+          );
         }
         this.setData({
           diagLoading: false,

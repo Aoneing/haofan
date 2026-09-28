@@ -633,8 +633,24 @@ async function selfcheck(event) {
     const one = { key };
     const doc = await readDoc(key);
     if (!doc || !doc.fileID) {
-      one.step = 'DB_NO_FILEID';
-      push('db:' + key, '记录里没有 fileID（status=' + ((doc && doc.status) || '无记录') + '）');
+      one.status = (doc && doc.status) || '无记录';
+      // pending / failed 与「从没生成过」是完全不同的状态，必须分开报：
+      // 合在一起会让人以为功能坏了，其实只是图还在生成中（或上次失败了）。
+      if (one.status === 'pending') {
+        // pendingAt 缺失时 toMs 返回 0，会算出天文数字，兜底成 -1（显示「一段时间」）
+        const pendingAt = toMs(doc && doc.pendingAt);
+        one.step = 'GENERATING';
+        one.pendingSeconds = pendingAt ? Math.round((Date.now() - pendingAt) / 1000) : -1;
+        push('db:' + key, '正在生成中（pending），已发起 ' + one.pendingSeconds + ' 秒');
+      } else if (one.status === 'failed') {
+        one.step = 'LAST_FAILED';
+        one.lastError = (doc && doc.lastError) || '';
+        one.failCount = doc && doc.failCount;
+        push('db:' + key, '上次生成失败：' + String(one.lastError).slice(0, 200));
+      } else {
+        one.step = 'DB_NO_FILEID';
+        push('db:' + key, '记录里没有 fileID（status=' + one.status + '）');
+      }
       results.push(one);
       continue;
     }
@@ -715,9 +731,24 @@ async function selfcheck(event) {
   // 4. 汇总结论
   const bad = results.filter((r) => r.step);
   const withStatus = results.filter((r) => typeof r.httpStatus === 'number');
-  if (bad.length === results.length && bad.every((r) => r.step === 'DB_NO_FILEID')) {
+  if (bad.some((r) => r.step === 'GENERATING')) {
+    report.verdict = 'GENERATING';
+    const sec = (bad.find((r) => r.step === 'GENERATING') || {}).pendingSeconds;
+    report.hints.push(
+      '★ 这张图**正在生成中**，不是故障。生图实测 30 秒～2 分钟+（模型波动大）。',
+      '已发起约 ' + (sec >= 0 ? sec + ' 秒' : '一段时间') + '。请稍等，页面会自动轮询出图，不必重进。',
+      '如果超过 4 分钟仍无图：退出本页再进来即可（图落库后会直接显示）。'
+    );
+  } else if (bad.some((r) => r.step === 'LAST_FAILED')) {
+    report.verdict = 'LAST_GENERATE_FAILED';
+    const f = bad.find((r) => r.step === 'LAST_FAILED') || {};
+    report.hints.push(
+      '上次生成失败了（失败次数 ' + (f.failCount || '?') + '）：' + String(f.lastError).slice(0, 200),
+      '连续失败会进入 2 分钟冷却，冷却期内点生成会被挡住——等一会儿再点即可。'
+    );
+  } else if (bad.length === results.length && bad.every((r) => r.step === 'DB_NO_FILEID')) {
     report.verdict = 'NO_IMAGE_RECORDS';
-    report.hints.push('记录存在但没有 fileID，说明从未成功生成过图。');
+    report.hints.push('记录存在但从来没有成功生成过图，点「生成 AI 配图」生成一张。');
   } else if (bad.some((r) => r.step === 'TEMP_URL_FAILED')) {
     report.verdict = 'TEMP_URL_FAILED';
     report.hints.push('云函数换不出临时链接：确认云存储里文件真的存在（控制台 → 存储 → dish-images/）。');

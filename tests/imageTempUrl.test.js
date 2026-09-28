@@ -127,6 +127,25 @@ t('selfcheck 对同一 fileID 做 maxAge A/B 对照', () => {
   assert.ok(/ab-maxage/.test(CF_SRC), '应同时用「带 maxAge」和「裸字符串」换链接各测一次');
 });
 
+t('selfcheck 把 pending 与「从没生成过」分开（否则会误报成故障）', () => {
+  assert.ok(/GENERATING/.test(CF_SRC), 'pending 应报 GENERATING');
+  assert.ok(/LAST_FAILED/.test(CF_SRC), 'failed 应报 LAST_GENERATE_FAILED');
+  assert.ok(
+    /one\.status === 'pending'/.test(CF_SRC),
+    '必须按 status 区分，不能一律当成 NO_IMAGE_RECORDS'
+  );
+  // 文案里夹了 markdown 星号（**正在生成中**），用宽松匹配，别被排版改动打断
+  assert.ok(/正在生成中[\s\S]{0,8}不是故障/.test(CF_SRC), '应明确告诉用户这不是故障');
+});
+
+t('诊断面板不输出 undefined（没探测过就不显示 HTTP 结果）', () => {
+  assert.ok(
+    /typeof r0\.httpStatus === 'number'/.test(DISH_SRC),
+    '未探测时显示 undefined 会误导，应先判断类型'
+  );
+  assert.ok(/asciiProbe/.test(DISH_SRC), '应突出显示存储链路对照结果');
+});
+
 t('dish 页有诊断面板（点一下就能看到结论，不用翻日志）', () => {
   assert.ok(/图不显示？点这里诊断/.test(DISH_WXML), 'WXML 缺少诊断入口');
   assert.ok(/toggleDiag/.test(DISH_SRC), '缺少 toggleDiag 方法');
