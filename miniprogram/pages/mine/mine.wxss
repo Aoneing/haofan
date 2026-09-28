@@ -32,3 +32,78 @@
 .about-line {
   margin-bottom: 8rpx;
 }
+
+/* ---------- 食材处理手册 ---------- */
+.prep-sub {
+  font-size: 24rpx;
+  margin-bottom: 16rpx;
+}
+
+.prep-group {
+  background: #faf5ea;
+  border-radius: 16rpx;
+  margin-bottom: 16rpx;
+  overflow: hidden;
+}
+.prep-group--open {
+  background: #fff6e6;
+}
+
+.prep-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 22rpx 24rpx;
+}
+.prep-head__name {
+  font-size: 28rpx;
+  color: #3d332b;
+  font-weight: 600;
+}
+.prep-head__arrow {
+  color: #c9bda9;
+  font-size: 30rpx;
+}
+
+.prep-steps {
+  padding: 0 24rpx 20rpx;
+}
+
+.prep-step {
+  display: flex;
+  flex-direction: column;
+  padding: 16rpx 0;
+  border-top: 2rpx solid rgba(201, 189, 169, 0.35);
+}
+.prep-step__hd {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8rpx;
+}
+.prep-step__no {
+  width: 36rpx;
+  height: 36rpx;
+  line-height: 36rpx;
+  text-align: center;
+  border-radius: 50%;
+  background: #b26a00;
+  color: #fff;
+  font-size: 22rpx;
+  margin-right: 12rpx;
+  flex-shrink: 0;
+}
+.prep-step__title {
+  font-size: 27rpx;
+  color: #b26a00;
+  font-weight: 600;
+}
+.prep-step__text {
+  font-size: 26rpx;
+  line-height: 1.7;
+  color: #5a4f45;
+}
+
+.prep-source {
+  font-size: 22rpx;
+  margin-top: 8rpx;
+}

@@ -12,6 +12,7 @@ const path = require('path');
 const suites = [
   require('./parseExcel.test.js'),
   require('./imageTempUrl.test.js'),
+  require('./ingredientPrep.test.js'),
 ];
 
 let passed = 0;

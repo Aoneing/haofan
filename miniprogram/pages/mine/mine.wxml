@@ -31,6 +31,48 @@
     </view>
   </view>
 
+  <!-- 食材处理手册：点分类展开，一次一个 -->
+  <view class="card">
+    <view class="card-title">食材处理</view>
+    <view class="muted prep-sub">
+      {{prep.groups.length}} 类食材的处理步骤 · 点开查看 · 长按可复制
+    </view>
+
+    <!-- 两层循环都必须显式命名 index，否则内层会覆盖外层的 index（必现 bug） -->
+    <view
+      wx:for="{{prep.groups}}"
+      wx:for-index="gindex"
+      wx:key="name"
+      class="prep-group{{prepOpenIndex === gindex ? ' prep-group--open' : ''}}"
+    >
+      <view class="prep-head" data-index="{{gindex}}" bindtap="togglePrep">
+        <text class="prep-head__name">{{item.name}}</text>
+        <text class="prep-head__arrow">{{prepOpenIndex === gindex ? '⌃' : '⌄'}}</text>
+      </view>
+
+      <view wx:if="{{prepOpenIndex === gindex}}" class="prep-steps">
+        <view
+          wx:for="{{item.steps}}"
+          wx:for-item="step"
+          wx:for-index="sindex"
+          wx:key="no"
+          class="prep-step"
+          data-gindex="{{gindex}}"
+          data-sindex="{{sindex}}"
+          bindlongpress="copyPrepStep"
+        >
+          <view class="prep-step__hd">
+            <text class="prep-step__no">{{step.no}}</text>
+            <text class="prep-step__title">{{step.title}}</text>
+          </view>
+          <view class="prep-step__text">{{step.text}}</view>
+        </view>
+      </view>
+    </view>
+
+    <view class="muted prep-source">来源：{{prep.source}}（{{prep.updatedAt}} 录入）</view>
+  </view>
+
   <!-- 操作 -->
   <view class="card">
     <view class="card-title">小工具</view>
