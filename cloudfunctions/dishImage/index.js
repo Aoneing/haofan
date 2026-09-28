@@ -142,6 +142,29 @@ async function compressForStorage(buffer) {
   }
 }
 
+/**
+ * 把菜名转成云存储允许的 cloudPath 文件名（2026-09-27 踩坑，是「图区空白 403」的真根因）。
+ *
+ * 官方文档（CloudBase 云存储 uploadFile）对 cloudPath 的规定：
+ *   「不能包含除 [0-9 , a-z , A-Z]、/、!、-、_、.、* 和**中文**以外的字符」
+ *
+ * 之前用的是 encodeURIComponent(菜名)，把「葱香肉松蛋卷」变成 %E8%91%B1%E9%A6%99…，
+ * 其中的 **% 是非法字符**。结果文件能上传成功、fileID 也落了库，
+ * 但私有读桶取不出来（对不存在/取不到的对象返回 403 而不是 404）⇒ 图区空白。
+ *
+ * 正确做法：中文本身是允许的，**不需要编码**，只需剔除真正非法的字符（% # ? & 空格等）。
+ * 同时用 8 位时间戳 + 短随机串保证同名菜重生成不互相覆盖。
+ */
+function safeCloudPath(key, ext) {
+  const base = String(key || '')
+    // 先去掉 % 及其后可能残留的转义序列，再剔除其余非法字符
+    .replace(/%[0-9A-Fa-f]{0,2}/g, '')
+    .replace(/[^0-9A-Za-z\u4e00-\u9fa5!\-_.*]/g, '')
+    .slice(0, 60);
+  const stamp = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  return 'dish-images/' + (base || 'dish') + '-' + stamp + '.' + (ext || 'jpg');
+}
+
 /** 按文件头判断原始格式，兜底为 png */
 function detectExt(buffer) {
   if (buffer.length > 8 && buffer[0] === 0x89 && buffer[1] === 0x50) return 'png';
@@ -369,8 +392,9 @@ async function generate(event) {
 
     // 落库前压缩到设计文档要求的规格（640px / JPEG q70 ≈ 40–80KB）
     const packed = await compressForStorage(raw);
-    const cloudPath =
-      'dish-images/' + encodeURIComponent(key) + '-' + Date.now() + '.' + packed.ext;
+    // 注意：不能用 encodeURIComponent(菜名)——% 是 cloudPath 非法字符，会让文件取不出来（403）。
+    // safeCloudPath 保留中文（官方允许）并剔除非法字符，详见其注释。
+    const cloudPath = safeCloudPath(key, packed.ext);
     const up = await cloud.uploadFile({ cloudPath, fileContent: packed.buffer });
     const fileID = up.fileID;
 
@@ -618,8 +642,19 @@ async function selfcheck(event) {
     one.status = doc.status;
     one.bytes = doc.bytes;
 
-    const urlMap = await toTempUrls([doc.fileID]);
-    const url = urlMap[doc.fileID];
+    // A/B：同一个 fileID，分别用「带 maxAge」和「裸字符串」换链接，各 GET 一次。
+    // 若两种都 403 ⇒ 与 maxAge 无关（排除上一轮的主因）；若只有带 maxAge 的 403 ⇒ maxAge 被拒。
+    const withAge = await toTempUrls([doc.fileID]);
+    let bareUrl = '';
+    try {
+      const bare = await cloud.getTempFileURL({ fileList: [doc.fileID] });
+      const f = (bare && bare.fileList && bare.fileList[0]) || {};
+      bareUrl = f.tempFileURL || '';
+    } catch (e) {
+      bareUrl = '';
+    }
+
+    const url = withAge[doc.fileID] || bareUrl;
     if (!url) {
       one.step = 'TEMP_URL_FAILED';
       push('url:' + key, '有 fileID 但换不出临时链接 ⇒ 文件可能不存在或权限异常');
@@ -627,16 +662,55 @@ async function selfcheck(event) {
       continue;
     }
     one.url = url;
-    // maxAge 是否真的生效：解析链接上的签名过期时间（不同签名实现字段名不同，能取就取）
+    // 关键诊断：文件路径里有没有百分号（cloudPath 非法字符）
+    one.hasPercent = String(doc.fileID).indexOf('%') >= 0;
     one.urlQuery = String(url).slice(String(url).indexOf('?') + 1).slice(0, 200);
 
     const probe = await headOrGet(url);
     one.httpStatus = probe.status;
     one.httpErr = probe.err || '';
     push('http:' + key, 'GET 换出的链接 → ' + (probe.err ? 'ERR ' + probe.err : 'HTTP ' + probe.status));
+    push('http:' + key, 'fileID 含百分号=' + one.hasPercent + '（cloudPath 里 % 是非法字符）');
+
+    if (bareUrl && bareUrl !== url) {
+      const bareProbe = await headOrGet(bareUrl);
+      one.bareStatus = bareProbe.status;
+      push('ab-maxage:' + key, '裸字符串(默认600s)→ HTTP ' + bareProbe.status + ' ；带 maxAge→ HTTP ' + probe.status);
+    }
     results.push(one);
   }
   report.results = results;
+
+  // 3b. ★ 对照实验：上传一个「纯 ASCII 文件名」的小文件，走完整同样的流程。
+  //    这是把「路径问题」和「权限/链接问题」彻底分开的决定性证据：
+  //      ASCII 探针 200 + 目标 403  ⇒ 文件名(cloudPath)有问题，与权限无关
+  //      两者都 403                ⇒ 权限或环境层面问题
+  try {
+    const probeName = 'dish-images/_probe-' + Date.now() + '.txt';
+    const up = await cloud.uploadFile({
+      cloudPath: probeName,
+      fileContent: Buffer.from('haofan-probe'),
+    });
+    const probeMap = await toTempUrls([up.fileID]);
+    const probeUrl = probeMap[up.fileID];
+    if (probeUrl) {
+      const p = await headOrGet(probeUrl);
+      report.asciiProbe = { cloudPath: probeName, status: p.status, err: p.err || '' };
+      push('ascii-probe', probeName + ' → HTTP ' + (p.err ? 'ERR ' + p.err : p.status));
+    } else {
+      report.asciiProbe = { cloudPath: probeName, status: 0, err: '换不出链接' };
+      push('ascii-probe', probeName + ' → 换不出临时链接');
+    }
+    // 探针文件删掉，别在存储里留垃圾
+    try {
+      await cloud.deleteFile({ fileList: [up.fileID] });
+    } catch (e) {
+      /* 删不掉不影响结论 */
+    }
+  } catch (e) {
+    report.asciiProbe = { status: 0, err: (e && e.message) || 'upload failed' };
+    push('ascii-probe', '上传探针失败：' + ((e && e.message) || ''));
+  }
 
   // 4. 汇总结论
   const bad = results.filter((r) => r.step);
@@ -655,9 +729,37 @@ async function selfcheck(event) {
       '检查：小程序后台 → 开发管理 → 开发设置 → 服务器域名 → downloadFile 合法域名，加上 https://<你的CDN域名>',
       '临时验证：开发者工具右上角「详情 → 本地设置」勾选「不校验合法域名、web-view（业务域名）、TLS 版本以及 HTTPS 证书」。'
     );
+  } else if (withStatus.length && withStatus.every((r) => r.httpStatus === 429)) {
+    report.verdict = 'HTTP_429';
+    report.hints.push('请求被限流（429）：稍后重试。');
   } else if (withStatus.some((r) => r.httpStatus === 403)) {
-    report.verdict = 'HTTP_403';
-    report.hints.push('换出的链接被拒（403）：链接可能已过期，或用错了环境/桶。');
+    // 403 对私有读桶有两种含义：链接被拒，或**对象不存在**（私有桶不会返回 404，
+    // 否则等于泄露「哪些文件存在」）。靠 ASCII 对照实验区分。
+    const asciiOk = report.asciiProbe && report.asciiProbe.status === 200;
+    const targetHasPercent = withStatus.some((r) => r.hasPercent);
+    if (asciiOk && targetHasPercent) {
+      report.verdict = 'BAD_CLOUD_PATH';
+      report.hints.push(
+        '★ 已定位：cloudPath 含百分号（%）。官方文档规定 cloudPath 只能包含 ' +
+          '[0-9,a-z,A-Z]、/、!、-、_、.、* 和中文，% 是非法字符。',
+        '代码用 encodeURIComponent(菜名) 拼路径，把中文变成了 %E8%91%B1… ⇒ 文件存进去但取不出来（私有桶返回 403）。',
+        '修复已在本版提供：改用 safeCloudPath()（保留中文、剔除非法字符），' +
+          '重新部署后把这张图重新生成一次即可（点「换一张配图」）。'
+      );
+    } else if (asciiOk) {
+      report.verdict = 'HTTP_403_TARGET_ONLY';
+      report.hints.push(
+        '对照实验显示：纯 ASCII 新文件能正常 200，只有这道菜的旧文件 403。',
+        '⇒ 是这些**已存下来的旧文件**取不到（路径或权限），不是整体机制问题。',
+        '处理：点「换一张配图」重新生成一张即可，旧文件可不管。'
+      );
+    } else {
+      report.verdict = 'HTTP_403';
+      report.hints.push(
+        '连纯 ASCII 的新探针文件也 403 ⇒ 是权限/环境层面问题，不是文件名。',
+        '查：云存储权限是否锁死「仅创建者可读写」且本云函数环境与目标桶不一致。'
+      );
+    }
   } else if (withStatus.some((r) => r.httpStatus === 404)) {
     report.verdict = 'HTTP_404';
     report.hints.push('文件路径不存在（404）：查云存储里实际文件名与 cloudPath 是否一致。');

@@ -82,6 +82,51 @@ t('selfcheck 能区分 CDN 不可达 / 403 / 404 / 服务端全好', () => {
   });
 });
 
+/* ---------- 1c. cloudPath 合法性（403 的真根因） ---------- */
+
+t('★ cloudPath 不再用 encodeURIComponent（% 是非法字符，会导致私有桶 403）', () => {
+  assert.ok(
+    !/encodeURIComponent\(key\)/.test(CF_SRC),
+    'encodeURIComponent 会把中文变成 %E8%91%B1…，而 % 不在 cloudPath 允许字符集内'
+  );
+  assert.ok(/const cloudPath = safeCloudPath\(key, packed\.ext\)/.test(CF_SRC), '应改用 safeCloudPath');
+});
+
+t('safeCloudPath 只产出合法字符（数字字母 / 中文 / ! - _ . *）', () => {
+  assert.ok(/function safeCloudPath/.test(CF_SRC), '缺少 safeCloudPath');
+  assert.ok(/\\u4e00-\\u9fa5/.test(CF_SRC), '应保留中文（官方允许中文，不需要编码）');
+  // 真跑一遍：把函数从源码里抠出来执行，确保正则确实有效
+  const fn = CF_SRC.match(/function safeCloudPath[\s\S]*?\n}/);
+  assert.ok(fn, '未能从源码提取 safeCloudPath');
+  // eslint-disable-next-line no-new-func
+  const safeCloudPath = new Function(fn[0] + '; return safeCloudPath;')();
+  const samples = ['葱香肉松蛋卷', '番茄炒蛋', 'A&B 早餐(x)', '%E8%91%B1', '菜 名/斜杠', ''];
+  samples.forEach((k) => {
+    const name = safeCloudPath(k, 'jpg').slice('dish-images/'.length);
+    const illegal = name.match(/[^0-9A-Za-z\u4e00-\u9fa5!\-_.*]/g);
+    assert.ok(!illegal, JSON.stringify(k) + ' → ' + name + ' 含非法字符 ' + JSON.stringify(illegal));
+  });
+});
+
+t('safeCloudPath 生成的路径不含百分号', () => {
+  const fn = CF_SRC.match(/function safeCloudPath[\s\S]*?\n}/);
+  // eslint-disable-next-line no-new-func
+  const safeCloudPath = new Function(fn[0] + '; return safeCloudPath;')();
+  ['葱香肉松蛋卷', '%E8%91%B1', 'a%20b'].forEach((k) => {
+    assert.ok(safeCloudPath(k, 'jpg').indexOf('%') < 0, JSON.stringify(k) + ' 仍含 %');
+  });
+});
+
+t('selfcheck 含 ASCII 对照实验（能把「路径问题」与「权限问题」分开）', () => {
+  assert.ok(/ascii-probe/.test(CF_SRC), '缺少纯 ASCII 探针文件的对照');
+  assert.ok(/report\.asciiProbe/.test(CF_SRC), '应把对照结果放进报告');
+  assert.ok(/BAD_CLOUD_PATH/.test(CF_SRC), '缺少「路径有问题」的结论分支');
+});
+
+t('selfcheck 对同一 fileID 做 maxAge A/B 对照', () => {
+  assert.ok(/ab-maxage/.test(CF_SRC), '应同时用「带 maxAge」和「裸字符串」换链接各测一次');
+});
+
 t('dish 页有诊断面板（点一下就能看到结论，不用翻日志）', () => {
   assert.ok(/图不显示？点这里诊断/.test(DISH_WXML), 'WXML 缺少诊断入口');
   assert.ok(/toggleDiag/.test(DISH_SRC), '缺少 toggleDiag 方法');
