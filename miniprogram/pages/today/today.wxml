@@ -22,6 +22,7 @@
         day="{{todayDay}}"
         images="{{todayImages}}"
         highlight="today"
+        highlight-key="{{true}}"
         expandable="{{true}}"
         bind:daytap="onDayTap"
         bind:dishtap="onDishTap"

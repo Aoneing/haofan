@@ -27,6 +27,7 @@ const DISH_WXML = read('miniprogram/pages/dish/dish.wxml');
 const DISH_WXSS = read('miniprogram/pages/dish/dish.wxss');
 const DAY_JS = read('miniprogram/pages/day/day.js');
 const DAY_WXML = read('miniprogram/pages/day/day.wxml');
+const TODAY_WXML = read('miniprogram/pages/today/today.wxml');
 const TODAY_JS = read('miniprogram/pages/today/today.js');
 const WEEK_JS = read('miniprogram/pages/week/week.js');
 const CARD_JS = read('miniprogram/components/day-card/day-card.js');
@@ -219,6 +220,20 @@ t('day-card.wxss：主餐样式只在 dc--keymeal 下生效（不影响周视图
 
 t('day.wxml：单日详情页打开主餐突出', () => {
   assert.ok(/highlight-key="\{\{true\}\}"/.test(DAY_WXML), 'day 页应打开 highlight-key');
+});
+
+t('today.wxml：「今天的饭」也要开主餐突出（用户实际看的是首页，不是 day 页）', () => {
+  // 血泪教训：改动只开在 day 页，用户却在首页找效果，结论变成「没变化」。
+  // 断言方式：找到含 highlight="today" 的那个标签，其属性区间里必须有 highlight-key。
+  const m = /highlight="today"([\s\S]{0,220})/.exec(TODAY_WXML);
+  assert.ok(m, 'today 页应有 highlight="today" 的 day-card');
+  assert.ok(m[1].indexOf('highlight-key="{{true}}"') >= 0, '「今天的饭」必须开 highlight-key');
+});
+
+t('today.wxml：「明天」那块刻意不开主餐突出（错峰显示，避免首屏一片高亮）', () => {
+  const m = /highlight="tomorrow"([\s\S]{0,220})/.exec(TODAY_WXML);
+  assert.ok(m, 'today 页应有 highlight="tomorrow" 的 day-card');
+  assert.ok(m[1].indexOf('highlight-key') < 0, '「明天」不要开，免得首屏两块都在喊');
 });
 
 module.exports = cases;
