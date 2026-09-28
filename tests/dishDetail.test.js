@@ -267,6 +267,12 @@ t('day-card.wxml：早活区块排在餐次列表之前', () => {
   assert.ok(/wx:if="\{\{vm\.prepLead\.length\}\}"/.test(CARD_WXML), '没早活时整块不显示');
 });
 
+t('早活区块不带标题行（用户明确要求去掉「早上先做」）', () => {
+  // 左侧橙条 + 「早」字标签已经说清了这是什么，多一行标题纯占地方
+  assert.ok(CARD_WXML.indexOf('早上先做') < 0, '早活区块不要再放标题文案');
+  assert.ok(CARD_WXSS.indexOf('.dc__lead-hd') < 0, '标题对应的样式要清掉，别留死代码');
+});
+
 t('day-card.wxss：早活区块有独立强调样式（它是待办，不是备注）', () => {
   assert.ok(/\.dc__lead \{/.test(CARD_WXSS), '要有 .dc__lead 样式');
   const seg = CARD_WXSS.slice(CARD_WXSS.indexOf('.dc__lead {'), CARD_WXSS.indexOf('.dc__lead-item {'));

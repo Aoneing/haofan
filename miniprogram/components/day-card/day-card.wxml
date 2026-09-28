@@ -9,10 +9,10 @@
     <text wx:if="{{compact}}" class="dc__more">详情 ›</text>
   </view>
 
-  <!-- 早上先做：排在卡片第一行 —— 这是一天里第一件要动手的事，
-       塞在餐次列表底下要滚很久才看得到，「泡半小时」这类活就误了时辰 -->
+  <!-- 早上的备料：排在卡片第一行 —— 这是一天里第一件要动手的事，
+       塞在餐次列表底下要滚很久才看得到，「泡半小时」这类活就误了时辰。
+       不加标题：左侧橙条 + 「早」字标签已经说清了它是什么，多一行标题反而占地方 -->
   <view wx:if="{{vm.prepLead.length}}" class="dc__lead">
-    <view class="dc__lead-hd">早上先做</view>
     <view wx:for="{{vm.prepLead}}" wx:key="index" class="dc__lead-item">
       <text class="dc__lead-timing">早</text>
       <view class="dc__lead-body">

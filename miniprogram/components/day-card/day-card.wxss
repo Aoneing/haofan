@@ -213,12 +213,6 @@
   padding: 18rpx 20rpx;
   margin-bottom: 20rpx;
 }
-.dc__lead-hd {
-  font-size: 24rpx;
-  font-weight: 600;
-  color: #854f0b;
-  margin-bottom: 10rpx;
-}
 .dc__lead-item {
   display: flex;
 }
