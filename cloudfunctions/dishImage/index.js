@@ -34,7 +34,8 @@ const _ = db.command;
  *  配图是云函数上传的，客户端不是「创建者」⇒ 把 cloud:// 直接填进 image 的 src 会被拒，
  *  表现为图区空白 + wx.previewImage 一直转圈。
  *  ⇒ 因此所有出参统一用管理员身份换成 https 临时链接（见 toTempUrls），前端只用 https。
- *  私有读的临时链接有有效期（约 2 小时），前端只在内存里缓存并按 TTL 定期重取。
+ *  私有读的临时链接**默认只有 10 分钟**；toTempUrls 里显式申请了 6 小时有效期，
+ *  前端仍按自己的 TTL 保守过期（见 miniprogram/utils/imageStore.js）。
  */
 
 function postJson(urlStr, headers, body) {
@@ -152,16 +153,38 @@ function detectExt(buffer) {
  *
  * 云函数是管理员身份，能换出带签名的链接给客户端用；客户端自己调会被权限拒绝。
  * 注意：接口一次最多 50 个 fileID，超出必须分批，否则报错。
+ *
+ * ⚠️ 必须传 { fileID, maxAge } 对象，不能传裸字符串（2026-09-27 踩坑，是「图区空白」的真根因）：
+ *   - 官方文档：公有读文件的链接不过期，**私有读文件的链接十分钟有效期**。
+ *     本环境权限被锁死为「仅创建者可读写」⇒ 属于私有读 ⇒ 10 分钟就失效。
+ *   - 关键：`maxAge` 只在传**对象**时才会被带上。传裸字符串时 SDK 只上送 { fileid }，
+ *     不带 max_age，服务端就按默认 600 秒签发。SDK 自己的 downloadFile 传的就是 maxAge: 600。
+ *   - 现象：链接 10 分钟就死，而前端按 30 分钟判过期 ⇒ 中间 20 分钟一直在用死链接，
+ *     表现为图区空白 + 点大图一直转圈，且退出重进页面也恢复不了。
+ *   ⇒ 这里显式申请 6 小时（远大于前端 TTL），把「签发有效期」这条不再当瓶颈。
  */
+const TEMP_URL_MAX_AGE_S = Math.max(600, Number(process.env.IMAGE_URL_MAX_AGE || 6 * 3600));
+
 async function toTempUrls(fileIDs) {
   const list = (fileIDs || []).filter(Boolean);
   const map = {};
   for (let i = 0; i < list.length; i += 50) {
     const chunk = list.slice(i, i + 50);
     try {
-      const res = await cloud.getTempFileURL({ fileList: chunk });
+      const res = await cloud.getTempFileURL({
+        // 传对象才能带上 maxAge；传裸字符串会被服务端按默认 600 秒签发
+        fileList: chunk.map((fileID) => ({ fileID, maxAge: TEMP_URL_MAX_AGE_S })),
+      });
       (res && res.fileList ? res.fileList : []).forEach((f) => {
-        if (f && f.fileID && f.tempFileURL) map[f.fileID] = f.tempFileURL;
+        // 官方约定：status 0 = 成功，errMsg = 'ok'；链接为空时说明该文件换不到，别写进 map
+        if (f && f.fileID && f.tempFileURL) {
+          map[f.fileID] = f.tempFileURL;
+        } else if (f && f.fileID) {
+          console.warn(
+            '[dishImage] getTempFileURL 未返回链接 fileID=' + f.fileID +
+              ' status=' + (f && f.status) + ' errMsg=' + (f && f.errMsg)
+          );
+        }
       });
     } catch (e) {
       console.warn('[dishImage] getTempFileURL failed:', e && e.message);

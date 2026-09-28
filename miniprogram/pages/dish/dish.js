@@ -30,8 +30,10 @@ Page({
   onShow() {
     const key = this.data.key;
     if (!key) return;
-    // 先用缓存里的链接立即渲染（imageStore 内部按 TTL 判断，没过期不会多发请求）
-    const cached = imageStore.get(key);
+    // 先用「仍然新鲜」的缓存链接立即渲染。注意用 getFresh 而不是 get：
+    // 临时链接过期后不能再拿去喂 <image>，否则直接 403 灰底空白（这正是图区空白的老问题）。
+    // getFresh 只返回 TTL 内的链接；过期就返回空，让下面的 hydrate 去换新的。
+    const cached = imageStore.getFresh(key);
     if (cached) this.setData({ url: cached });
     // 再后台刷一次：临时链接会过期，重进页面时顺手换一张新的
     imageStore.hydrate([key]).then(() => {

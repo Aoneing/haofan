@@ -7,13 +7,21 @@
 //   所以云函数 dishImage 会先用管理员身份换成带签名的 https 临时链接再返回，前端只用 https。
 //
 // 为什么要有 TTL：
-//   私有读的临时链接有有效期（约 2 小时），过期后再用会 403。这里按 30 分钟保守过期，
-//   过期后下一次 hydrate 会重新取一张，不会一直拿着死链接。
+//   私有读的临时链接**默认只有 10 分钟有效**（官方 getTempFileURL 文档：公有读不过期、
+//   私有读十分钟）。云函数 dishImage 里已显式把 maxAge 申请成 6 小时（见 toTempUrls），
+//   但这里仍按自己的 TTL 保守过期，不依赖签发侧。
+//   ⚠️ TTL 必须**小于**链接实际有效期。2026-09-27 就是 TTL 写成 30 分钟、
+//   而链接只有 10 分钟，中间 20 分钟一直在用死链接 ⇒ 图区空白且重进页面也不恢复。
 //   缓存只在内存里（不落 Storage），冷启动天然拿到新链接。
 const api = require('./api');
 
-/** 保守过期时间：私有读临时链接实测有效约 2 小时，这里提前到 30 分钟重取 */
-const URL_TTL_MS = 30 * 60 * 1000;
+/**
+ * 保守过期时间。
+ * 链接签发侧申请的是 6 小时，这里压到 5 分钟：比任何可能的签发有效期都短，
+ * 宁可偶尔多换一次链接（一次批量请求，几乎无成本），也不能再出现「拿着死链接渲染」。
+ * 图片显示不出来是用户直接可见的故障；多一次 resolve 调用是纯后台开销。
+ */
+const URL_TTL_MS = 5 * 60 * 1000;
 
 const cache = {}; // key -> { url, at }
 let pending = null; // 合并并发的 hydrate 请求
@@ -21,6 +29,21 @@ let pending = null; // 合并并发的 hydrate 请求
 function get(key) {
   const item = key && cache[key];
   return (item && item.url) || '';
+}
+
+/**
+ * 只取仍然新鲜（未超 TTL）的链接。
+ *
+ * ⚠️ 必须用这个、不要用 get() 来喂 <image> 的 src：
+ * get() 是「有什么给什么」，会把过期链接也交出去，渲染出来就是 403 灰底空白。
+ * 页面 onShow 先要一个能立刻渲染的值（不阻塞等网络），所以取不到就返回空串，
+ * 交给随后的 hydrate 去换新链接。
+ */
+function getFresh(key) {
+  const item = key && cache[key];
+  if (!item || !item.url) return '';
+  if (Date.now() - item.at > URL_TTL_MS) return ''; // 已过期，别拿去渲染
+  return item.url;
 }
 
 function set(key, url) {
@@ -93,4 +116,4 @@ function reload(keys) {
   return hydrate(keys, { force: true });
 }
 
-module.exports = { get, set, clear, hydrate, reload, URL_TTL_MS };
+module.exports = { get, getFresh, set, clear, hydrate, reload, URL_TTL_MS };
