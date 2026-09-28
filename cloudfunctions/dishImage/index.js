@@ -26,6 +26,14 @@ const _ = db.command;
  *                      如通义万相用 1024*1024；1024x1024 是兼容面最广的一个）
  *  IMAGE_TARGET_SIZE   可选，默认 640 —— 落库前缩到的长边像素
  *  IMAGE_TARGET_QUALITY 可选，默认 70 —— JPEG 质量（40–95）
+ *  IMAGE_API_ASYNC     可选，'1' 强制异步 / '0' 强制同步；不填时按 URL 自动判断
+ *
+ * 生图为什么必须异步（2026-09-28 定位，详见文档「七·补6」）：
+ *  GLM-Image 单张生图 30–180 秒，而云函数执行超时上限远小于此 ⇒ 同步 await 会被**强杀**，
+ *  已写入的 pending 没人再改，记录变成永远好不了的「僵尸」，表现为「等 6 分钟也没图、
+ *  退出重进也没用」（实测卡 364 秒）。
+ *  ⇒ generate 只提交任务并落库 taskId 后立即返回；真正的收图由 resolve({collect:true}) 驱动，
+ *    每一次调用都在超时预算内。异步端点由 IMAGE_API_URL 自动推导，不用改环境变量。
  *
  * 落库前一律压缩：设计文档 07 节要求单图 40–80KB，直接存 1024 PNG 约 1–2MB，
  * 会白白吃掉云开发 2GB 共享容量。压缩用纯 JS 的 jimp，失败则原样保存不阻断。
@@ -83,6 +91,96 @@ function postJson(urlStr, headers, body) {
     req.write(payload);
     req.end();
   });
+}
+
+/** GET 一个 JSON 接口（查异步任务结果用） */
+function getJson(urlStr, headers) {
+  return new Promise((resolve, reject) => {
+    let url;
+    try {
+      url = new URL(urlStr);
+    } catch (e) {
+      return reject(new Error('结果查询 URL 不合法'));
+    }
+    const mod = url.protocol === 'http:' ? http : https;
+    const req = mod.get(url, { headers: headers || {} }, (res) => {
+      const chunks = [];
+      res.on('data', (c) => chunks.push(c));
+      res.on('end', () => {
+        const text = Buffer.concat(chunks).toString('utf8');
+        let json = null;
+        try {
+          json = JSON.parse(text);
+        } catch (e) {
+          /* 保留原始 text 供报错 */
+        }
+        if (res.statusCode >= 200 && res.statusCode < 300 && json) {
+          resolve(json);
+        } else {
+          reject(new Error('结果查询返回 ' + res.statusCode + '：' + text.slice(0, 300)));
+        }
+      });
+    });
+    req.on('error', reject);
+    req.setTimeout(30000, () => req.destroy(new Error('结果查询超时')));
+  });
+}
+
+/**
+ * 由同步端点推导智谱的异步端点（用户不用改环境变量）。
+ *
+ * 为什么必须异步：GLM-Image 单张生图 30–180 秒（官方与社区一致），
+ * 而云函数执行超时上限远小于此 —— 同步 await 会被**强杀**，
+ * 结果就是数据库里那条记录永远停在 pending（既不 ready 也不 failed）。
+ * 异步接口提交后秒回，结果按 task id 轮询，每次调用都在超时预算内。
+ *
+ * 同步：https://open.bigmodel.cn/api/paas/v4/images/generations
+ * 提交：https://open.bigmodel.cn/api/paas/v4/async/images/generations   → { id, task_status }
+ * 查询：https://open.bigmodel.cn/api/paas/v4/async-result/{id}          → { task_status, image_result }
+ */
+function deriveAsyncEndpoints(apiUrl) {
+  try {
+    new URL(apiUrl);
+  } catch (e) {
+    return { submit: '', resultPrefix: '', err: 'IMAGE_API_URL 不是合法 URL' };
+  }
+  let submit = apiUrl;
+  if (submit.indexOf('/async/images/generations') < 0) {
+    submit = submit.replace('/images/generations', '/async/images/generations');
+  }
+  const idx = apiUrl.indexOf('/api/paas/v4/');
+  const resultPrefix =
+    idx >= 0 ? apiUrl.slice(0, idx) + '/api/paas/v4/async-result/' : apiUrl.replace(/\/[^/]*$/, '') + '/async-result/';
+
+  // 只有确认是智谱那套路径（/api/paas/v4/）才敢走异步：
+  // 对陌生网关盲猜一个 async 路径去 POST，容易拿到 404 还白花一次调用。
+  // IMAGE_API_ASYNC=1 可强制开启（第三方网关也支持异步时用），=0 强制回落同步。
+  const override = process.env.IMAGE_API_ASYNC;
+  let asyncCapable = idx >= 0 && submit.indexOf('/async/images/generations') >= 0;
+  if (override === '1') asyncCapable = true;
+  if (override === '0') asyncCapable = false;
+
+  return { submit, resultPrefix, asyncCapable };
+}
+
+/**
+ * 从异步任务结果里找图片。字段命名各家不一（image_result / data / images…），
+ * 这里做兼容解析，拿到 url 或 b64_json 任一即可。
+ */
+function pickImageItem(r) {
+  if (!r || typeof r !== 'object') return null;
+  const lists = [r.image_result, r.image_results, r.data, r.result, r.images];
+  for (let i = 0; i < lists.length; i++) {
+    const l = lists[i];
+    if (Array.isArray(l) && l.length) {
+      const it = l[0];
+      if (it && (it.url || it.b64_json || it.image_url)) {
+        return { url: it.url || it.image_url || '', b64_json: it.b64_json || '' };
+      }
+    }
+  }
+  if (r.url || r.b64_json) return { url: r.url || '', b64_json: r.b64_json || '' };
+  return null;
 }
 
 /** 下载外链图片（部分接口返回 url 而非 b64_json） */
@@ -238,9 +336,38 @@ async function resolve(event) {
     .get();
 
   const files = {}; // 菜名 -> fileID（原始，备排查用）
+  const docs = {};
   res.data.forEach((doc) => {
+    docs[doc._id] = doc;
     if (doc.fileID) files[doc._id] = doc.fileID;
   });
+
+  // collect=true：轮询场景下顺手收一次异步任务结果。
+  // 为什么放在这里：生图 30–180 秒，超过云函数超时上限，不能在 generate 里傻等；
+  // 而前端本来就在轮询 resolve，让它每次顺带问一句「好了没」，一次调用几秒就回来。
+  // 周视图批量拉取不传 collect，保持快。
+  const states = {};
+  if (event.collect) {
+    for (let i = 0; i < uniq.length; i++) {
+      const doc = docs[uniq[i]];
+      if (!doc || doc.fileID || !doc.taskId || doc.status === 'saving') {
+        if (doc) states[uniq[i]] = doc.status || 'none';
+        continue;
+      }
+      // 僵尸任务（超过 TASK_TTL 还没结果）不再白查，直接标记为可重提交
+      if (doc.status === 'pending' && Date.now() - toMs(doc.pendingAt) > TASK_TTL_MS) {
+        states[uniq[i]] = 'expired';
+        continue;
+      }
+      const got = await tryCollect(doc); // 串行：避免并发重复上传同一张图
+      if (got) files[uniq[i]] = got;
+      states[uniq[i]] = got ? 'ready' : (docs[uniq[i]] && docs[uniq[i]].status) || doc.status;
+    }
+  } else {
+    uniq.forEach((k) => {
+      if (docs[k]) states[k] = docs[k].status || 'none';
+    });
+  }
 
   // 客户端读不了私有文件，统一换成 https 临时链接再返回
   const urls = await toTempUrls(Object.keys(files).map((k) => files[k]));
@@ -252,11 +379,19 @@ async function resolve(event) {
     console.warn('[dishImage] resolve 有 fileID 但临时链接全部换取失败，检查云存储文件是否存在');
   }
 
-  return { ok: true, map, files, missing: uniq.filter((k) => !files[k]) };
+  return { ok: true, map, files, states, missing: uniq.filter((k) => !files[k]) };
 }
 
-/** 生图幂等窗口：同一 key 在这段时间内重复请求直接复用，不重复调接口（重复调用＝重复扣费） */
-const PENDING_WINDOW_MS = 3 * 60 * 1000;
+/**
+ * 异步任务的复用窗口：这段时间内同一个 key 重复点「生成」直接复用任务，不重复提交
+ * （重复提交＝重复扣费）。10 分钟覆盖官方给出的 30–180 秒上限并留足余量。
+ *
+ * 注意：这个窗口只对「带 taskId 的异步任务」生效。旧同步模式留下的 pending 没有 taskId，
+ * 那是被强杀的僵尸记录，必须允许立刻重新提交（见 generate 的陈旧判定）。
+ */
+const TASK_TTL_MS = 10 * 60 * 1000;
+/** 「正在收图」中间态的锁定时长：防止多个并发请求重复下载+上传 */
+const SAVING_LOCK_MS = 2 * 60 * 1000;
 /** 连续失败冷却：接口异常时不反复烧钱 */
 const FAIL_COOLDOWN_MS = 2 * 60 * 1000;
 const FAIL_COOLDOWN_THRESHOLD = 3;
@@ -292,22 +427,59 @@ async function markDoc(key, data) {
   }
 }
 
+/** 生图提示词：统一在这里，异步/同步两条路共用 */
+function buildPrompt(title) {
+  return (
+    '一道家常辅食/菜品的手机美食摄影照片：「' +
+    title +
+    '」。俯拍视角，白瓷餐具，木质餐桌，柔和自然光，温暖色调，食物清晰占满画面主体，背景干净，无文字无水印。'
+  );
+}
+
+/** 把「下载 → 压缩 → 上传云存储 → 落库 ready」这一段收尾流程抽出来，异步/同步共用 */
+async function finishAndStore(ctx, raw, extra) {
+  const key = ctx.key;
+  const packed = await compressForStorage(raw);
+  // 注意：不能用 encodeURIComponent(菜名)——% 是 cloudPath 非法字符，会让文件取不出来（403）。
+  // safeCloudPath 保留中文（官方允许）并剔除非法字符，详见其注释。
+  const cloudPath = safeCloudPath(key, packed.ext);
+  const up = await cloud.uploadFile({ cloudPath, fileContent: packed.buffer });
+  const fileID = up.fileID;
+
+  await markDoc(
+    key,
+    Object.assign(
+      {
+        fileID,
+        title: ctx.title,
+        prompt: ctx.prompt,
+        source: 'ai',
+        model: ctx.model,
+        requestSize: ctx.size,
+        bytes: packed.buffer.length,
+        rawBytes: raw.length,
+        status: 'ready',
+        generatedAt: db.serverDate(),
+        taskId: ctx.taskId || '',
+      },
+      extra || {}
+    )
+  );
+  return { fileID, bytes: packed.buffer.length, rawBytes: raw.length };
+}
+
 /**
- * { key, title? } → 生成一张配图，上传云存储，写入 dishImages
- *
- * 关于耗时：单张生图实测 20–90 秒，可能超过调用方（客户端 / 控制台「云端测试」）的等待上限。
- * 调用方超时会断开并报错，但云函数仍在后台跑完并落库 —— 所以调用方报错 ≠ 生成失败。
- * 因此：本函数保持「同步跑完再返回」以保证一定能落库；前端改为发起后轮询 resolve，
- * 不依赖这一次调用的返回值。详见 miniprogram/pages/dish/dish.js。
+ * 前置检查：归一化参数 → 幂等判定 → 环境变量校验。
+ * 返回里 ok=false / pending / cached 都表示「可以就此返回」，否则带着后续流程要的一切继续。
  */
-async function generate(event) {
+async function prepare(event) {
   const key = String(event.key || '').trim();
   const title = String(event.title || '').trim() || key;
   if (!key) return { ok: false, message: '缺少 key（归一化菜名）' };
 
-  // 0. 幂等保护：成品直接复用；生成中/冷却期直接返回，不重复计费。
-  //    force=true 表示用户明确点了「换一张配图」，此时要真的重生成（否则按钮永远换不了图）。
-  //    注意：pending 窗口对 force 依然生效 —— 连点两下仍会被挡住，不会重复扣费。
+  // 幂等保护：成品直接复用；生成中/冷却期直接返回，不重复计费。
+  // force=true 表示用户明确点了「换一张配图」，此时要真的重生成（否则按钮永远换不了图）。
+  // 注意：任务窗口对 force 依然生效 —— 连点两下仍会被挡住，不会重复扣费。
   const force = !!event.force;
   const prev = await readDoc(key);
   if (prev) {
@@ -323,8 +495,22 @@ async function generate(event) {
         rawBytes: prev.rawBytes,
       };
     }
-    if (prev.status === 'pending' && Date.now() - toMs(prev.pendingAt) < PENDING_WINDOW_MS) {
-      return { ok: true, key, pending: true, message: '上一张还在生成中' };
+    // pending 必须分两种，混在一起就会永远卡死：
+    //  - 带 taskId：异步任务在跑，窗口内复用即可（不重复提交＝不重复扣费）
+    //  - 不带 taskId：旧同步模式留下的**僵尸记录**（云函数在 await 生图时被强杀，
+    //    既不写 ready 也不写 failed）⇒ 必须允许立刻重新提交，否则这道菜永远出不了图。
+    const pendingAge = Date.now() - toMs(prev.pendingAt);
+    if (prev.status === 'pending' && prev.taskId && pendingAge < TASK_TTL_MS) {
+      return {
+        ok: true,
+        key,
+        pending: true,
+        taskId: prev.taskId,
+        message: '任务还在生成中（已提交 ' + Math.round(pendingAge / 1000) + ' 秒）',
+      };
+    }
+    if (prev.status === 'saving' && Date.now() - toMs(prev.savingAt) < SAVING_LOCK_MS) {
+      return { ok: true, key, pending: true, message: '图已生成，正在入库' };
     }
     if (
       prev.status === 'failed' &&
@@ -353,28 +539,93 @@ async function generate(event) {
     };
   }
 
-  const prompt =
-    '一道家常辅食/菜品的手机美食摄影照片：「' +
-    title +
-    '」。俯拍视角，白瓷餐具，木质餐桌，柔和自然光，温暖色调，食物清晰占满画面主体，背景干净，无文字无水印。';
-
-  const size = process.env.IMAGE_API_SIZE || '1024x1024';
-
-  await markDoc(key, {
+  return {
+    ok: true,
+    key,
     title,
+    force,
+    prev,
+    apiUrl,
+    apiKey,
+    model,
+    size: process.env.IMAGE_API_SIZE || '1024x1024',
+    prompt: buildPrompt(title),
+  };
+}
+
+/**
+ * { key, title?, force? } → 提交生图任务，**立即返回**，不等图。
+ *
+ * 为什么不能同步等（2026-09-28 定位）：GLM-Image 单张生图 30–180 秒，
+ * 而云函数执行超时上限远小于此 ⇒ 函数在 await 生图时被强杀 ⇒ 数据库记录永远停在 pending
+ * （既不 ready 也不 failed，表现为「点生成后一直转圈，退出重进也永远没有图」）。
+ * 实测就卡了 364 秒不动。
+ *
+ * 异步模式：这里只提交任务（秒回），把 taskId 落库；
+ * 真正的收图由 resolve(collect:true) 在前端轮询时驱动，每次调用都在超时预算内。
+ * 若服务商不支持异步（提交拿不到 task id），自动回落到同步。
+ */
+async function generate(event) {
+  const ctx = await prepare(event);
+  if (!ctx.ok || ctx.pending || ctx.cached) return ctx;
+
+  const ep = deriveAsyncEndpoints(ctx.apiUrl);
+  if (ep.asyncCapable) {
+    try {
+      const sub = await postJson(
+        ep.submit,
+        { Authorization: 'Bearer ' + ctx.apiKey },
+        { model: ctx.model, prompt: ctx.prompt, size: ctx.size }
+      );
+      const taskId = sub && sub.id;
+      if (!taskId) throw new Error('异步提交未返回任务 id：' + JSON.stringify(sub).slice(0, 200));
+
+      await markDoc(ctx.key, {
+        title: ctx.title,
+        status: 'pending',
+        pendingAt: new Date(),
+        taskId,
+        asyncMode: true,
+        failCount: (ctx.prev && ctx.prev.failCount) || 0,
+      });
+      console.log('[dishImage] async task submitted', ctx.key, 'taskId=' + taskId);
+      return {
+        ok: true,
+        key: ctx.key,
+        pending: true,
+        taskId,
+        asyncMode: true,
+        message: '已提交生成任务，通常 30～180 秒出图',
+      };
+    } catch (e) {
+      // 提交失败就回落同步，别让异步假设把功能彻底堵死
+      console.warn('[dishImage] 异步提交失败，回落同步：', e && e.message);
+    }
+  }
+
+  return await generateSync(ctx);
+}
+
+/** 同步兜底：服务商不支持异步时走原路径（等图 → 落库 → 返回） */
+async function generateSync(ctx) {
+  const key = ctx.key;
+  await markDoc(key, {
+    title: ctx.title,
     status: 'pending',
     pendingAt: new Date(),
-    failCount: (prev && prev.failCount) || 0,
+    taskId: '',
+    asyncMode: false,
+    failCount: (ctx.prev && ctx.prev.failCount) || 0,
   });
 
   const t0 = Date.now();
-  console.log('[dishImage] generate start', key, 'model=' + model, 'size=' + size);
+  console.log('[dishImage] generate start(sync)', key, 'model=' + ctx.model, 'size=' + ctx.size);
 
   try {
     const apiRes = await postJson(
-      apiUrl,
-      { Authorization: 'Bearer ' + apiKey },
-      { model, prompt, n: 1, size }
+      ctx.apiUrl,
+      { Authorization: 'Bearer ' + ctx.apiKey },
+      { model: ctx.model, prompt: ctx.prompt, n: 1, size: ctx.size }
     );
 
     const item = apiRes && apiRes.data && apiRes.data[0];
@@ -390,25 +641,7 @@ async function generate(event) {
       throw new Error('生图接口返回格式无法识别');
     }
 
-    // 落库前压缩到设计文档要求的规格（640px / JPEG q70 ≈ 40–80KB）
-    const packed = await compressForStorage(raw);
-    // 注意：不能用 encodeURIComponent(菜名)——% 是 cloudPath 非法字符，会让文件取不出来（403）。
-    // safeCloudPath 保留中文（官方允许）并剔除非法字符，详见其注释。
-    const cloudPath = safeCloudPath(key, packed.ext);
-    const up = await cloud.uploadFile({ cloudPath, fileContent: packed.buffer });
-    const fileID = up.fileID;
-
-    await markDoc(key, {
-      fileID,
-      title,
-      prompt,
-      source: 'ai',
-      model,
-      requestSize: size,
-      bytes: packed.buffer.length,
-      rawBytes: raw.length,
-      status: 'ready',
-      generatedAt: db.serverDate(),
+    const saved = await finishAndStore(ctx, raw, {
       // 智谱返回的 content_filter 自带安全判定，落库备查（P-1 内容安全）
       contentFilter: apiRes.content_filter || null,
     });
@@ -417,33 +650,98 @@ async function generate(event) {
       '[dishImage] generate done',
       key,
       Date.now() - t0 + 'ms',
-      'bytes=' + packed.buffer.length,
-      'rawBytes=' + raw.length
+      'bytes=' + saved.bytes,
+      'rawBytes=' + saved.rawBytes
     );
 
     return {
       ok: true,
       key,
-      fileID,
-      url: (await toTempUrls([fileID]))[fileID] || '',
-      bytes: packed.buffer.length,
-      rawBytes: raw.length,
+      fileID: saved.fileID,
+      url: (await toTempUrls([saved.fileID]))[saved.fileID] || '',
+      bytes: saved.bytes,
+      rawBytes: saved.rawBytes,
       genMs: Date.now() - t0,
     };
   } catch (e) {
     const msg = (e && e.message) || '生图失败';
     console.error('[dishImage] generate failed', key, Date.now() - t0 + 'ms', msg);
     await markDoc(key, {
-      title,
+      title: ctx.title,
       status: 'failed',
-      failCount: ((prev && prev.failCount) || 0) + 1,
+      failCount: ((ctx.prev && ctx.prev.failCount) || 0) + 1,
       lastError: String(msg).slice(0, 300),
       failedAt: new Date(),
       // 保留上一次成功的图，避免失败后连旧图也丢了
-      fileID: (prev && prev.fileID) || '',
+      fileID: (ctx.prev && ctx.prev.fileID) || '',
     });
     return { ok: false, key, code: 'GENERATE_FAILED', message: msg, genMs: Date.now() - t0 };
   }
+}
+
+/** 收图：查一次异步任务结果，SUCCESS 就下载+压缩+上传+落库 ready。返回 fileID 或 '' */
+async function tryCollect(doc) {
+  const key = doc._id;
+  const taskId = doc.taskId;
+  const apiKey = process.env.IMAGE_API_KEY;
+  const ep = deriveAsyncEndpoints(process.env.IMAGE_API_URL);
+  if (!taskId || !apiKey || !ep.resultPrefix) return '';
+
+  let r;
+  try {
+    r = await getJson(ep.resultPrefix + encodeURIComponent(taskId), {
+      Authorization: 'Bearer ' + apiKey,
+    });
+  } catch (e) {
+    console.warn('[dishImage] async-result 查询失败', key, e && e.message);
+    return '';
+  }
+
+  const st = r && r.task_status;
+  if (st === 'SUCCESS') {
+    // 抢锁：并发轮询时只让一个实例去做「下载+上传」，避免重复入库
+    await markDoc(key, { status: 'saving', savingAt: new Date() });
+    try {
+      const item = pickImageItem(r);
+      if (!item) throw new Error('异步结果里没有图片数据：' + JSON.stringify(r).slice(0, 200));
+      const raw = item.b64_json ? Buffer.from(item.b64_json, 'base64') : await download(item.url);
+      const saved = await finishAndStore(
+        {
+          key,
+          title: doc.title || key,
+          prompt: doc.prompt || '',
+          model: doc.model || process.env.IMAGE_API_MODEL || 'glm-image',
+          size: doc.requestSize || process.env.IMAGE_API_SIZE || '1024x1024',
+          taskId,
+        },
+        raw
+      );
+      console.log('[dishImage] async collected', key, 'taskId=' + taskId, 'bytes=' + saved.bytes);
+      return saved.fileID;
+    } catch (e) {
+      console.error('[dishImage] 收图失败', key, e && e.message);
+      await markDoc(key, {
+        status: 'failed',
+        failCount: (doc.failCount || 0) + 1,
+        lastError: '收图失败：' + String((e && e.message) || e).slice(0, 300),
+        failedAt: new Date(),
+        fileID: doc.fileID || '',
+      });
+      return '';
+    }
+  }
+
+  if (st === 'FAIL') {
+    console.warn('[dishImage] 生图任务失败', key, 'taskId=' + taskId);
+    await markDoc(key, {
+      status: 'failed',
+      failCount: (doc.failCount || 0) + 1,
+      lastError: '生图任务失败（服务商返回 FAIL）',
+      failedAt: new Date(),
+      fileID: doc.fileID || '',
+    });
+  }
+  return ''; // PROCESSING：继续等
 }
 
 /**
@@ -581,7 +879,7 @@ async function stats() {
  *
  * @param {{ key?: string }} event 传 key 只看一道菜；不传则看最近有图的几条
  */
-async function selfcheck(event) {
+async function selfcheck(event, context) {
   const report = { steps: [], verdict: '', hints: [] };
   const push = (name, detail) => {
     report.steps.push({ name, detail });
@@ -594,6 +892,7 @@ async function selfcheck(event) {
   push(
     'code-version',
     'hasMaxAge=' + hasMaxAge + ' TEMP_URL_MAX_AGE_S=' + TEMP_URL_MAX_AGE_S +
+      ' asyncMode=' + /async\/images\/generations/.test(src) +
       ' node=' + process.version
   );
   if (!hasMaxAge) {
@@ -602,10 +901,42 @@ async function selfcheck(event) {
     return { ok: true, report };
   }
 
+  // 0.5 云函数的**实际超时配置** —— 判断「同步等生图会不会被强杀」的决定性证据。
+  //     GLM-Image 生图 30–180 秒；若这里显示的 timeout 明显小于它，同步模式必死。
+  const timeLimit =
+    context && (context.time_limit_in_ms || context.time_limit || context.timeout);
+  const memLimit = context && (context.memory_limit_in_mb || context.memoryLimitInMB);
+  report.runtime = {
+    timeLimitMs: typeof timeLimit === 'number' ? timeLimit : null,
+    memoryMb: typeof memLimit === 'number' ? memLimit : null,
+    remainingMs:
+      context && typeof context.getRemainingTimeInMillis === 'function'
+        ? context.getRemainingTimeInMillis()
+        : null,
+    contextKeys: context ? Object.keys(context).join(',') : '',
+  };
+  push(
+    'runtime',
+    'timeout=' + (report.runtime.timeLimitMs != null ? report.runtime.timeLimitMs + 'ms' : '(未暴露)') +
+      ' memory=' + (report.runtime.memoryMb != null ? report.runtime.memoryMb + 'MB' : '(未暴露)') +
+      ' remaining=' + (report.runtime.remainingMs != null ? report.runtime.remainingMs + 'ms' : '(未暴露)') +
+      ' | 生图需 30–180s，若 timeout 明显更小则同步等待必被强杀'
+  );
+
   // 1. 配置
   const apiUrl = process.env.IMAGE_API_URL;
   push('env', 'IMAGE_API_URL=' + (apiUrl ? safeHost(apiUrl) : '(empty)') +
     ' IMAGE_API_KEY=' + (process.env.IMAGE_API_KEY ? '已配置' : '(empty)'));
+
+  // 1.5 异步端点推导结果：确认生图走的是异步（提交+取结果）而不是同步傻等
+  if (apiUrl) {
+    const ep = deriveAsyncEndpoints(apiUrl);
+    report.async = { submit: ep.submit, resultPrefix: ep.resultPrefix, capable: !!ep.asyncCapable };
+    push(
+      'async-endpoints',
+      'capable=' + !!ep.asyncCapable + ' submit=' + ep.submit + ' result=' + ep.resultPrefix + '{id}'
+    );
+  }
 
   // 2. 挑要检查的菜名
   let keys = [];
@@ -639,9 +970,24 @@ async function selfcheck(event) {
       if (one.status === 'pending') {
         // pendingAt 缺失时 toMs 返回 0，会算出天文数字，兜底成 -1（显示「一段时间」）
         const pendingAt = toMs(doc && doc.pendingAt);
-        one.step = 'GENERATING';
         one.pendingSeconds = pendingAt ? Math.round((Date.now() - pendingAt) / 1000) : -1;
-        push('db:' + key, '正在生成中（pending），已发起 ' + one.pendingSeconds + ' 秒');
+        // 有 taskId ⇒ 异步任务在跑，等着就行；没有 ⇒ 旧同步模式被强杀留下的僵尸，
+        // 它永远不会自己变成 ready，必须重新提交。这两种的处置完全不同，必须分开报。
+        if (doc && doc.taskId) {
+          one.step = 'GENERATING';
+          one.taskId = doc.taskId;
+          push(
+            'db:' + key,
+            '异步任务进行中（taskId=' + doc.taskId + '），已发起 ' + one.pendingSeconds + ' 秒'
+          );
+        } else {
+          one.step = 'STUCK_PENDING';
+          push(
+            'db:' + key,
+            '僵尸 pending：没有 taskId，说明云函数在等生图时被强杀（已卡 ' +
+              one.pendingSeconds + ' 秒，永远不会自己好）'
+          );
+        }
       } else if (one.status === 'failed') {
         one.step = 'LAST_FAILED';
         one.lastError = (doc && doc.lastError) || '';
@@ -731,7 +1077,14 @@ async function selfcheck(event) {
   // 4. 汇总结论
   const bad = results.filter((r) => r.step);
   const withStatus = results.filter((r) => typeof r.httpStatus === 'number');
-  if (bad.some((r) => r.step === 'GENERATING')) {
+  if (bad.some((r) => r.step === 'STUCK_PENDING')) {
+    report.verdict = 'STUCK_PENDING';
+    report.hints.push(
+      '★ 这条记录是**僵尸**：卡在 pending 而且没有 taskId ⇒ 云函数在等待生图时被**强杀**（超时），',
+      '所以既不写 ready 也不写 failed，永远不会自己好。这是上一版同步等图的必然结果。',
+      '处理：本版已改成异步（提交任务 + 轮询取结果），重新部署后点「换一张配图」即可重生成。'
+    );
+  } else if (bad.some((r) => r.step === 'GENERATING')) {
     report.verdict = 'GENERATING';
     const sec = (bad.find((r) => r.step === 'GENERATING') || {}).pendingSeconds;
     report.hints.push(
@@ -837,7 +1190,7 @@ function headOrGet(url) {
   });
 }
 
-exports.main = async (event) => {
+exports.main = async (event, context) => {
   try {
     const action = event && event.action;
     switch (action) {
@@ -850,7 +1203,8 @@ exports.main = async (event) => {
       case 'diag':
         return await diag(event || {});
       case 'selfcheck':
-        return await selfcheck(event || {});
+        // context 用来读云函数的真实超时配置（判断同步等生图会不会被强杀）
+        return await selfcheck(event || {}, context);
       default:
         return { ok: false, message: '未知 action：' + action };
     }

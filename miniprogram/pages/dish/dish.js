@@ -7,7 +7,9 @@ const imageStore = require('../../utils/imageStore');
 const POLL_INTERVAL_MS = 3000;
 const POLL_INTERVAL_SLOW_MS = 10000;
 const POLL_SLOW_AFTER_MS = 90000;
-const POLL_MAX_MS = 240000;
+// 生图实测 30–180 秒（GLM-Image 官方口径），轮询窗口要盖住上限再留余量。
+// 云函数单次的等待上限远小于此，所以才必须走「提交任务 + 轮询取结果」的异步模式。
+const POLL_MAX_MS = 300000;
 
 Page({
   data: {
@@ -166,12 +168,15 @@ Page({
   /**
    * AI 生成配图（异步 + 轮询）
    *
-   * 为什么不能用 await：单张生图要 20–90 秒，常常超过调用方的等待上限，
-   * 客户端会在超时后断开并报 -3 / errMsg timeout —— 但云函数仍在后台跑完并落库。
-   * 所以「调用报错」不代表「生成失败」，不能拿它当结果。
+   * 为什么不能用 await：单张生图 30–180 秒（GLM-Image 官方口径），远超云函数执行超时上限。
+   * 同步 await 会被**强杀** —— 云函数在等图时进程没了，既不写 ready 也不写 failed，
+   * 数据库那条记录就永远停在 pending（表现为「一直转圈、退出重进也永远没图」，实测卡了 364 秒）。
    *
-   * 正确姿势：发起后立刻给用户反馈，再按 3 秒一次轮询 resolve，
-   * 图一落库就能看到，不必重进页面，也不会卡住按钮。
+   * 正确姿势：
+   *   1) generate 只提交异步任务，秒回（taskId 落库）
+   *   2) 按 3 秒一次轮询 resolve({collect:true})，云函数每次顺手问一次「任务好了没」
+   *   3) 任务 SUCCESS 的那一次轮询会把图下载+压缩+上传+落库，并返回 https 链接
+   * 每一步的耗时都在云函数超时预算内，图一好就能看到，不必重进页面。
    */
   generate() {
     if (this.data.generating) return;
@@ -183,7 +188,7 @@ Page({
 
     this.setData({
       generating: true,
-      genTip: 'AI 生成中，通常需要 30～60 秒，可以先做别的事',
+      genTip: '已提交生成任务，通常需要 30～180 秒，可以先做别的事',
     });
     this._applied = false;
 
@@ -197,7 +202,14 @@ Page({
           if (res.url) this._applyImage(key, res.url, '配图已更新');
           return;
         }
-        if (res && res.pending) return; // 后台还在生成，交给轮询
+        if (res && res.pending) {
+          // 异步模式：任务已提交，云函数不再傻等生图，由轮询去取结果
+          if (res.taskId) {
+            console.log('[dish] async task submitted:', res.taskId);
+            this.setData({ genTip: '已提交生成任务，通常需要 30～180 秒' });
+          }
+          return; // 交给轮询
+        }
         if (res && res.code === 'NOT_CONFIGURED') {
           this._stop('NOT_CONFIGURED');
           wx.showModal({ title: '还没配置生图服务', content: res.message, showCancel: false });
@@ -225,12 +237,23 @@ Page({
 
     const tick = () => {
       api
-        .image('resolve', { keys: [key] })
+        // collect:true —— 让云函数顺手问一次「异步任务好了没」。
+        // 生图 30–180 秒，超过云函数单次执行上限，只能这样分段取结果。
+        .image('resolve', { keys: [key], collect: true })
         .then((res) => {
           const url = res && res.map ? res.map[key] : '';
           if (url) {
             this._applyImage(key, url, '配图已更新');
             return true; // 已拿到图，停轮
+          }
+          const state = res && res.states ? res.states[key] : '';
+          if (state === 'failed') {
+            this._fail('这次生成失败了，请稍后再点一次');
+            return true; // 失败也停轮，别让用户干等
+          }
+          if (state === 'expired') {
+            this._fail('这次任务超时了，请再点一次生成');
+            return true;
           }
           return false;
         })
@@ -242,7 +265,7 @@ Page({
             wx.showModal({
               title: '生成比预期慢',
               content:
-                '已经等了 4 分钟还没拿到结果。不过别担心：就算这里超时，云端也常会继续跑完。\n\n最简单的确认方式：退出本页再进来——图已经好了就会直接显示；还是没有的话，再点一次生成即可。',
+                '已经等了 5 分钟还没拿到结果（生图通常 30～180 秒，偶尔更久）。\n\n最简单的确认方式：退出本页再进来——图已经好了就会直接显示；还是没有的话，再点一次生成即可。',
               showCancel: false,
             });
             return;
@@ -266,7 +289,7 @@ Page({
     const sec = Math.round((POLL_MAX_MS - (this._pollDeadline - Date.now())) / 1000);
     const tip =
       sec < 45
-        ? 'AI 生成中，通常需要 30～120 秒，可以先做别的事'
+        ? 'AI 生成中，通常需要 30～180 秒，可以先做别的事'
         : '还在生成中，已等待 ' + sec + ' 秒…（中途退出也没关系，重进本页就能看到）';
     if (tip !== this.data.genTip) this.setData({ genTip: tip });
   },
