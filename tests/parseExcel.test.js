@@ -8,6 +8,8 @@ const {
   splitSteps,
   normalizeDishKey,
   scanBounds,
+  findHeaderRow,
+  matchWeekday,
 } = require('../cloudfunctions/menuParse/lib/parseExcel');
 
 // 复刻 food(1).xlsx 的真实结构（含全部陷阱），再加一层尾部噪声验证边界裁剪
@@ -327,6 +329,65 @@ module.exports = [
       assert.strictEqual(normalizeDishKey('胡萝卜1.5，'), '胡萝卜1.5');
       assert.strictEqual(normalizeDishKey('莲藕消积米糊：'), '莲藕消积米糊');
       assert.strictEqual(normalizeDishKey(null), '');
+    },
+  },
+  {
+    // 2026-09-28：家里的表头写成「周四（休）」⇒ 旧的全等匹配认不出 ⇒ 只剩 4 列 ⇒ 整份表被判「未找到表头行」
+    name: '★ matchWeekday 认得出带标注的星期表头（周四（休））',
+    fn() {
+      // 标准写法
+      assert.strictEqual(matchWeekday('周日'), 0);
+      assert.strictEqual(matchWeekday('周六'), 6);
+      assert.strictEqual(matchWeekday('星期日'), 0);
+      assert.strictEqual(matchWeekday('星期天'), 0);
+      // 带括号标注——这次踩的坑
+      assert.strictEqual(matchWeekday('周四（休）'), 4);
+      assert.strictEqual(matchWeekday('周五（休）'), 5);
+      assert.strictEqual(matchWeekday('周六（休）'), 6);
+      assert.strictEqual(matchWeekday('周四(休)'), 4);
+      assert.strictEqual(matchWeekday('周一【休】'), 1);
+      // 空白与其他分隔
+      assert.strictEqual(matchWeekday('周 四'), 4);
+      assert.strictEqual(matchWeekday('周三、休'), 3);
+      assert.strictEqual(matchWeekday('周二休'), 2);
+      assert.strictEqual(matchWeekday('周日早餐'), 0);
+      // 不能误吞：正文里的「周四」不是表头
+      assert.strictEqual(matchWeekday('周四听说要下雨记得带伞'), null);
+      assert.strictEqual(matchWeekday('早餐'), null);
+      assert.strictEqual(matchWeekday(''), null);
+      assert.strictEqual(matchWeekday(null), null);
+      assert.strictEqual(matchWeekday(undefined), null);
+    },
+  },
+  {
+    name: '★ 表头含「（休）」标注时仍能定位到表头行（否则整份表解析直接失败）',
+    fn() {
+      const aoa = [
+        ['9/27-10/3', '周日', '周一', '周二', '周三', '周四（休）', '周五（休）', '周六（休）'],
+        ['早', 'A', 'B', 'C', 'D', 'E', 'F', 'G'],
+        ['中', 'H', 'I', 'J', 'K', 'L', 'M', 'N'],
+        ['晚', 'O', 'P', 'Q', 'R', 'S', 'T', 'U'],
+      ];
+      const header = findHeaderRow(aoa, scanBounds(aoa));
+      assert.ok(header, '带（休）标注的表头行必须能被找到');
+      assert.strictEqual(header.row, 0);
+      assert.strictEqual(header.dayCols.length, 7, '应认出全部 7 天，而不是只剩 4 天');
+      assert.deepStrictEqual(
+        header.dayCols.map((d) => d.weekday),
+        [0, 1, 2, 3, 4, 5, 6]
+      );
+
+      const r = parseAOA(aoa, { now: Date.now() });
+      assert.strictEqual(r.ok, true, '带（休）标注的表格必须能解析成功：' + r.message);
+      assert.strictEqual(r.days.length, 7);
+      assert.strictEqual(r.period.rawRangeText, '9/27-10/3');
+      // 周四那列的内容要真的落到周四
+      const thu = r.days[4];
+      assert.strictEqual(thu.weekdayText, '周四');
+      assert.ok(
+        thu.meals.some((m) => m.dishKeys && m.dishKeys.indexOf('E') >= 0),
+        '周四列的内容应落在周四'
+      );
     },
   },
   {

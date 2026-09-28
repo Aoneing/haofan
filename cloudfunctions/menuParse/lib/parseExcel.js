@@ -29,6 +29,45 @@ const WEEKDAY_ALIASES = {
   周六: 6, 星期六: 6,
 };
 
+/** 去掉空白与各种括号后剩下的「紧凑形式」，用于识别带标注的星期表头 */
+const COMPACT_RE = /[\s\u3000()（）\[\]【】<>&+、,，.。:：;；/\\|~～\-—_*#"'“”‘’]/g;
+
+/**
+ * 识别单元格是不是星期表头，返回 0–6 或 null。
+ *
+ * 为什么不能全等匹配（2026-09-28 踩坑）：
+ * 家里的表头常带后缀标注，例如 `周四（休）`、`周五（休）`、`周六（休）`。
+ * 旧实现用 WEEKDAY_ALIASES[text] 全等查表 ⇒ 这三个格匹配不上 ⇒ 只认出周日~周三共 4 列，
+ * 达不到「≥5 列」的门槛 ⇒ 整份表被判「未找到表头行」，整个解析流程直接失败。
+ *
+ * 新策略（按可靠性排序）：
+ *  1. 先去括号分段：`周四（休）` → `周四`，再全等查表（最常见、最可靠）
+ *  2. 去掉全部空白与括号字符后再查表（`周 四`、`周四[休]`）
+ *  3. 兜底：以 周X/星期X 开头即认（`周四休`、`周日早餐`），但要排除误吞
+ *     ——长度过长或落在正文里的「周四听说…」不算表头
+ */
+function matchWeekday(raw) {
+  const t = String(raw == null ? '' : raw).trim();
+  if (!t) return null;
+  // 1. 全等
+  if (WEEKDAY_ALIASES[t] !== undefined) return WEEKDAY_ALIASES[t];
+  // 2. 按括号/分隔符切段，逐段全等
+  const segs = t.split(/[()（）\[\]【】<>&+、,，.。:：;；/\\|~～\-—_*#"'\s\u3000]+/);
+  for (let i = 0; i < segs.length; i++) {
+    if (segs[i] && WEEKDAY_ALIASES[segs[i]] !== undefined) return WEEKDAY_ALIASES[segs[i]];
+  }
+  // 3. 去噪后全等
+  const compact = t.replace(COMPACT_RE, '');
+  if (WEEKDAY_ALIASES[compact] !== undefined) return WEEKDAY_ALIASES[compact];
+  // 4. 前缀兜底：`周日早餐` 这类没被切开的写法
+  const m = /^(周[一二三四五六日天]|星期[一二三四五六日天])/.exec(compact);
+  if (m && compact.length <= 6) {
+    const key = m[1].replace('星期', '周');
+    if (WEEKDAY_ALIASES[key] !== undefined) return WEEKDAY_ALIASES[key];
+  }
+  return null;
+}
+
 const MEAL_DEFS = [
   { key: 'breakfast', label: '早餐', test: (t) => /^早/.test(t) },
   { key: 'lunch', label: '午餐', test: (t) => /^(中餐|午餐|中|午)/.test(t) },
@@ -94,8 +133,9 @@ function findHeaderRow(aoa, bounds) {
     const dayCols = [];
     for (let c = 0; c <= bounds.maxCol; c++) {
       const t = cellText(row[c]).trim();
-      if (t && WEEKDAY_ALIASES[t] !== undefined) {
-        dayCols.push({ col: c, text: t, weekday: WEEKDAY_ALIASES[t] });
+      const wd = t ? matchWeekday(t) : null;
+      if (wd !== null) {
+        dayCols.push({ col: c, text: t, weekday: wd });
       }
     }
     if (dayCols.length >= 5) {
@@ -570,6 +610,7 @@ function parseAOA(aoa, opts) {
 module.exports = {
   WEEKDAY_TEXT,
   WEEKDAY_ALIASES,
+  matchWeekday,
   MEAL_DEFS,
   parseAOA,
   applyMerges,
