@@ -11,6 +11,6 @@
       <view class="day-header__date">{{dateText}}{{isToday ? ' · 今天' : ''}}</view>
       <view wx:if="{{periodId}}" class="muted" bindtap="goWeek">查看本周 ›</view>
     </view>
-    <day-card day="{{day}}" images="{{images}}" highlight-key="{{true}}" bind:dishtap="onDishTap" />
+    <day-card day="{{day}}" images="{{images}}" highlight-key="{{true}}" prep-first="{{true}}" bind:dishtap="onDishTap" />
   </block>
 </view>

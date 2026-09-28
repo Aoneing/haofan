@@ -205,6 +205,58 @@
   background: rgba(255, 255, 255, 0.7);
 }
 
+/* 早上先做：卡片第一行。比备料区更醒目——它是「待办」不是「备注」 */
+.dc__lead {
+  background: #fdf4e3;
+  border-left: 6rpx solid #b26a00;
+  border-radius: 16rpx;
+  padding: 18rpx 20rpx;
+  margin-bottom: 20rpx;
+}
+.dc__lead-hd {
+  font-size: 24rpx;
+  font-weight: 600;
+  color: #854f0b;
+  margin-bottom: 10rpx;
+}
+.dc__lead-item {
+  display: flex;
+}
+.dc__lead-item + .dc__lead-item {
+  margin-top: 12rpx;
+}
+.dc__lead-timing {
+  flex-shrink: 0;
+  width: 36rpx;
+  height: 36rpx;
+  border-radius: 10rpx;
+  font-size: 22rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 14rpx;
+  margin-top: 4rpx;
+  background: #f6e2bc;
+  color: #854f0b;
+}
+.dc__lead-body {
+  flex: 1;
+  min-width: 0;
+}
+.dc__lead-label {
+  display: block;
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #6b4a1c;
+}
+.dc__lead-steps {
+  display: block;
+  font-size: 24rpx;
+  color: #7a6a55;
+  margin-top: 2rpx;
+  white-space: pre-line;
+}
+
 /* 备料：浅米色块替代分割线 */
 .dc__prep {
   margin-top: 20rpx;

@@ -23,6 +23,7 @@
         images="{{todayImages}}"
         highlight="today"
         highlight-key="{{true}}"
+        prep-first="{{true}}"
         expandable="{{true}}"
         bind:daytap="onDayTap"
         bind:dishtap="onDishTap"

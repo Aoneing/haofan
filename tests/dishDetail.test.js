@@ -28,6 +28,8 @@ const DISH_WXSS = read('miniprogram/pages/dish/dish.wxss');
 const DAY_JS = read('miniprogram/pages/day/day.js');
 const DAY_WXML = read('miniprogram/pages/day/day.wxml');
 const TODAY_WXML = read('miniprogram/pages/today/today.wxml');
+const WEEK_WXML = read('miniprogram/pages/week/week.wxml');
+const IMPORT_WXML = read('miniprogram/pages/import/import.wxml');
 const TODAY_JS = read('miniprogram/pages/today/today.js');
 const WEEK_JS = read('miniprogram/pages/week/week.js');
 const CARD_JS = read('miniprogram/components/day-card/day-card.js');
@@ -193,7 +195,10 @@ t('day-card：主餐判定落到 vm 上，且受 highlightKey 开关控制', () 
   assert.ok(/const emphasize = highlightKey && isMain;/.test(CARD_JS), '只有开了开关才真的突出');
   assert.ok(/bg:\s*emphasize \? style\.bgStrong/.test(CARD_JS), '突出时底色换成加深版');
   assert.ok(/highlightKey:\s*\{\s*type:\s*Boolean/.test(CARD_JS), 'highlightKey 要是 Boolean 属性');
-  assert.ok(/'day, images, expandable, compact, highlightKey'/.test(CARD_JS), '开关变化要触发重建');
+  assert.ok(
+    /'day, images, expandable, compact, highlightKey, prepFirst'/.test(CARD_JS),
+    '开关变化要触发重建'
+  );
 });
 
 t('day-card：配角也要后退（只抬主角是不够的，对比才看得出来）', () => {
@@ -234,6 +239,53 @@ t('today.wxml：「明天」那块刻意不开主餐突出（错峰显示，避�
   const m = /highlight="tomorrow"([\s\S]{0,220})/.exec(TODAY_WXML);
   assert.ok(m, 'today 页应有 highlight="tomorrow" 的 day-card');
   assert.ok(m[1].indexOf('highlight-key') < 0, '「明天」不要开，免得首屏两块都在喊');
+});
+
+/* ---------- 6. 早上的备料提到第一行 ---------- */
+
+t('★ day-card：早备料被抽成 prepLead，且底部不重复渲染', () => {
+  assert.ok(/function buildPreps\(raw, prepFirst\)/.test(CARD_JS), '备料拆分应有独立纯函数');
+  assert.ok(
+    /prepLead: all\.filter\(\(p\) => p\.timing === 'morning'\)/.test(CARD_JS),
+    '早上那类要被抽出来'
+  );
+  assert.ok(
+    /prepNotes: all\.filter\(\(p\) => p\.timing !== 'morning'\)/.test(CARD_JS),
+    '抽走之后底部必须过滤掉，否则同一件事出现两次'
+  );
+  assert.ok(/if \(!prepFirst\) return \{ prepLead: \[\], prepNotes: all \}/.test(CARD_JS), '开关关闭时要维持原样');
+  assert.ok(/prepFirst:\s*\{\s*type:\s*Boolean/.test(CARD_JS), 'prepFirst 要是 Boolean 属性');
+  assert.ok(/'day, images, expandable, compact, highlightKey, prepFirst'/.test(CARD_JS), '开关变化要重建');
+});
+
+t('day-card.wxml：早活区块排在餐次列表之前', () => {
+  const leadAt = CARD_WXML.indexOf('dc__lead');
+  const mealAt = CARD_WXML.indexOf('wx:for="{{vm.meals}}"');
+  assert.ok(leadAt > 0, '要有早活区块');
+  assert.ok(mealAt > 0, '要有餐次列表');
+  assert.ok(leadAt < mealAt, '早活必须在餐次之前 —— 需求是「放在今天的第一行」');
+  assert.ok(/wx:if="\{\{vm\.prepLead\.length\}\}"/.test(CARD_WXML), '没早活时整块不显示');
+});
+
+t('day-card.wxss：早活区块有独立强调样式（它是待办，不是备注）', () => {
+  assert.ok(/\.dc__lead \{/.test(CARD_WXSS), '要有 .dc__lead 样式');
+  const seg = CARD_WXSS.slice(CARD_WXSS.indexOf('.dc__lead {'), CARD_WXSS.indexOf('.dc__lead-item {'));
+  assert.ok(/border-left/.test(seg), '要有左侧强调竖条');
+});
+
+t('单日视角开 prep-first：today「今天的饭」与 day 页都要', () => {
+  const todayMain = /highlight="today"([\s\S]{0,260})/.exec(TODAY_WXML);
+  assert.ok(todayMain, 'today 页应有「今天的饭」卡片');
+  assert.ok(todayMain[1].indexOf('prep-first="{{true}}"') >= 0, '「今天的饭」要开 prep-first');
+  assert.ok(/prep-first="\{\{true\}\}"/.test(DAY_WXML), 'day 页也要开 prep-first');
+});
+
+t('多日列表视角不开 prep-first：周视图/校对页保持原样', () => {
+  [WEEK_WXML, IMPORT_WXML].forEach((src, i) => {
+    const name = ['week', 'import'][i];
+    // 周视图七张卡每张都插一块太吵；校对页要保持与 Excel 一致的行序便于核对
+    assert.ok(src.indexOf('prep-first') < 0, name + ' 页不要开 prep-first');
+  });
 });
 
 module.exports = cases;

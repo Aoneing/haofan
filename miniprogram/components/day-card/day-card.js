@@ -6,6 +6,32 @@ const FALLBACK_STYLE = { bg: '#F3EEE5', fg: '#7A6A55' };
 // 展开态配图尺寸（rpx）：配图区先占位，图源后续阶段接入
 const OPEN_THUMB_SIZE = 132;
 
+/**
+ * 备料视图模型的拆分。
+ *
+ * 「早」这一类备料里装的是**必须先动手的活**（泡发、解冻、腌制——步骤里常写「泡半小时」），
+ * 它是一天里第一件要做的事。原先夹在餐次列表底下，要滚很久才看得到，等于没提醒。
+ * 所以开了 prepFirst 时把它抽到卡片第一行。
+ *
+ * 抽走之后底部就不再重复渲染，否则同一件事出现两次，反而让人以为漏看了。
+ *
+ * @param {Array} raw day.prepNotes
+ * @param {boolean} prepFirst 是否启用「早活前置」
+ */
+function buildPreps(raw, prepFirst) {
+  const all = (raw || []).map((p) => ({
+    label: p.label,
+    timing: p.timing || 'unknown',
+    timingText: p.timing === 'morning' ? '早' : p.timing === 'evening' ? '晚' : '注',
+    stepsText: (p.steps && p.steps.length ? p.steps.join('；') : p.rawText) || '',
+  }));
+  if (!prepFirst) return { prepLead: [], prepNotes: all };
+  return {
+    prepLead: all.filter((p) => p.timing === 'morning'),
+    prepNotes: all.filter((p) => p.timing !== 'morning'),
+  };
+}
+
 Component({
   properties: {
     day: { type: Object, value: null }, // days 表文档
@@ -17,6 +43,9 @@ Component({
     // 突出主餐（午餐/晚餐）：单日详情页打开。早餐/加餐相应退一层，一眼就能分清主次。
     // 做成开关而不是写死：周视图/校对页走的也是同一个卡片，不能顺带改掉它们的观感。
     highlightKey: { type: Boolean, value: false },
+    // 把「早上要动手的备料」提到卡片第一行。只给单日视角（今天 / 那天）开：
+    // 周视图七张卡每张都插一块会太吵，校对页要保持跟 Excel 一致的行序便于核对。
+    prepFirst: { type: Boolean, value: false },
   },
 
   data: {
@@ -25,7 +54,7 @@ Component({
   },
 
   observers: {
-    'day, images, expandable, compact, highlightKey'(day) {
+    'day, images, expandable, compact, highlightKey, prepFirst'(day) {
       if (!day) {
         this.setData({ vm: null, expandedIndex: -1 });
         return;
@@ -46,6 +75,7 @@ Component({
       const expandable = this.data.expandable;
       const compact = this.data.compact;
       const highlightKey = this.data.highlightKey;
+      const prepFirst = this.data.prepFirst;
       return {
         date: day.date,
         dateText: dateUtil.fmtCN(day.date),
@@ -86,13 +116,8 @@ Component({
             thumbSize: expandable ? OPEN_THUMB_SIZE : compact ? 72 : 96,
           };
         }),
-        prepNotes: (day.prepNotes || []).map((p) => ({
-          label: p.label,
-          timing: p.timing || 'unknown',
-          timingText:
-            p.timing === 'morning' ? '早' : p.timing === 'evening' ? '晚' : '注',
-          stepsText: (p.steps && p.steps.length ? p.steps.join('；') : p.rawText) || '',
-        })),
+        // 备料：先全量算出来，再按开关决定是否把「早上要动手的」抽到最前面
+        ...buildPreps(day.prepNotes, prepFirst),
         globalPrepList: Object.keys(day.globalPrep || {}).map((k) => ({
           label: k,
           value: day.globalPrep[k],
