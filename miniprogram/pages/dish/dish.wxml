@@ -1,7 +1,13 @@
 <view class="container">
   <view class="card dish-card">
     <view class="dish-hero" bindtap="preview">
-      <dish-thumb title="{{title}}" url="{{url}}" imgkey="{{key}}" size="{{420}}" />
+      <dish-thumb
+        title="{{title}}"
+        url="{{url}}"
+        imgkey="{{key}}"
+        size="{{420}}"
+        bindimgerror="onThumbError"
+      />
       <view wx:if="{{url}}" class="dish-hero__tip">点击查看大图</view>
       <view wx:else class="dish-hero__tip">还没有配图，点击下方生成</view>
     </view>
@@ -17,6 +23,24 @@
       {{generating ? '生成中…' : (url ? '换一张配图' : '生成 AI 配图')}}
     </button>
     <view wx:if="{{generating}}" class="dish-gen-tip">{{genTip}}</view>
+
+    <!-- 诊断面板：图显示不出来时，点一下就能直接看到结论，不必去翻日志 -->
+    <view class="dish-diag">
+      <view class="dish-diag__toggle" bindtap="toggleDiag">
+        {{diagOpen ? '收起诊断 ▲' : '图不显示？点这里诊断 ▼'}}
+      </view>
+      <view wx:if="{{diagOpen}}" class="dish-diag__body">
+        <view wx:if="{{diagLoading}}" class="dish-diag__line">正在自检（需要几秒）…</view>
+        <block wx:else>
+          <view class="dish-diag__verdict">结论：{{diagVerdict || '—'}}</view>
+          <view class="dish-diag__line">url 长度：{{diagUrlLen}}　链接前缀：{{diagUrlHead}}</view>
+          <view wx:for="{{diagLines}}" wx:key="index" class="dish-diag__line">{{item}}</view>
+          <view wx:for="{{diagHints}}" wx:key="index" class="dish-diag__hint">· {{item}}</view>
+          <view class="dish-diag__line dish-diag__line--copy" bindtap="copyDiag">复制诊断结果</view>
+        </block>
+      </view>
+    </view>
+
     <view class="muted dish-note">
       配图按「归一化菜名」全库复用：同一个菜名在一周里出现多次，用的都是同一张图。
       生成的图片会存进云存储，下次直接复用。

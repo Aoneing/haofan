@@ -60,6 +60,8 @@ Component({
           ' src=' + String(this.data.src).slice(0, 120) +
           ' detail=' + JSON.stringify((e && e.detail) || {})
       );
+      // 上报给所在页面（dish 页的诊断面板会显示这个计数）
+      this.triggerEvent('imgerror', { key, detail: (e && e.detail) || {} });
       if (!key) return;
       this._retries = (this._retries || 0) + 1;
       if (this._retries > MAX_RETRY) return; // 重试用尽，保持空白，静默收场

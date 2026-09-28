@@ -32,3 +32,46 @@
   line-height: 1.6;
   color: #b07a4a;
 }
+
+/* ---- 诊断面板 ---- */
+.dish-diag {
+  margin-top: 28rpx;
+  border-top: 1rpx solid #efe6d8;
+  padding-top: 20rpx;
+}
+.dish-diag__toggle {
+  font-size: 24rpx;
+  color: #b07a4a;
+  padding: 8rpx 0;
+}
+.dish-diag__body {
+  margin-top: 12rpx;
+  background: #fbf7f0;
+  border: 1rpx solid #efe6d8;
+  border-radius: 12rpx;
+  padding: 20rpx;
+  text-align: left;
+}
+.dish-diag__verdict {
+  font-size: 26rpx;
+  font-weight: 700;
+  color: #8a5a1e;
+  margin-bottom: 12rpx;
+}
+.dish-diag__line {
+  font-size: 22rpx;
+  line-height: 1.7;
+  color: #6b5c4a;
+  word-break: break-all;
+}
+.dish-diag__hint {
+  font-size: 22rpx;
+  line-height: 1.7;
+  color: #3d6b46;
+  margin-top: 6rpx;
+}
+.dish-diag__line--copy {
+  margin-top: 18rpx;
+  color: #b07a4a;
+  text-decoration: underline;
+}

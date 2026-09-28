@@ -16,6 +16,14 @@ Page({
     url: '',
     generating: false,
     genTip: '',
+    // 诊断面板
+    diagOpen: false,
+    diagLoading: false,
+    diagVerdict: '',
+    diagLines: [],
+    diagHints: [],
+    diagUrlLen: 0,
+    diagUrlHead: '',
   },
 
   onLoad(options) {
@@ -25,6 +33,82 @@ Page({
     this._pollTimer = null;
     this._pollDeadline = 0;
     this._applied = false; // 同一轮只允许提示一次，避免「生成返回」与「轮询命中」重复弹窗
+    this._imgErrs = 0; // 图片加载失败次数，供诊断面板显示
+  },
+
+  /**
+   * 诊断面板：图不显示时点一下，把「前端拿到了什么」和「云端自检结论」一起摆出来。
+   *
+   * 加它的原因：这个故障连续误判两轮，每轮都要「猜 → 改 → 部署 → 再看」。
+   * 与其继续猜，不如让用户自己点一下就看到结论，一步到位。
+   */
+  toggleDiag() {
+    const open = !this.data.diagOpen;
+    this.setData({ diagOpen: open });
+    if (open) this._runDiag();
+  },
+
+  _runDiag() {
+    const key = this.data.key;
+    const url = this.data.url || '';
+    // 前端这一半：立刻可知，不用等云端
+    this.setData({
+      diagLoading: true,
+      diagVerdict: '',
+      diagHints: [],
+      diagUrlLen: url.length,
+      diagUrlHead: url ? url.slice(0, 42) + '…' : '(空)',
+      diagLines: [
+        '缓存里链接：' + (url ? '有（' + url.length + ' 字符）' : '没有'),
+        '图片加载失败次数：' + (this._imgErrs || 0),
+        '临时链接 TTL：' + Math.round(imageStore.URL_TTL_MS / 60000) + ' 分钟',
+      ],
+    });
+
+    // 云端那一半：真下载一次换出的链接，看状态码
+    api
+      .image('selfcheck', { key })
+      .then((res) => {
+        const rep = res && res.report;
+        if (!rep) {
+          this.setData({ diagLoading: false, diagVerdict: '自检无返回（云端可能还是旧版本）' });
+          return;
+        }
+        const lines = (rep.steps || []).map((s) => s.name + '：' + s.detail);
+        const r0 = (rep.results || [])[0];
+        if (r0) {
+          lines.push('DB 记录：status=' + (r0.status || '?') + ' bytes=' + (r0.bytes || '?'));
+          lines.push('HTTPS 实测：' + (r0.httpErr ? 'ERR ' + r0.httpErr : 'HTTP ' + r0.httpStatus));
+        }
+        this.setData({
+          diagLoading: false,
+          diagVerdict: rep.verdict || '—',
+          diagLines: lines,
+          diagHints: rep.hints || [],
+        });
+      })
+      .catch((e) => {
+        this.setData({
+          diagLoading: false,
+          diagVerdict: '自检调用失败：' + ((e && e.message) || '未知'),
+          diagHints: ['多半是云函数还没部署新版本（selfcheck 是新增的 action）'],
+        });
+      });
+  },
+
+  /** 复制诊断文本，方便直接贴给我 */
+  copyDiag() {
+    const text = [
+      '【好饭 · 配图诊断】',
+      '菜名：' + this.data.key,
+      '结论：' + this.data.diagVerdict,
+      'url 长度：' + this.data.diagUrlLen,
+      'url 前缀：' + this.data.diagUrlHead,
+    ]
+      .concat(this.data.diagLines || [])
+      .concat((this.data.diagHints || []).map((h) => '· ' + h))
+      .join('\n');
+    wx.setClipboardData({ data: text });
   },
 
   onShow() {
@@ -51,6 +135,12 @@ Page({
   onHide() {
     this._stopPoll();
     if (this.data.generating) this.setData({ generating: false, genTip: '' });
+  },
+
+  /** dish-thumb 加载失败上报：累计次数，诊断面板会显示 */
+  onThumbError() {
+    this._imgErrs = (this._imgErrs || 0) + 1;
+    if (this.data.diagOpen) this._runDiag();
   },
 
   preview() {

@@ -29,6 +29,7 @@ const ROOT = path.resolve(__dirname, '..');
 const CF_SRC = fs.readFileSync(path.join(ROOT, 'cloudfunctions/dishImage/index.js'), 'utf8');
 const STORE_SRC = fs.readFileSync(path.join(ROOT, 'miniprogram/utils/imageStore.js'), 'utf8');
 const DISH_SRC = fs.readFileSync(path.join(ROOT, 'miniprogram/pages/dish/dish.js'), 'utf8');
+const DISH_WXML = fs.readFileSync(path.join(ROOT, 'miniprogram/pages/dish/dish.wxml'), 'utf8');
 const THUMB_SRC = fs.readFileSync(path.join(ROOT, 'miniprogram/components/dish-thumb/dish-thumb.js'), 'utf8');
 
 const cases = [];
@@ -57,6 +58,39 @@ t('云函数保留「换不到链接」的可诊断日志（含 status / errMsg�
 
 t('云函数不再遗留「临时链接约 2 小时有效」的错误注释', () => {
   assert.ok(!/约 2 小时/.test(CF_SRC), '私有读链接是 10 分钟，注释不能继续写 2 小时');
+});
+
+/* ---------- 1b. 自检能力：这个故障反复误判，必须能一步看到结论 ---------- */
+
+t('云函数提供 selfcheck action（一站式诊断，含真实 HTTPS 探测）', () => {
+  assert.ok(/case 'selfcheck'/.test(CF_SRC), '缺少 selfcheck 分发');
+  assert.ok(/async function selfcheck/.test(CF_SRC), '缺少 selfcheck 实现');
+  assert.ok(/function headOrGet/.test(CF_SRC), '必须真的 GET 一次换出的链接才能区分服务端/小程序端问题');
+});
+
+t('selfcheck 带「部署版本指纹」，能识别云端跑的是不是旧代码', () => {
+  assert.ok(/hasMaxAge/.test(CF_SRC), '应自检 maxAge 修复是否在运行代码里');
+  assert.ok(
+    /DEPLOYED_CODE_IS_OLD/.test(CF_SRC),
+    '若云端是旧代码必须明确报出来，避免又白排查一轮'
+  );
+});
+
+t('selfcheck 能区分 CDN 不可达 / 403 / 404 / 服务端全好', () => {
+  ['CDN_UNREACHABLE', 'HTTP_403', 'HTTP_404', 'SERVER_SIDE_OK', 'TEMP_URL_FAILED'].forEach((v) => {
+    assert.ok(CF_SRC.indexOf("'" + v + "'") >= 0, '缺少结论分支 ' + v);
+  });
+});
+
+t('dish 页有诊断面板（点一下就能看到结论，不用翻日志）', () => {
+  assert.ok(/图不显示？点这里诊断/.test(DISH_WXML), 'WXML 缺少诊断入口');
+  assert.ok(/toggleDiag/.test(DISH_SRC), '缺少 toggleDiag 方法');
+  assert.ok(/selfcheck/.test(DISH_SRC), '诊断面板应调用 selfcheck');
+});
+
+t('dish-thumb 把加载失败上报给页面（供诊断面板计数）', () => {
+  assert.ok(/triggerEvent\('imgerror'/.test(THUMB_SRC), '应 triggerEvent 上报');
+  assert.ok(/bindimgerror="onThumbError"/.test(DISH_WXML), '页面应监听 imgerror');
 });
 
 /* ---------- 2. 前端：TTL 与读缓存纪律 ---------- */

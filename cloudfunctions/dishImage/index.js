@@ -4,6 +4,7 @@ const cloud = require('wx-server-sdk');
 const https = require('https');
 const http = require('http');
 const net = require('net');
+const fs = require('fs'); // selfcheck 用来自检「云端跑的代码是不是最新版」
 
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
 
@@ -541,6 +542,168 @@ async function stats() {
   return { ok: true, total: total.total };
 }
 
+/**
+ * selfcheck —— 「图为什么显示不出来」的一站式自检（一个 action 给出完整判断）。
+ *
+ * 为什么需要它：这个故障已经连续误判两轮（先猜生图失败、再猜存储权限、又猜链接有效期），
+ * 每轮都要「改代码 → 部署 → 再看」。与其继续猜，不如让云函数自己把
+ * 「文件在不在、链接能不能换出来、链接能不能真的下载」一次性验证完。
+ *
+ * 关键一步：**真的用 HTTPS GET 一次换出来的链接**，看状态码。
+ *   200 ⇒ 链接可用，问题在前端渲染（域名白名单等）
+ *   403 ⇒ 链接被拒 / 已过期
+ *   404 ⇒ 文件路径不对
+ * 这是唯一能把「服务端问题」和「小程序端问题」彻底分开的证据。
+ *
+ * @param {{ key?: string }} event 传 key 只看一道菜；不传则看最近有图的几条
+ */
+async function selfcheck(event) {
+  const report = { steps: [], verdict: '', hints: [] };
+  const push = (name, detail) => {
+    report.steps.push({ name, detail });
+    console.log('[dishImage][selfcheck] ' + name + ' :: ' + detail);
+  };
+
+  // 0. 部署版本指纹：用来确认「我改的代码到底有没有真的部署上去」
+  const src = fs.readFileSync(__filename, 'utf8');
+  const hasMaxAge = /maxAge:\s*TEMP_URL_MAX_AGE_S/.test(src);
+  push(
+    'code-version',
+    'hasMaxAge=' + hasMaxAge + ' TEMP_URL_MAX_AGE_S=' + TEMP_URL_MAX_AGE_S +
+      ' node=' + process.version
+  );
+  if (!hasMaxAge) {
+    report.verdict = 'DEPLOYED_CODE_IS_OLD';
+    report.hints.push('云端跑的还是旧代码：maxAge 修复不在里面。请重新「上传并部署：云端安装依赖」。');
+    return { ok: true, report };
+  }
+
+  // 1. 配置
+  const apiUrl = process.env.IMAGE_API_URL;
+  push('env', 'IMAGE_API_URL=' + (apiUrl ? safeHost(apiUrl) : '(empty)') +
+    ' IMAGE_API_KEY=' + (process.env.IMAGE_API_KEY ? '已配置' : '(empty)'));
+
+  // 2. 挑要检查的菜名
+  let keys = [];
+  if (event && event.key) {
+    keys = [String(event.key).trim()];
+  } else {
+    const recent = await db
+      .collection('dishImages')
+      .where({ fileID: _.exists(true) })
+      .limit(5)
+      .get();
+    keys = (recent.data || []).map((d) => d._id);
+  }
+  push('targets', keys.length ? keys.join(' / ') : '(没有找到任何带 fileID 的记录)');
+
+  if (!keys.length) {
+    report.verdict = 'NO_IMAGE_RECORDS';
+    report.hints.push('数据库里没有任何带 fileID 的配图记录，先去菜品页点「生成 AI 配图」。');
+    return { ok: true, report };
+  }
+
+  // 3. 逐条检查：DB → 换链接 → 真的下载一次
+  const results = [];
+  for (const key of keys) {
+    const one = { key };
+    const doc = await readDoc(key);
+    if (!doc || !doc.fileID) {
+      one.step = 'DB_NO_FILEID';
+      push('db:' + key, '记录里没有 fileID（status=' + ((doc && doc.status) || '无记录') + '）');
+      results.push(one);
+      continue;
+    }
+    one.fileID = doc.fileID;
+    one.status = doc.status;
+    one.bytes = doc.bytes;
+
+    const urlMap = await toTempUrls([doc.fileID]);
+    const url = urlMap[doc.fileID];
+    if (!url) {
+      one.step = 'TEMP_URL_FAILED';
+      push('url:' + key, '有 fileID 但换不出临时链接 ⇒ 文件可能不存在或权限异常');
+      results.push(one);
+      continue;
+    }
+    one.url = url;
+    // maxAge 是否真的生效：解析链接上的签名过期时间（不同签名实现字段名不同，能取就取）
+    one.urlQuery = String(url).slice(String(url).indexOf('?') + 1).slice(0, 200);
+
+    const probe = await headOrGet(url);
+    one.httpStatus = probe.status;
+    one.httpErr = probe.err || '';
+    push('http:' + key, 'GET 换出的链接 → ' + (probe.err ? 'ERR ' + probe.err : 'HTTP ' + probe.status));
+    results.push(one);
+  }
+  report.results = results;
+
+  // 4. 汇总结论
+  const bad = results.filter((r) => r.step);
+  const withStatus = results.filter((r) => typeof r.httpStatus === 'number');
+  if (bad.length === results.length && bad.every((r) => r.step === 'DB_NO_FILEID')) {
+    report.verdict = 'NO_IMAGE_RECORDS';
+    report.hints.push('记录存在但没有 fileID，说明从未成功生成过图。');
+  } else if (bad.some((r) => r.step === 'TEMP_URL_FAILED')) {
+    report.verdict = 'TEMP_URL_FAILED';
+    report.hints.push('云函数换不出临时链接：确认云存储里文件真的存在（控制台 → 存储 → dish-images/）。');
+  } else if (withStatus.length && withStatus.every((r) => r.httpStatus === 200)) {
+    report.verdict = 'SERVER_SIDE_OK';
+    report.hints.push(
+      '服务端全链路正常（文件在、链接能换、链接能下载到 200）⇒ 问题在小程序端渲染。',
+      '最可能：该域名不在「downloadFile 合法域名」里（真机必现、模拟器勾了「不校验合法域名」才不报错）。',
+      '检查：小程序后台 → 开发管理 → 开发设置 → 服务器域名 → downloadFile 合法域名，加上 https://<你的CDN域名>',
+      '临时验证：开发者工具右上角「详情 → 本地设置」勾选「不校验合法域名、web-view（业务域名）、TLS 版本以及 HTTPS 证书」。'
+    );
+  } else if (withStatus.some((r) => r.httpStatus === 403)) {
+    report.verdict = 'HTTP_403';
+    report.hints.push('换出的链接被拒（403）：链接可能已过期，或用错了环境/桶。');
+  } else if (withStatus.some((r) => r.httpStatus === 404)) {
+    report.verdict = 'HTTP_404';
+    report.hints.push('文件路径不存在（404）：查云存储里实际文件名与 cloudPath 是否一致。');
+  } else if (withStatus.length && withStatus.every((r) => r.httpStatus === 0)) {
+    // 云函数（境内节点）都连不上这个域名 ⇒ 域名不可达，不是签名问题
+    report.verdict = 'CDN_UNREACHABLE';
+    report.hints.push(
+      '换出的链接在云函数里都连不上（HTTP 0 / 网络错误）⇒ 域名不可达或链接已被拒。',
+      '先确认云存储里有文件；若域名是默认 tcb.qcloud.la，检查是否被防火墙/白名单挡掉。',
+      '把上面的 httpErr 发我，可直接看出是 DNS 失败、连接被拒还是超时。'
+    );
+  } else {
+    report.verdict = 'NEED_MANUAL_LOOK';
+    report.hints.push('未命中已知结论，请把 steps / results 发我，按 httpStatus 与 httpErr 继续定位。');
+  }
+
+  return { ok: true, report };
+}
+
+/** 用 GET 真下一下（有些 CDN 不响应 HEAD），只看状态码，取到响应头就断开 */
+function headOrGet(url) {
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = (o) => {
+      if (done) return;
+      done = true;
+      resolve(o);
+    };
+    let req;
+    try {
+      const mod = String(url).indexOf('http:') === 0 ? http : https;
+      req = mod.get(url, (res) => {
+        res.resume(); // 丢掉 body，只取状态码
+        finish({ status: res.statusCode });
+      });
+    } catch (e) {
+      return finish({ status: 0, err: e && e.message });
+    }
+    req.on('error', (e) => finish({ status: 0, err: (e && e.message) || 'request error' }));
+    req.setTimeout(15000, () => {
+      req.destroy();
+      finish({ status: 0, err: 'timeout' });
+    });
+  });
+}
+
 exports.main = async (event) => {
   try {
     const action = event && event.action;
@@ -553,6 +716,8 @@ exports.main = async (event) => {
         return await stats();
       case 'diag':
         return await diag(event || {});
+      case 'selfcheck':
+        return await selfcheck(event || {});
       default:
         return { ok: false, message: '未知 action：' + action };
     }
