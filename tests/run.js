@@ -16,6 +16,7 @@ const suites = [
   require('./dishDetail.test.js'),
   require('./imageManage.test.js'),
   require('./imageTimeout.test.js'),
+  require('./minePeriods.test.js'),
   require('./preflight.test.js'),
 ];
 

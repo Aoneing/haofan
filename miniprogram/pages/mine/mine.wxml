@@ -4,7 +4,7 @@
     <view class="card-title">数据概览</view>
     <view class="stats-row">
       <view class="stats-item">
-        <view class="stats-item__num">{{periods.length}}</view>
+        <view class="stats-item__num">{{periodTotal}}</view>
         <view class="muted">期食谱</view>
       </view>
       <!-- 配图数既是统计也是入口：点进去能看清每道菜花了几次、能不能删 -->
@@ -17,19 +17,36 @@
     <view wx:if="{{dishImageError}}" class="alert alert--warn" style="margin-top:16rpx">{{dishImageError}}</view>
   </view>
 
-  <!-- 历史周期 -->
+  <!-- 历史周期：默认只露最近几期 —— 导入越久这个列表越长，全铺开会把下面的卡片顶出屏幕 -->
   <view class="card">
-    <view class="card-title">导入过的食谱</view>
-    <view wx:if="{{!periods.length}}" class="muted">还没有导入记录</view>
+    <view class="card-head">
+      <view class="card-title">导入过的食谱</view>
+      <view wx:if="{{periodTotal}}" class="card-head__count">共 {{periodTotal}} 期</view>
+    </view>
+    <view wx:if="{{!periodTotal}}" class="muted">还没有导入记录</view>
     <view
-      wx:for="{{periods}}"
+      wx:for="{{periodsShown}}"
       wx:key="_id"
-      class="period-row"
+      class="period-row{{item.isCurrent ? ' period-row--current' : ''}}"
       data-id="{{item._id}}"
       bindtap="onPeriodTap"
     >
       <text class="period-row__text">{{item.rangeText}}</text>
-      <text class="period-row__arrow">›</text>
+      <view class="period-row__meta">
+        <text
+          wx:if="{{item.badgeText}}"
+          class="period-row__badge{{item.isCurrent ? ' period-row__badge--current' : ''}}"
+        >{{item.badgeText}}</text>
+        <text class="period-row__arrow">›</text>
+      </view>
+    </view>
+
+    <!-- 只有超过预览条数时才出现，3 期以内没必要多一个按钮 -->
+    <view wx:if="{{periodTotal > periodPreview}}" class="period-more" bindtap="togglePeriods">
+      {{periodExpanded ? '收起，只看最近 ' + periodPreview + ' 期' : '展开全部（还有 ' + (periodTotal - periodPreview) + ' 期）'}}
+    </view>
+    <view wx:if="{{periodTruncated}}" class="muted period-note">
+      仅显示最近 {{periodTotal}} 期，更早的已超出查询上限
     </view>
   </view>
 

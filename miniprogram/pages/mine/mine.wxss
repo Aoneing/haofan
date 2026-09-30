@@ -15,22 +15,76 @@
   opacity: 0.55;
 }
 
+/* 标题行右侧挂一个总数：折叠起来的时候，总数还得看得见 */
+.card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+.card-head .card-title {
+  margin-bottom: 16rpx;
+}
+.card-head__count {
+  font-size: 24rpx;
+  color: #9a8f80;
+  flex-shrink: 0;
+}
+
 .period-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 22rpx 24rpx;
+  padding: 20rpx 24rpx;
   background: #faf5ea; /* 浅米色块替代分割线 */
   border-radius: 16rpx;
   margin-bottom: 16rpx;
+}
+/* 正在吃的那一期：加一圈主色描边，不用加高也不用加字 */
+.period-row--current {
+  background: #fff6e6;
+  box-shadow: inset 0 0 0 2rpx #b26a00;
 }
 .period-row__text {
   font-size: 28rpx;
   color: #3d332b;
 }
+.period-row__meta {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  margin-left: 16rpx;
+}
+.period-row__badge {
+  font-size: 22rpx;
+  color: #9a8f80;
+  background: rgba(154, 143, 128, 0.12);
+  border-radius: 999rpx;
+  padding: 4rpx 14rpx;
+  margin-right: 12rpx;
+}
+.period-row__badge--current {
+  color: #fff;
+  background: #b26a00;
+}
 .period-row__arrow {
   color: #c9bda9;
   font-size: 32rpx;
+}
+
+/* 展开 / 收起：做成一行可点的文字，不给整块加高度 */
+.period-more {
+  text-align: center;
+  font-size: 26rpx;
+  color: #b26a00;
+  padding: 12rpx 0 4rpx;
+}
+.period-more:active {
+  opacity: 0.55;
+}
+.period-note {
+  font-size: 22rpx;
+  text-align: center;
+  margin-top: 8rpx;
 }
 
 .about-line {
