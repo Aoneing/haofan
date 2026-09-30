@@ -428,6 +428,27 @@ async function markDoc(key, data) {
 }
 
 /**
+ * 生图失败是不是「配额/钱」这一类。
+ *
+ * 为什么要单列：这一类占了日常失败的大头，而它的处理动作与其它错误完全不同 ——
+ * 401/404 是配置错了（改环境变量 + 重新部署），配额耗尽是去服务商后台充钱（改不了也不该改代码）。
+ * 混着报会让人对着代码查半天，2026-09-30 就是这么绕了一轮才看清。
+ *
+ * 匹配口径放宽一点：各家的说法有差别，但「429 + 余额不足 / 无可用资源包 / quota」基本共通。
+ * 宁可多命中一次，也不要让这类错误掉进「未知原因」。
+ *
+ * @param {string} msg lastError 原文
+ * @returns {boolean}
+ */
+function isQuotaError(msg) {
+  const s = String(msg || '');
+  if (!s) return false;
+  const chronic = ['余额不足', '无可用资源包', '额度不足', '已用尽', '已到期', '资源包已过期'];
+  if (chronic.some((w) => s.indexOf(w) >= 0)) return true;
+  return /429/.test(s) && /quota|insufficient|balance/i.test(s);
+}
+
+/**
  * 生图提示词：统一在这里，异步/同步两条路共用。
  *
  * 2026-09-30 调整：菜名之外补进做法要点。
@@ -716,9 +737,16 @@ async function generateSync(ctx) {
     await markDoc(key, {
       title: ctx.title,
       status: 'failed',
-      failCount: ((ctx.prev && ctx.prev.failCount) || 0) + 1,
+      // 配额类失败**不累加失败计数**：它在服务商那里就被拒了，一分钱没花、也没占额度，
+      // 计入冷却毫无收益；反而是个坑 —— 用户充完钱立刻点会被「已暂停 XX 秒」挡住，
+      // 看着像系统在为难他。所以沿用旧的 failedAt，让 cooldown 永远不因为配额触发。
+      failCount: isQuotaError(msg)
+        ? (ctx.prev && ctx.prev.failCount) || 0
+        : ((ctx.prev && ctx.prev.failCount) || 0) + 1,
       lastError: String(msg).slice(0, 300),
-      failedAt: new Date(),
+      failedAt: isQuotaError(msg)
+        ? (ctx.prev && ctx.prev.failedAt) || ''
+        : new Date(),
       // 保留上一次成功的图，避免失败后连旧图也丢了
       fileID: (ctx.prev && ctx.prev.fileID) || '',
     });
@@ -767,11 +795,13 @@ async function tryCollect(doc) {
       return saved.fileID;
     } catch (e) {
       console.error('[dishImage] 收图失败', key, e && e.message);
+      // 同上：配额类失败不累加计数、不刷新 failedAt，避免充完钱被冷却挡住
+      const quota = isQuotaError((e && e.message) || e);
       await markDoc(key, {
         status: 'failed',
-        failCount: (doc.failCount || 0) + 1,
+        failCount: quota ? doc.failCount || 0 : (doc.failCount || 0) + 1,
         lastError: '收图失败：' + String((e && e.message) || e).slice(0, 300),
-        failedAt: new Date(),
+        failedAt: quota ? doc.failedAt || '' : new Date(),
         fileID: doc.fileID || '',
       });
       return '';
@@ -1221,13 +1251,26 @@ async function selfcheck(event, context) {
   } else if (report.failedDocs && report.failedDocs.some((d) => d.key === (event && event.key))) {
     // 这道菜上次生成失败的原文：直接摆出来，不用再猜
     const f = report.failedDocs.find((d) => d.key === event.key);
-    report.verdict = 'LAST_GENERATE_FAILED';
-    report.hints.push(
-      '★ 这道菜上次生成失败（第 ' + f.failCount + ' 次）：' + f.lastError,
-      '生图接口报错原文如上：401/403 查 IMAGE_API_KEY；404 查 IMAGE_API_URL 路径；429 是限流；' +
-        '若含 content_filter 则是提示词被安全策略拦了（换张图或改菜名再试）。',
-      '连续失败 3 次会进入 2 分钟冷却，冷却期内点生成会被挡住——等一会儿再点即可。'
-    );
+    // 配额类错误单列：它占日常失败的大头，而且**处理动作与其它错误完全不同**
+    // （401/404 是配置错了要改代码，配额耗尽是去服务商后台充钱，两者混着报会让人对着代码查半天）
+    if (isQuotaError(f.lastError)) {
+      report.verdict = 'QUOTA_EXHAUSTED';
+      report.hints.push(
+        '★ 生图配额用完了 —— **不是代码问题，不用改代码、不用重新部署**。',
+        '服务商原文：' + String(f.lastError).slice(0, 300),
+        '处理：登录服务商控制台（本项目是 open.bigmodel.cn）→ 费用中心 → 看**余额**与**资源包**。',
+        '两个易混淆点：① 资源包通常**绑定模型**，买的是 glm-image 包就必须 IMAGE_API_MODEL=glm-image；',
+        '② 资源包**到期即失效**（余额会显示为 0），不是被用完了才叫消耗完。'
+      );
+    } else {
+      report.verdict = 'LAST_GENERATE_FAILED';
+      report.hints.push(
+        '★ 这道菜上次生成失败（第 ' + f.failCount + ' 次）：' + f.lastError,
+        '生图接口报错原文如上：401/403 查 IMAGE_API_KEY；404 查 IMAGE_API_URL 与 IMAGE_API_MODEL；' +
+          '429/1113 是配额耗尽（算下面的配额类）；若含 content_filter 则是提示词被安全策略拦了。',
+        '连续失败 3 次会进入 2 分钟冷却，冷却期内点生成会被挡住——等一会儿再点即可。'
+      );
+    }
   } else if (docForTarget && (docForTarget.status === 'pending' || docForTarget.status === 'saving')) {
     // 图还没出来：pending 分两种（带 taskId＝在跑 / 不带＝旧版僵尸），这里统一按「还在生成」提示
     report.verdict = 'GENERATING';

@@ -376,6 +376,36 @@ t('★ 前端：generate 要把做法一起送上去', () => {
   assert.ok(seg.indexOf('recipe: this.data.recipe') >= 0, 'generate 的入参要带 recipe');
 });
 
+t('★ 配额类失败要单成一档：QUOTA_EXHAUSTED，并说明「不用改代码」', () => {
+  assert.ok(/function isQuotaError/.test(IMAGE_FN), '要有配额判定函数');
+  assert.ok(/verdict = 'QUOTA_EXHAUSTED'/.test(IMAGE_FN), '要有 QUOTA_EXHAUSTED 结论');
+  const seg = IMAGE_FN.slice(
+    IMAGE_FN.indexOf("verdict = 'QUOTA_EXHAUSTED'"),
+    IMAGE_FN.indexOf("verdict = 'QUOTA_EXHAUSTED'") + 600
+  );
+  assert.ok(/不用改代码/.test(seg), '要明确说不是代码问题');
+  // 真实报错长这样：429 ...{"error":{"code":"1113","message":"余额不足或无可用资源包"}}
+  ['余额不足', '无可用资源包'].forEach((w) => {
+    assert.ok(IMAGE_FN.indexOf(w) >= 0, '要能认出服务商原文里的「' + w + '」');
+  });
+});
+
+t('★ 配额失败不累加失败计数 —— 否则充完钱立刻点会被冷却挡住', () => {
+  // 场景：用户充值后马上点生成，若这时弹出「已暂停 XX 秒」，看着像系统在为难他。
+  // 而配额失败在服务商那里就被拒了，没花钱没占额度，计入冷却毫无收益。
+  const syncSeg = IMAGE_FN.slice(IMAGE_FN.indexOf('[dishImage] generate failed'), IMAGE_FN.indexOf("GENERATE_FAILED'"));
+  assert.ok(/isQuotaError\(msg\)/.test(syncSeg), '同步路径要区分是否配额错误');
+  const collectSeg = IMAGE_FN.slice(IMAGE_FN.indexOf('[dishImage] 收图失败'), IMAGE_FN.indexOf('return \'\';', IMAGE_FN.indexOf('[dishImage] 收图失败')));
+  assert.ok(/isQuotaError/.test(collectSeg), '异步收图路径也要区分');
+});
+
+t('★ 前端 toast 要能认出配额错误，别让人对着 429/1113 猜', () => {
+  assert.ok(/function isQuotaMsg/.test(DISH_JS), '前端也要有配额判定');
+  assert.ok(DISH_JS.indexOf('生图配额用完') >= 0, '要有「生图配额用完」的说法');
+  const seg = DISH_JS.slice(DISH_JS.indexOf('生图配额用完') - 400, DISH_JS.indexOf('生图配额用完') + 400);
+  assert.ok(/不用重新部署/.test(seg), '要明确说充完钱直接再点就行，不用重新部署');
+});
+
 t('mine 页：配图数取不到时要提示，不能静默显示 0', () => {
   assert.ok(MINE_JS.indexOf('.catch(() => null)') < 0, '别再静默 catch 成 null 了');
   assert.ok(/dishImageError/.test(MINE_JS), '要有取数失败的提示字段');

@@ -13,6 +13,21 @@ const POLL_SLOW_AFTER_MS = 90000;
 // 云函数单次的等待上限远小于此，所以才必须走「提交任务 + 轮询取结果」的异步模式。
 const POLL_MAX_MS = 300000;
 
+/**
+ * 生成失败的信息里有没有「配额/钱」的味道。
+ * 与云函数 selfcheck 的 isQuotaError 是同一套口径（两边各留一份，避免前端依赖云函数）。
+ *
+ * 之所以要在 toast 里就把它认出来：429/1113 这种错误码普通人看着就是一串乱码，
+ * 而它的处置又完全不用改代码（充钱即可），值得单独说清楚。
+ */
+const QUOTA_WORDS = ['余额不足', '无可用资源包', '额度不足', '已用尽', '已到期', '资源包已过期'];
+function isQuotaMsg(msg) {
+  const s = String(msg || '');
+  if (!s) return false;
+  if (QUOTA_WORDS.some((w) => s.indexOf(w) >= 0)) return true;
+  return /429/.test(s) && /quota|insufficient|balance/i.test(s);
+}
+
 Page({
   data: {
     key: '',
@@ -262,6 +277,19 @@ Page({
         }
         if (res && res.code === 'COOLDOWN') {
           this._fail(res.message);
+          return;
+        }
+        // 配额类失败直接说人话：用户在 toast 里就能看懂「这不是 bug，是没钱了」，
+        // 不用再去翻诊断面板。原文里的 429/1113 对普通人是一串乱码。
+        if (res && isQuotaMsg(res.message)) {
+          this._stop('fail');
+          wx.showModal({
+            title: '生图配额用完',
+            content:
+              (res.message || '') +
+              '\n\n这不是功能故障：去服务商后台充值/买资源包后，直接再点一次就能继续，不用重新部署。',
+            showCancel: false,
+          });
           return;
         }
         this._fail((res && res.message) || '生成失败');
