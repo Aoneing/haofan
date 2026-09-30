@@ -9,6 +9,7 @@ Page({
     loading: true,
     periods: [], // [{ _id, rangeText, updatedAtText }]
     dishTotal: 0,
+    dishImageError: '', // 「张配图」取数失败时的提示：以前静默 catch 成 0，看着像真没图
     envError: '',
     // 食材处理手册：静态数据，手风琴一次只展开一个（内容长，全展开会把页面撑爆）
     prep: {
@@ -26,11 +27,13 @@ Page({
 
   async load() {
     this.setData({ loading: true });
-    const data = { loading: false, envError: '', periods: [], dishTotal: 0 };
+    const data = { loading: false, envError: '', dishImageError: '', periods: [], dishTotal: 0 };
     try {
       const [pRes, sRes] = await Promise.all([
         api.query('listPeriods', { limit: 20 }),
-        api.image('stats').catch(() => null),
+        // 失败不再静默 catch 成 null：那会让「张配图」显示 0，看起来像一张图都没生成过，
+        // 而真实原因可能只是 dishImage 没部署（2026-09-30 吃过的误导）。
+        api.image('stats').catch((e) => ({ ok: false, message: (e && e.message) || '调用失败' })),
       ]);
       if (pRes.ok) {
         data.periods = pRes.periods.map((p) => ({
@@ -41,7 +44,11 @@ Page({
       } else {
         data.envError = pRes.message || '';
       }
-      if (sRes && sRes.ok) data.dishTotal = sRes.total;
+      if (sRes && sRes.ok) {
+        data.dishTotal = sRes.total;
+      } else {
+        data.dishImageError = '配图数取不到：' + ((sRes && sRes.message) || 'dishImage 可能未部署');
+      }
     } catch (e) {
       data.envError = e.message || '云函数调用失败：请确认已部署云函数并正确配置环境 ID';
     }

@@ -13,6 +13,7 @@
       </view>
     </view>
     <view wx:if="{{envError}}" class="alert alert--warn" style="margin-top:16rpx">{{envError}}</view>
+    <view wx:if="{{dishImageError}}" class="alert alert--warn" style="margin-top:16rpx">{{dishImageError}}</view>
   </view>
 
   <!-- 历史周期 -->

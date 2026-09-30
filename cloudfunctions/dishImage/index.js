@@ -427,13 +427,60 @@ async function markDoc(key, data) {
   }
 }
 
-/** 生图提示词：统一在这里，异步/同步两条路共用 */
-function buildPrompt(title) {
+/**
+ * 生图提示词：统一在这里，异步/同步两条路共用。
+ *
+ * 2026-09-30 调整：菜名之外补进做法要点。
+ * 起因是「贝贝南瓜发糕」这类名字，模型并不知道成品长什么样（是馒头状？切块？撒了什么？），
+ * 只给名字会生成一个凭空的糕点，和用户实际吃到的差很远。
+ * 做法里恰好含「蒸 / 煎 / 烤」与主要食材，抽出关键词就能把形态与色泽钉住。
+ *
+ * @param {string} title 菜名
+ * @param {string} [recipe] 做法（可选；前端从 day 页带过来，可能为空）
+ */
+function buildPrompt(title, recipe) {
+  const style =
+    '一道家常辅食/菜品的手机美食摄影照片：「' +
+    title +
+    '」。俯拍视角，白瓷餐具，木质餐桌，柔和自然光，温暖色调，食物清晰占满画面主体，背景干净，无文字无水印。';
+
+  const kw = extractRecipeKeywords(recipe);
+  if (!kw.length) return style;
+
   return (
     '一道家常辅食/菜品的手机美食摄影照片：「' +
     title +
-    '」。俯拍视角，白瓷餐具，木质餐桌，柔和自然光，温暖色调，食物清晰占满画面主体，背景干净，无文字无水印。'
+    '」。做法要点：' +
+    kw.join('、') +
+    '。据此还原成品的真实形态、切面质感与自然色泽。' +
+    '俯拍视角，白瓷餐具，木质餐桌，柔和自然光，温暖色调，食物清晰占满画面主体，背景干净，无文字无水印。'
   );
+}
+
+/** 做法里能帮模型「定型」的线索词。命中即带上，改写不了语义但能锁住形态/色泽 */
+const RECIPE_HINTS = [
+  '蒸', '煎', '烤', '煮', '炖', '炸', '焯', '炒', '焖', '拌', '发酵', '醒发',
+  '南瓜', '山药', '苹果', '红枣', '紫薯', '红薯', '土豆', '玉米', '胡萝卜', '西兰花',
+  '鸡蛋', '牛奶', '酸奶', '面粉', '米粉', '糯米', '燕麦', '奶酪', '肉松', '虾仁', '牛肉', '鸡肉', '鱼肉',
+  '卷', '饼', '糕', '粥', '羹', '汤', '丸', '条', '丝', '块', '泥', '糊',
+];
+
+/**
+ * 从做法文本里抽提示词线索。
+ * 有意做得很轻：不解析句子、不保留数量与克数（对画面无意义，还会挤占提示词预算）。
+ * 做法为空或抽不出任何词时返回 []，调用方退回纯菜名提示词。
+ *
+ * @param {string} recipe
+ * @returns {string[]} 去重后的关键词，最多 8 个
+ */
+function extractRecipeKeywords(recipe) {
+  const text = String(recipe || '');
+  if (!text.trim()) return [];
+  const hit = [];
+  RECIPE_HINTS.forEach((w) => {
+    if (text.indexOf(w) >= 0 && hit.indexOf(w) < 0) hit.push(w);
+  });
+  return hit.slice(0, 8);
 }
 
 /** 把「下载 → 压缩 → 上传云存储 → 落库 ready」这一段收尾流程抽出来，异步/同步共用 */
@@ -549,7 +596,7 @@ async function prepare(event) {
     apiKey,
     model,
     size: process.env.IMAGE_API_SIZE || '1024x1024',
-    prompt: buildPrompt(title),
+    prompt: buildPrompt(title, event.recipe),
   };
 }
 
@@ -923,10 +970,24 @@ async function selfcheck(event, context) {
       ' | 生图需 30–180s，若 timeout 明显更小则同步等待必被强杀'
   );
 
-  // 1. 配置
+  // 1. 环境变量与生图链路配置
   const apiUrl = process.env.IMAGE_API_URL;
   push('env', 'IMAGE_API_URL=' + (apiUrl ? safeHost(apiUrl) : '(empty)') +
     ' IMAGE_API_KEY=' + (process.env.IMAGE_API_KEY ? '已配置' : '(empty)'));
+
+  // 1.1 环境变量没配就没有生图链路，后面那些端点/任务检查都无从谈起。
+  //     原先这里直接往下走，最后落到通用兜底「NEED_MANUAL_LOOK」，
+  //     会把「压根没配置」说成「未命中已知结论」，误导排查方向。
+  if (!apiUrl || !process.env.IMAGE_API_KEY) {
+    report.verdict = 'NOT_CONFIGURED';
+    report.hints.push(
+      '★ 云函数没配生图服务：IMAGE_API_URL / IMAGE_API_KEY 至少缺一个，点「生成 AI 配图」必然失败。',
+      '补配路径：微信开发者工具 → 云开发控制台 → 云函数 → dishImage → 配置 → 环境变量，',
+      '加 IMAGE_API_URL（如 https://open.bigmodel.cn/api/paas/v4/images/generations）与 IMAGE_API_KEY，',
+      '然后重新部署一次（改环境变量后建议顺手「上传并部署」让新配置生效）。'
+    );
+    return { ok: true, report };
+  }
 
   // 1.5 异步端点推导结果：确认生图走的是异步（提交+取结果）而不是同步傻等
   if (apiUrl) {
@@ -1074,6 +1135,61 @@ async function selfcheck(event, context) {
     push('ascii-probe', '上传探针失败：' + ((e && e.message) || ''));
   }
 
+  // 3c. 失败档案：**没有 fileID 的菜在这一步之前就被 continue 掉了**，
+  //     所以「上次为什么失败」必须在这里单独捞一次，否则排障时永远看不到 lastError。
+  //     （这就是上一轮「点生成失败但诊断面板不给原因」的原因。）
+  try {
+    const failed = await db
+      .collection('dishImages')
+      .where({ status: 'failed' })
+      .orderBy('failedAt', 'desc')
+      .limit(3)
+      .get();
+    report.failedDocs = (failed.data || []).map((d) => ({
+      key: d._id,
+      failCount: d.failCount || 0,
+      lastError: String(d.lastError || '').slice(0, 300),
+    }));
+    if (report.failedDocs.length) {
+      report.failedDocs.forEach((d) =>
+        push('failed:' + d.key, '第 ' + d.failCount + ' 次失败：' + d.lastError)
+      );
+    }
+  } catch (e) {
+    // 集合不存在或没建索引都可能在；失败不影响主结论
+    push('failed-query', '查失败记录出错：' + ((e && e.message) || ''));
+  }
+
+  // 3d. 卡住的生成任务：pending 且带 taskId，但时间明显超过官方上限 ⇒ 任务真的死了
+  try {
+    const pending = await db
+      .collection('dishImages')
+      .where({ status: 'pending' })
+      .limit(5)
+      .get();
+    report.pendingDocs = (pending.data || []).map((d) => ({
+      key: d._id,
+      taskId: d.taskId || '',
+      pendingSeconds: toMs(d.pendingAt) ? Math.round((Date.now() - toMs(d.pendingAt)) / 1000) : -1,
+    }));
+    report.pendingDocs.forEach((d) => {
+      if (d.taskId && (d.pendingSeconds > TASK_TTL_MS / 1000 || d.pendingSeconds < 0)) {
+        push('pending:' + d.key, '任务卡住 ' + d.pendingSeconds + ' 秒仍未出图（taskId=' + d.taskId + '）');
+      }
+    });
+  } catch (e) {
+    push('pending-query', '查 pending 记录出错：' + ((e && e.message) || ''));
+  }
+
+  // 3e. 这道菜到底有没有记录？必须在通用兜底之前判掉。
+  //     关键前情：results 是 foreach 出来的，它**只包含有 fileID 的记录**
+  //     （没 fileID 的早在 3. 里 continue 掉，一个字段都没塞）。
+  //     所以「点生成失败」时 results / withStatus 全是空数组，
+  //     原先会一路掉到最后那句「未命中已知结论，请把 steps / results 发我」——
+  //     等于让用户去发一个空的 results，这就是上一轮的诊断死角。
+  const docForTarget = event && event.key ? await readDoc(String(event.key).trim()) : null;
+  const hasResultForTarget = results.some((r) => r.key === (event && event.key));
+
   // 4. 汇总结论
   const bad = results.filter((r) => r.step);
   const withStatus = results.filter((r) => typeof r.httpStatus === 'number');
@@ -1099,9 +1215,56 @@ async function selfcheck(event, context) {
       '上次生成失败了（失败次数 ' + (f.failCount || '?') + '）：' + String(f.lastError).slice(0, 200),
       '连续失败会进入 2 分钟冷却，冷却期内点生成会被挡住——等一会儿再点即可。'
     );
-  } else if (bad.length === results.length && bad.every((r) => r.step === 'DB_NO_FILEID')) {
+  } else if (hasResultForTarget && bad.length === results.length && bad.every((r) => r.step === 'DB_NO_FILEID')) {
     report.verdict = 'NO_IMAGE_RECORDS';
     report.hints.push('记录存在但从来没有成功生成过图，点「生成 AI 配图」生成一张。');
+  } else if (report.failedDocs && report.failedDocs.some((d) => d.key === (event && event.key))) {
+    // 这道菜上次生成失败的原文：直接摆出来，不用再猜
+    const f = report.failedDocs.find((d) => d.key === event.key);
+    report.verdict = 'LAST_GENERATE_FAILED';
+    report.hints.push(
+      '★ 这道菜上次生成失败（第 ' + f.failCount + ' 次）：' + f.lastError,
+      '生图接口报错原文如上：401/403 查 IMAGE_API_KEY；404 查 IMAGE_API_URL 路径；429 是限流；' +
+        '若含 content_filter 则是提示词被安全策略拦了（换张图或改菜名再试）。',
+      '连续失败 3 次会进入 2 分钟冷却，冷却期内点生成会被挡住——等一会儿再点即可。'
+    );
+  } else if (docForTarget && (docForTarget.status === 'pending' || docForTarget.status === 'saving')) {
+    // 图还没出来：pending 分两种（带 taskId＝在跑 / 不带＝旧版僵尸），这里统一按「还在生成」提示
+    report.verdict = 'GENERATING';
+    const sec = toMs(docForTarget.pendingAt)
+      ? Math.round((Date.now() - toMs(docForTarget.pendingAt)) / 1000)
+      : -1;
+    report.hints.push(
+      '★ 这道菜**正在生成中**，不是故障。生图实测 30 秒～2 分钟+（模型波动大）。',
+      '已发起约 ' + (sec >= 0 ? sec + ' 秒' : '一段时间') + '。请稍等，页面会自动轮询出图，不必重进。',
+      docForTarget.taskId
+        ? '异步任务 id：' + docForTarget.taskId
+        : '⚠️ 这条 pending 没有 taskId ⇒ 是旧版同步模式被强杀留下的**僵尸**，永远不会自己好，直接再点一次生成重提交即可。'
+    );
+  } else if (docForTarget && docForTarget.status === 'failed') {
+    report.verdict = 'LAST_GENERATE_FAILED';
+    report.hints.push(
+      '★ 这道菜上次生成失败（第 ' + (docForTarget.failCount || '?') + ' 次）：' +
+        String(docForTarget.lastError || '(没记错误原因)').slice(0, 300),
+      '修复方向看上面的报错原文；连续失败 3 次会进入 2 分钟冷却。'
+    );
+  } else if (docForTarget) {
+    // 有记录、不是失败也不是 pending，但没有 fileID：属于异常中间态
+    report.verdict = 'NO_IMAGE_RECORDS';
+    report.hints.push(
+      '★ 这道菜有记录（status=' + (docForTarget.status || '空') + '）但没有 fileID ⇒ 从来没成功生成过图。',
+      '点一次「生成 AI 配图」即可；若点了仍然失败，再点一次「诊断」就会显示具体报错原文。'
+    );
+  } else if (event && event.key) {
+    // 连记录都没有：说明 generate 连「建 pending 记录」这一步都没走到
+    report.verdict = 'NO_RECORD_AT_ALL';
+    report.hints.push(
+      '★ 数据库里**没有这道菜的任何记录** ⇒ 说明点「生成」时云函数压根没执行到写库那一步。',
+      '常见原因按概率排序：① 云函数 dishImage 没部署/部署的是旧版本（先看上面 code-version 与 runtime 两行）；',
+      '② 环境变量 IMAGE_API_URL / IMAGE_API_KEY 没配（看上面 env 那行，缺了会直接返回 NOT_CONFIGURED）；',
+      '③ 调用被限流或云函数调用次数超免费额度（返回里会有 errCode）。',
+      '下一步：先确认上面 env 行不是 (empty)；是 (empty) 就去云开发控制台补配置再部署。'
+    );
   } else if (bad.some((r) => r.step === 'TEMP_URL_FAILED')) {
     report.verdict = 'TEMP_URL_FAILED';
     report.hints.push('云函数换不出临时链接：确认云存储里文件真的存在（控制台 → 存储 → dish-images/）。');
@@ -1156,8 +1319,17 @@ async function selfcheck(event, context) {
       '把上面的 httpErr 发我，可直接看出是 DNS 失败、连接被拒还是超时。'
     );
   } else {
+    // 走到这里说明「目标菜的记录状态正常但图仍不可用」，且不属于上面任何一类。
+    // 老文案让用户「把 steps / results 发我」，可 results 这时很可能是空的
+    // （只在有 fileID 时才 push），发了也没用 ⇒ 改成给出可照着做的三段式指引。
     report.verdict = 'NEED_MANUAL_LOOK';
-    report.hints.push('未命中已知结论，请把 steps / results 发我，按 httpStatus 与 httpErr 继续定位。');
+    report.hints.push(
+      '未命中已知结论。可照着这三段自查，比把空 results 发出来快：',
+      '① 看上面 env 行：IMAGE_API_URL 是 (empty) ⇒ 环境变量没配；',
+      '② 看 code-version 行：hasMaxAge=false ⇒ 云端跑的还是旧代码，重新部署；',
+      '③ 看 runtime 行：timeout 明显小于 180000ms ⇒ 同步等图会被强杀，确认走的是异步链路。',
+      '把本页「复制诊断结果」整段发我，我按 steps 逐行定位。'
+    );
   }
 
   return { ok: true, report };

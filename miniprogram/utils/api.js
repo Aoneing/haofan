@@ -33,7 +33,7 @@ module.exports = {
     return call('menuQuery', Object.assign({ action }, data || {}));
   },
 
-  /** dishImage：resolve / generate / stats */
+  /** dishImage：resolve / generate / stats / diag / selfcheck */
   image(action, data) {
     return call('dishImage', Object.assign({ action }, data || {}));
   },

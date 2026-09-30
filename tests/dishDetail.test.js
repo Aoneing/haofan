@@ -38,6 +38,11 @@ const CARD_WXSS = read('miniprogram/components/day-card/day-card.wxss');
 const THUMB_JS = read('miniprogram/components/dish-thumb/dish-thumb.js');
 const THUMB_WXML = read('miniprogram/components/dish-thumb/dish-thumb.wxml');
 
+// 配图链路（2026-09-30 排查「AI 生成图片失败」时定的护栏）
+const IMAGE_FN = read('cloudfunctions/dishImage/index.js');
+const MINE_JS = read('miniprogram/pages/mine/mine.js');
+const MINE_WXML = read('miniprogram/pages/mine/mine.wxml');
+
 const cases = [];
 const t = (name, fn) => cases.push({ name, fn });
 
@@ -292,6 +297,89 @@ t('多日列表视角不开 prep-first：周视图/校对页保持原样', () =>
     // 周视图七张卡每张都插一块太吵；校对页要保持与 Excel 一致的行序便于核对
     assert.ok(src.indexOf('prep-first') < 0, name + ' 页不要开 prep-first');
   });
+});
+
+/* ---------- 9. 配图链路：失败必须能看见原因（2026-09-30） ----------
+ *
+ * 背景：用户报「AI 生成图片失败」，点开诊断面板却只看到
+ *       「自检无返回（云端可能还是旧版本）」+「url 长度：0」，给不出任何线索。
+ * 代码里翻出的三个死角：
+ *   a) selfcheck 的环境变量检查只看不判 —— IMAGE_API_URL 为空（没配）时也一路往下走，
+ *      最后落到「未命中已知结论」的通用兜底，把「压根没配置」说成「未知问题」；
+ *   b) 失败档案压根没查：results 只收「有 fileID」的记录，status=failed 的菜在写 results 前
+ *      就被 continue 掉了 ⇒ 页面永远不会告诉你 lastError 是什么；
+ *   c) 前端拿到 failed 后写死「请再点一次」——而真因（401/404/限流）就在 lastError 里，
+ *      写死了用户只会重复点，重复点解决不了任何问题。
+ * 这三条都是「查不到原因」的元凶，比生图本身失败更麻烦，所以固化成用例。
+ */
+
+t('★ selfcheck：环境变量没配就直接判 NOT_CONFIGURED，不许掉进通用兜底', () => {
+  const seg = IMAGE_FN.slice(IMAGE_FN.indexOf("push('env'"), IMAGE_FN.indexOf('// 1.5 异步端点推导结果'));
+  assert.ok(seg.length > 0, '找不到 env 检查那一段');
+  assert.ok(/verdict = 'NOT_CONFIGURED'/.test(seg), 'env 缺失时要直接给 NOT_CONFIGURED');
+  assert.ok(/return \{ ok: true, report \}/.test(seg), '判掉之后要立刻返回，不能继续往下走');
+});
+
+t('★ selfcheck：失败记录（status=failed）要单独捞出来，lastError 必须能展示', () => {
+  assert.ok(/report\.failedDocs/.test(IMAGE_FN), '要把失败记录挂到 report 上');
+  assert.ok(/status: 'failed'/.test(IMAGE_FN), '要按 status=failed 查一次');
+  assert.ok(/lastError/.test(IMAGE_FN), 'lastError 是唯一能说明失败原因的字段');
+});
+
+t('★ selfcheck：有 key 但一条记录都没有时，要判「压根没写库」而不是「请把结果发我」', () => {
+  assert.ok(/NO_RECORD_AT_ALL/.test(IMAGE_FN), '要能说出「数据库里没有这道菜的任何记录」');
+  // 老文案让人去发空 results，等于让人做无用功。注释里引用它是说明历史，不算违规，
+  // 所以只查「实际提示文案」那两处（hints.push 的字符串）。
+  const pushes = IMAGE_FN.match(/hints\.push\([\s\S]{0,400}?\);/g) || [];
+  const bad = pushes.filter((p) => p.indexOf('请把 steps / results 发我') >= 0);
+  assert.strictEqual(
+    bad.length,
+    0,
+    '别再在提示文案里让用户发 results —— results 只收有 fileID 的记录，这时它是空的'
+  );
+});
+
+t('★ 前端：轮询到 failed 时不要再写死「请再点一次」', () => {
+  assert.ok(
+    DISH_JS.indexOf('这次生成失败了，请稍后再点一次') < 0,
+    '写死这句会让用户反复点，而真因是接口报错 —— 真因在 lastError 里'
+  );
+  assert.ok(/this\._fail\('这次生成失败了'\)/.test(DISH_JS), '失败提示要中性，详情交给诊断面板');
+});
+
+t('★ 前端：失败后要自动刷新诊断面板，不能停留在「正在生成中」那句快照', () => {
+  // 从 _stop 的定义处取到下一个方法为止，避免误抓到别处的 _runDiag
+  const from = DISH_JS.indexOf('_stop(why) {');
+  assert.ok(from > 0, '找不到 _stop 的定义');
+  const seg = DISH_JS.slice(from, DISH_JS.indexOf('_stopPoll() {', from));
+  assert.ok(/this\._runDiag\(\)/.test(seg), '停下来时若面板开着，要重跑一次自检');
+});
+
+t('★ 生图提示词：带上做法里的线索词（只有菜名时模型会凭空捏形态）', () => {
+  assert.ok(/function buildPrompt\(title, recipe\)/.test(IMAGE_FN), 'buildPrompt 要吃 recipe');
+  assert.ok(/extractRecipeKeywords/.test(IMAGE_FN), '要有线索词提取');
+  // 「贝贝南瓜发糕」这类名字，模型不知道是蒸的还是烤的，必须靠做法里的「蒸/发酵」钉住
+  const kwSeg = IMAGE_FN.slice(
+    IMAGE_FN.indexOf('const RECIPE_HINTS'),
+    IMAGE_FN.indexOf('function extractRecipeKeywords')
+  );
+  ['蒸', '发酵', '南瓜', '面粉'].forEach((w) => {
+    assert.ok(kwSeg.indexOf("'" + w + "'") >= 0, '线索词表里该有「' + w + '」');
+  });
+});
+
+t('★ 前端：generate 要把做法一起送上去', () => {
+  const from = DISH_JS.indexOf(".image('generate'");
+  assert.ok(from > 0, '找不到 generate 的调用');
+  // 取到那个 .then( 之前为止，即这次调用的完整入参
+  const seg = DISH_JS.slice(from, DISH_JS.indexOf('.then(', from));
+  assert.ok(seg.indexOf('recipe: this.data.recipe') >= 0, 'generate 的入参要带 recipe');
+});
+
+t('mine 页：配图数取不到时要提示，不能静默显示 0', () => {
+  assert.ok(MINE_JS.indexOf('.catch(() => null)') < 0, '别再静默 catch 成 null 了');
+  assert.ok(/dishImageError/.test(MINE_JS), '要有取数失败的提示字段');
+  assert.ok(MINE_WXML.indexOf('dishImageError') >= 0, 'WXML 要把它渲染出来，否则等于没写');
 });
 
 module.exports = cases;

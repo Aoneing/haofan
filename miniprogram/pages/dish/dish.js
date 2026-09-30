@@ -232,8 +232,15 @@ Page({
 
     // 发起生成，但不拿它的返回当结论：返回可能因为超时永远不来，也可能晚于轮询结果到达。
     // force：已经配过图时按钮是「换一张配图」，要真的重生成，否则云函数幂等会原样返回旧图。
+    // recipe：把做法带上，云函数据此抽出「蒸/煎/烤」等线索词写进提示词 ——
+    //   只给菜名时模型凭空捏形态（「贝贝南瓜发糕」就可能画成奶油蛋糕），带上做法才能贴近实物。
     api
-      .image('generate', { key, title: this.data.title, force: !!this.data.url })
+      .image('generate', {
+        key,
+        title: this.data.title,
+        recipe: this.data.recipe || '',
+        force: !!this.data.url,
+      })
       .then((res) => {
         if (res && res.ok && res.fileID) {
           // 返回里带的是 https 临时链接；万一没带，就交给下面的轮询去取
@@ -286,7 +293,11 @@ Page({
           }
           const state = res && res.states ? res.states[key] : '';
           if (state === 'failed') {
-            this._fail('这次生成失败了，请稍后再点一次');
+            // 不要把 message 写死成「请再点一次」：真因会存在 lastError 里（多半是接口 401/404/限流），
+            // 写死了用户只会重复点，而重复点解决不了任何问题（2026-09-30 用户实际卡在这里）。
+            this._fail('这次生成失败了');
+            // 顺手把诊断面板刷新一遍，让 lastError 原文直接显示在页面上，省掉「再点一次诊断」
+            this._diagDirty = true;
             return true; // 失败也停轮，别让用户干等
           }
           if (state === 'expired') {
@@ -352,6 +363,9 @@ Page({
       console.log('[dish] poll stopped:', why);
       this.setData({ generating: false, genTip: '' });
     }
+    // 失败停在页面上时，面板里那句「结论」多半已经过时了（还写着「正在生成中」）。
+    // 自动重跑一次自检，让用户看到的是最终真相，而不是一份中途快照。
+    if ((why === 'fail' || why === '轮询超时') && this.data.diagOpen) this._runDiag();
   },
 
   _stopPoll() {
