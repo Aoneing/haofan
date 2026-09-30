@@ -1,0 +1,73 @@
+<!-- 配图管理：一道菜一行，把「图 / 状态 / 提交次数」摆在一起 -->
+<view class="container">
+
+  <!-- 合计：先给结论，用户最想知道的「到底花了几次」不用自己数 -->
+  <view class="card">
+    <view class="card-title">配图用量</view>
+    <view class="gal-sum">
+      <text class="gal-sum__num">{{items.length}}</text>
+      <text class="muted">道菜有配图记录</text>
+    </view>
+    <view class="gal-sum">
+      <text class="gal-sum__num">{{totalGenerations}}</text>
+      <text class="muted">次生图提交</text>
+    </view>
+    <view wx:if="{{extraGenerations > 0}}" class="alert alert--warn gal-alert">
+      有 {{extraGenerations}} 次属于重复提交（同一道菜被提交了不止一次）。
+      这种情况通常是点了生成又重复点造成的，已在最近的版本里加防重锁。
+      标着「重试 N 次」的那些就是。
+    </view>
+    <view wx:else class="alert alert--info gal-alert">
+      没有重复提交：每道菜都只消耗了一次。
+    </view>
+  </view>
+
+  <view wx:if="{{err}}" class="alert alert--error">{{err}}</view>
+  <view wx:if="{{loading}}" class="center-tip">加载中…</view>
+
+  <view wx:elif="{{!items.length}}" class="state-card">
+    <view class="state-card__emoji">🖼️</view>
+    <text class="muted">还没有任何配图记录</text>
+    <text class="muted">去某道菜那边点「生成 AI 配图」，这里就会出现</text>
+  </view>
+
+  <block wx:else>
+    <view class="card" wx:for="{{items}}" wx:key="key">
+      <view class="gal-row">
+        <view wx:if="{{item.hasImage}}" class="gal-thumb" data-url="{{item.url}}" bindtap="preview">
+          <image class="gal-thumb__img" src="{{item.url}}" mode="aspectFill" />
+        </view>
+        <view wx:else class="gal-thumb gal-thumb--empty">
+          <text class="gal-thumb__ph">{{item.title[0]}}</text>
+        </view>
+
+        <view class="gal-body">
+          <view class="gal-name">{{item.title}}</view>
+          <view class="gal-meta">
+            <text class="gal-badge {{item.statusCls}}">{{item.statusLabel}}</text>
+            <text wx:if="{{item.timeText}}" class="muted">{{item.timeText}}</text>
+            <text wx:if="{{item.bytesText}}" class="muted">{{item.bytesText}}</text>
+          </view>
+          <!-- 提交次数是这整个页面存在的理由：有可能多扣就用醒目颜色标出来 -->
+          <view class="gal-count {{item.resubmitted ? 'gal-count--warn' : ''}}">
+            提交 {{item.submitCount}} 次
+            <text wx:if="{{item.resubmitted}}">（重试 {{item.submitCount - 1}} 次）</text>
+          </view>
+          <view wx:if="{{item.lastError}}" class="gal-err">上次失败：{{item.lastError}}</view>
+        </view>
+
+        <view
+          class="gal-del{{busyKey === item.key ? ' gal-del--busy' : ''}}"
+          data-key="{{item.key}}"
+          data-title="{{item.title}}"
+          bindtap="remove"
+        >删除</view>
+      </view>
+    </view>
+  </block>
+
+  <view class="muted gal-foot">
+    提交次数 = 真正调用 AI 生图接口的次数。一道菜正常是 1 次；
+    大于 1 说明这道菜被重复生成过（换一张配图也会正常累加）。
+  </view>
+</view>

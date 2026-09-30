@@ -1,0 +1,124 @@
+/* 配图管理 */
+.gal-sum {
+  display: flex;
+  align-items: baseline;
+  margin-bottom: 8rpx;
+}
+.gal-sum__num {
+  font-size: 44rpx;
+  font-weight: 700;
+  color: #b26a00;
+  margin-right: 12rpx;
+}
+
+.gal-alert {
+  margin-top: 16rpx;
+  margin-bottom: 0;
+  line-height: 1.7;
+}
+
+.gal-row {
+  display: flex;
+  align-items: flex-start;
+}
+
+.gal-thumb {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: 16rpx;
+  overflow: hidden;
+  background: #f2ead9;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.gal-thumb__img {
+  width: 120rpx;
+  height: 120rpx;
+}
+.gal-thumb--empty {
+  background: #f7f1e6;
+}
+.gal-thumb__ph {
+  font-size: 44rpx;
+  font-weight: 700;
+  color: #c9bda9;
+}
+
+.gal-body {
+  flex: 1;
+  min-width: 0;
+  margin-left: 20rpx;
+  margin-right: 12rpx;
+}
+.gal-name {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #3d332b;
+  word-break: break-all;
+  line-height: 1.4;
+}
+.gal-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin-top: 8rpx;
+}
+
+.gal-badge {
+  font-size: 20rpx;
+  padding: 2rpx 12rpx;
+  border-radius: 999rpx;
+}
+.gal-badge--ok {
+  background: #e6f2e6;
+  color: #3d6b46;
+}
+.gal-badge--busy {
+  background: #fdf3e0;
+  color: #b26a00;
+}
+.gal-badge--bad {
+  background: #fbe9e7;
+  color: #c0392b;
+}
+.gal-badge--idle {
+  background: #f2ead9;
+  color: #9a8f80;
+}
+
+.gal-count {
+  margin-top: 8rpx;
+  font-size: 22rpx;
+  color: #9a8f80;
+}
+/* 重复提交是这个页面最该被看见的信息，用告警色 + 加粗 */
+.gal-count--warn {
+  color: #b26a00;
+  font-weight: 700;
+}
+
+.gal-err {
+  margin-top: 8rpx;
+  font-size: 20rpx;
+  line-height: 1.6;
+  color: #c0392b;
+  word-break: break-all;
+}
+
+.gal-del {
+  flex-shrink: 0;
+  font-size: 24rpx;
+  color: #c0392b;
+  padding: 8rpx 4rpx 8rpx 12rpx;
+}
+.gal-del--busy {
+  color: #c9bda9;
+}
+
+.gal-foot {
+  margin-top: 8rpx;
+  line-height: 1.7;
+}

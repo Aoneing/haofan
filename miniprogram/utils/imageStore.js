@@ -24,11 +24,25 @@ const api = require('./api');
 const URL_TTL_MS = 5 * 60 * 1000;
 
 const cache = {}; // key -> { url, at }
+const states = {}; // key -> 最近一次后端给的生成状态（'pending' / 'ready' / 'failed' / 'none'）
 let pending = null; // 合并并发的 hydrate 请求
 
 function get(key) {
   const item = key && cache[key];
   return (item && item.url) || '';
+}
+
+/**
+ * 取某道菜最近一次已知的生成状态。
+ *
+ * 为什么要单独存一份：云函数 resolve 本来就把每道菜的 status 放在 `states` 里返回，
+ * 但 hydrate 以前只往缓存里塞「已经好了的图链接」，**把 states 整个丢掉了**。
+ * 后果就是用户点完生成、退出页面、再进来时，页面完全不知道还有个任务在跑 ——
+ * 既不显示「生成中」，也不会恢复轮询，只能再点一次（2026-09-30 用户实踩，
+ * 而且第二次点击还让他担心是不是重复扣了资源包的次数）。
+ */
+function getState(key) {
+  return (key && states[key]) || '';
 }
 
 /**
@@ -52,6 +66,7 @@ function set(key, url) {
 
 function clear() {
   Object.keys(cache).forEach((k) => delete cache[k]);
+  Object.keys(states).forEach((k) => delete states[k]);
 }
 
 /**
@@ -90,6 +105,13 @@ function hydrate(keys, opts) {
         if (res && res.ok && res.map) {
           Object.keys(res.map).forEach((k) => set(k, res.map[k]));
         }
+        // states 必须一起存下来：它是「退出页面再回来还能接着等」的唯一依据。
+        // 这里传的 collect=false，云函数会原样返回库里的 status，不会顺手去重收图。
+        if (res && res.ok && res.states) {
+          Object.keys(res.states).forEach((k) => {
+            states[k] = res.states[k] || 'none';
+          });
+        }
         return cache;
       })
       .catch(() => cache);
@@ -111,9 +133,34 @@ function hydrate(keys, opts) {
   return tracked;
 }
 
+/**
+ * 直接问一次服务端这道菜的状态（不看缓存、不换链接）。
+ *
+ * 为什么不复用 hydrate：hydrate 在缓存还新鲜时会**直接跳过请求**，
+ * 而「重进页面时问一句还在不在生成」恰恰必须在缓存新鲜时也发出去
+ * ——否则用户退出再进来，页面依旧一副「什么都没发生」的样子。
+ *
+ * @param {string} key
+ * @returns {Promise<string>} 'pending' / 'saving' / 'ready' / 'failed' / 'none' / ''
+ */
+function refreshState(key) {
+  if (!key) return Promise.resolve('');
+  return api
+    .image('resolve', { keys: [key] })
+    .then((res) => {
+      const st = (res && res.states && res.states[key]) || '';
+      if (st) states[key] = st;
+      // 顺手把图也更新了：既然已经问过一次，别让用户再多等一轮 hydrate
+      const url = res && res.map ? res.map[key] : '';
+      if (url) set(key, url);
+      return st;
+    })
+    .catch(() => '');
+}
+
 /** 强制重取（忽略 TTL）。用于图片加载失败后的自愈：链接可能提前失效。 */
 function reload(keys) {
   return hydrate(keys, { force: true });
 }
 
-module.exports = { get, getFresh, set, clear, hydrate, reload, URL_TTL_MS };
+module.exports = { get, getFresh, getState, refreshState, set, clear, hydrate, reload, URL_TTL_MS };

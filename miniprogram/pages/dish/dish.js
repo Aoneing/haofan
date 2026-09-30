@@ -178,10 +178,44 @@ Page({
     // getFresh 只返回 TTL 内的链接；过期就返回空，让下面的 hydrate 去换新的。
     const cached = imageStore.getFresh(key);
     if (cached) this.setData({ url: cached });
-    // 再后台刷一次：临时链接会过期，重进页面时顺手换一张新的
+
+    // 先别急着自己在这里 resolve —— onHide 时会把 generating 抹掉（页面藏起来就该停），
+    // 所以**重新进来第一件事是问一句「这道菜还在生成吗」**，还在就自动接着等。
+    // 以前没这一步，用户退出再进来看到的是「什么都没发生」，只能再点一次生成，
+    // 于是又担心是不是重复消耗了资源包的次数。
+    this._resumeIfGenerating(key);
+  },
+
+  /**
+   * 重进页面时：如果这道菜还有任务在跑，就恢复「生成中」的界面并继续轮询。
+   *
+   * 两个分支的区别：
+   *  · 本地 generating 仍为 true —— 同一页面实例只是被别的页面盖住了，继续用原来的计时；
+   *  · 服务端 states 显示 pending/saving —— 任务 migration 过了页面生命周期，
+   *    本地状态已丢（典型：退出到外卖 trainees 再回来），必须靠服务端把它拉回来。
+   */
+  _resumeIfGenerating(key) {
+    imageStore.refreshState(key).then((st) => {
+      const busy = st === 'pending' || st === 'saving';
+      if (busy && !this.data.generating) {
+        this.setData({
+          generating: true,
+          genTip: '这道菜还在生成中，已自动继续等待…',
+        });
+        this._applied = false;
+        this._startPoll(key);
+        return;
+      }
+      // 不忙的话，走老逻辑把图刷新一遍（换可能已过期的链接）
+      this._refreshUrl(key);
+    });
+  },
+
+  /** 只在后台刷一次链接：临时链接会过期，重进页面时顺手换一张新的 */
+  _refreshUrl(key) {
     imageStore.hydrate([key]).then(() => {
       if (this.data.generating) return; // 正在生成时不要抢 UI
-      const fresh = imageStore.get(key);
+      const fresh = imageStore.getFresh(key);
       if (fresh && fresh !== this.data.url) this.setData({ url: fresh });
     });
   },
@@ -192,6 +226,9 @@ Page({
   },
 
   onHide() {
+    // 页面藏起来就该停表。这里**刻意不清 generating 的语义**：服务端那张图还在生，
+    // 只是界面不再转圈。重新回来时 onShow → _resumeIfGenerating 会问服务端接着恢复，
+    // 这样既不会在后台空转请求，也不至于丢掉「还在生成」这件事。
     this._stopPoll();
     if (this.data.generating) this.setData({ generating: false, genTip: '' });
   },
@@ -267,6 +304,13 @@ Page({
           if (res.taskId) {
             console.log('[dish] async task submitted:', res.taskId);
             this.setData({ genTip: '已提交生成任务，通常需要 30～180 秒' });
+          }
+          // reused=true 是云函数明确告诉我们「这道菜已经有任务在跑了，我没再提交」。
+          // 这句话必须显示给用户 —— 他最担心的就是重复点击会不会多扣次数。
+          if (res.reused) {
+            this.setData({
+              genTip: '这道菜已在生成中，已自动接着等 —— 不会重复消耗次数',
+            });
           }
           return; // 交给轮询
         }

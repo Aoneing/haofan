@@ -7,9 +7,10 @@
         <view class="stats-item__num">{{periods.length}}</view>
         <view class="muted">期食谱</view>
       </view>
-      <view class="stats-item">
+      <!-- 配图数既是统计也是入口：点进去能看清每道菜花了几次、能不能删 -->
+      <view class="stats-item stats-item--link" bindtap="goGallery">
         <view class="stats-item__num">{{dishTotal}}</view>
-        <view class="muted">张配图</view>
+        <view class="muted">张配图 ›</view>
       </view>
     </view>
     <view wx:if="{{envError}}" class="alert alert--warn" style="margin-top:16rpx">{{envError}}</view>

@@ -10,6 +10,10 @@
   font-weight: 700;
   color: #b26a00;
 }
+/* 可点进配图管理的那个：给点触摸反馈，不然看不出它能点 */
+.stats-item--link:active {
+  opacity: 0.55;
+}
 
 .period-row {
   display: flex;

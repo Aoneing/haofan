@@ -82,6 +82,11 @@ Page({
     wx.navigateTo({ url: '/pages/import/import' });
   },
 
+  /** 配图管理：进得去，用户就不用再来问「我是不是被多扣了次数」 */
+  goGallery() {
+    wx.navigateTo({ url: '/pages/gallery/gallery' });
+  },
+
   clearCache() {
     imageStore.clear();
     wx.showToast({ title: '已清除', icon: 'success' });

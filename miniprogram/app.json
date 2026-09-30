@@ -5,7 +5,8 @@
     "pages/day/day",
     "pages/dish/dish",
     "pages/import/import",
-    "pages/mine/mine"
+    "pages/mine/mine",
+    "pages/gallery/gallery"
   ],
   "window": {
     "navigationBarBackgroundColor": "#FFF8EF",

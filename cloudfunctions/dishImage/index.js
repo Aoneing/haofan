@@ -504,6 +504,71 @@ function extractRecipeKeywords(recipe) {
   return hit.slice(0, 8);
 }
 
+/**
+ * 抢占「提交位」——同一道菜同一时刻只允许一个请求真的去叫服务商。
+ *
+ * 为什么需要它（2026-09-30 用户实踩）：
+ *   原来的保护是「读一下 doc，看到 pending 就返回」，这是典型的 **check-then-act**：
+ *   两个请求同时进来，都读到「还没 pending」，就都去提交了 ⇒ 同一道菜扣两次钱。
+ *   用户端的实际触发路径：点了生成 → 退出页面 → 再进来没提示 → 又点了一次。
+ *
+ *   注意这里说的「并发」不一定是同一毫秒：前端在 generating 状态被重置后再点、
+ *   云函数冷启动重入、弱网重试，都会造成两次调用交错。
+ *
+ * 做法：把「占位」变成**一次带条件的原子写**，谁写成功谁才有权调用付费接口。
+ *   · 记录不存在 → 用 add({_id:key}) 抢占（同 _id 重复 add 会失败 ⇒ 后来者抢不到）
+ *   · 记录已存在 → 用 where(status != 'pending') 条件更新抢占（正在跑的那个是 pending ⇒ 抢不到）
+ * 这样即使两个调用完全并发，也只有一个能越过这道坎。
+ *
+ * @param {string} key 归一化菜名
+ * @param {object} fields 落库字段（title 等）
+ * @param {boolean} incSubmit 是否累加提交计数（真正要去花钱时才传 true）
+ * @returns {Promise<{ok: boolean, reason: string}>} ok=true 表示抢到了、可以去提交
+ */
+async function claimSlot(key, fields, incSubmit) {
+  const base = Object.assign(
+    { title: (fields && fields.title) || key, updatedAt: db.serverDate() },
+    fields || {}
+  );
+  try {
+    // 先试「新建」：只有原本没有这条记录时才成功
+    const created = await db.collection('dishImages').add({
+      data: Object.assign({}, base, {
+        _id: key,
+        status: 'pending',
+        pendingAt: new Date(),
+        taskId: '',
+        submitCount: incSubmit ? 1 : 0,
+        failCount: 0,
+      }),
+    });
+    if (created && created._id) return { ok: true, reason: 'created' };
+    return { ok: false, reason: 'add-returned-no-id' };
+  } catch (e) {
+    // 多半是重复 key（记录已存在），继续走条件更新这条路
+  }
+
+  try {
+    const upd = Object.assign({}, base, {
+      status: 'pending',
+      pendingAt: new Date(),
+      taskId: '',
+    });
+    if (incSubmit) upd.submitCount = _.inc(1);
+    const res = await db
+      .collection('dishImages')
+      .where({ _id: key, status: _.neq('pending') })
+      .update({ data: upd });
+    const n = res && res.stats ? res.stats.updated : 0;
+    return n > 0 ? { ok: true, reason: 'updated' } : { ok: false, reason: 'busy' };
+  } catch (e) {
+    // 条件更新失败（权限/集合异常）时**放行**：宁可偶尔重复一次，也不要整个功能不可用。
+    // 但必须打日志，事后能从这里核对有没有真的重复。
+    console.warn('[dishImage] claimSlot 条件更新失败，放行：', e && e.message);
+    return { ok: true, reason: 'claim-failed-open' };
+  }
+}
+
 /** 把「下载 → 压缩 → 上传云存储 → 落库 ready」这一段收尾流程抽出来，异步/同步共用 */
 async function finishAndStore(ctx, raw, extra) {
   const key = ctx.key;
@@ -637,6 +702,28 @@ async function generate(event) {
   const ctx = await prepare(event);
   if (!ctx.ok || ctx.pending || ctx.cached) return ctx;
 
+  // ★ 原子抢占提交位：抢不到说明已经有同伴在为这道菜生图了，
+  //   直接返回「进行中」让前端继续轮询 —— 绝不重复调用付费接口。
+  //   （prepare 里那段 pending 判断是「读后木ように発生する」的检查，拦不住并发；这里才是有锁的那道。）
+  const claimed = await claimSlot(ctx.key, { title: ctx.title, asyncMode: true }, true);
+  if (!claimed.ok) {
+    const cur = await readDoc(ctx.key);
+    console.log(
+      '[dishImage] generate skipped, someone else is generating:',
+      ctx.key,
+      'reason=' + claimed.reason,
+      'existingTaskId=' + ((cur && cur.taskId) || '(none)')
+    );
+    return {
+      ok: true,
+      key: ctx.key,
+      pending: true,
+      taskId: (cur && cur.taskId) || '',
+      reused: true,
+      message: '这道菜已经在生成中了，稍等即可，不会重复消耗次数',
+    };
+  }
+
   const ep = deriveAsyncEndpoints(ctx.apiUrl);
   if (ep.asyncCapable) {
     try {
@@ -651,12 +738,18 @@ async function generate(event) {
       await markDoc(ctx.key, {
         title: ctx.title,
         status: 'pending',
-        pendingAt: new Date(),
         taskId,
         asyncMode: true,
         failCount: (ctx.prev && ctx.prev.failCount) || 0,
       });
-      console.log('[dishImage] async task submitted', ctx.key, 'taskId=' + taskId);
+      // 计数在 claimSlot 里用 _.inc 原子累加过了，这里不再动，避免覆盖
+      console.log(
+        '[dishImage] async task submitted',
+        ctx.key,
+        'taskId=' + taskId,
+        'submitCount=' + ((ctx.prev && ctx.prev.submitCount) || 0) + '→' +
+          (((ctx.prev && ctx.prev.submitCount) || 0) + 1)
+      );
       return {
         ok: true,
         key: ctx.key,
@@ -677,10 +770,11 @@ async function generate(event) {
 /** 同步兜底：服务商不支持异步时走原路径（等图 → 落库 → 返回） */
 async function generateSync(ctx) {
   const key = ctx.key;
+  // 注意：不再重写 pendingAt —— 提交位已在 generate 里原子抢占并写了时间，
+  // 这里再写一次会把「已等待多久」清零，前端的等待时长就会显示得不对。
   await markDoc(key, {
     title: ctx.title,
     status: 'pending',
-    pendingAt: new Date(),
     taskId: '',
     asyncMode: false,
     failCount: (ctx.prev && ctx.prev.failCount) || 0,
@@ -1405,6 +1499,90 @@ function headOrGet(url) {
   });
 }
 
+/**
+ * list —— 配图管理页用：把 dishImages 全量（上限 200 条）带图返回。
+ *
+ * 为什么要它：用户问「我有 12 张配图，但我没生成这么多，是不是重复扣费了」。
+ * 这种疑问光靠对话解释解不掉 —— 得让他自己**看得见每一张的账**：
+ * 每个菜名显示 submitCount（真正调过几次付费接口）、状态、生成时间、失败原因。
+ * 一次就敢确认有没有多花钱，不用再来问我。
+ *
+ * 排序放在这里做：集合没建索引，云端 orderBy 可能直接报错。
+ */
+async function list(event) {
+  const limit = Math.min(200, Math.max(1, Number((event && event.limit) || 200)));
+  const res = await db.collection('dishImages').limit(limit).get();
+  const docs = (res && res.data) || [];
+
+  const ids = docs.filter((d) => d.fileID).map((d) => d.fileID);
+  const urls = await toTempUrls(ids);
+
+  const items = docs.map((d) => ({
+    key: d._id,
+    title: d.title || d._id,
+    status: d.status || 'none',
+    hasImage: !!d.fileID,
+    url: d.fileID ? urls[d.fileID] || '' : '',
+    bytes: d.bytes || 0,
+    fileID: d.fileID || '',
+    model: d.model || '',
+    // 真正的付费提交次数 —— 核对有没有重复扣费就看这个
+    submitCount: d.submitCount || 0,
+    failCount: d.failCount || 0,
+    lastError: String(d.lastError || '').slice(0, 200),
+    generatedAt: toMs(d.generatedAt),
+    pendingAt: toMs(d.pendingAt),
+    taskId: d.taskId || '',
+  }));
+
+  // 有图的在前，同组内按生成时间倒序；pending/failed 这类「还没结果」的排最后
+  items.sort((a, b) => {
+    const ra = a.hasImage ? 0 : 1;
+    const rb = b.hasImage ? 0 : 1;
+    if (ra !== rb) return ra - rb;
+    return b.generatedAt - a.generatedAt;
+  });
+
+  return { ok: true, items, total: items.length };
+}
+
+/**
+ * remove —— 删掉一张配图（存储文件 + 数据库记录）。
+ *
+ * 用得上的场景：生成的图明显不对版（画成了别的菜），留着它每次都会命中缓存，
+ * 用户怎么点「换一张」都可能拿回同一张不匹配的名字——因为 _id 是菜名、picture 是按收藏重用。
+ * 删掉记录、让它重新生成一次才是干净的解。
+ *
+ * @param {{ key: string }} event
+ */
+async function remove(event) {
+  const key = String((event && event.key) || '').trim();
+  if (!key) return { ok: false, message: '缺少菜名' };
+
+  const doc = await readDoc(key);
+  if (!doc) return { ok: false, message: '没有这道菜的记录' };
+
+  let fileDeleted = false;
+  if (doc.fileID) {
+    try {
+      await cloud.deleteFile({ fileList: [doc.fileID] });
+      fileDeleted = true;
+    } catch (e) {
+      // 文件也许早就不在了；记录删干净了就不影响重新生成，所以不算失败
+      console.warn('[dishImage] remove: 删除存储文件失败', key, e && e.message);
+    }
+  }
+
+  try {
+    await db.collection('dishImages').doc(key).remove();
+  } catch (e) {
+    return { ok: false, message: '删除记录失败：' + ((e && e.message) || '') };
+  }
+
+  console.log('[dishImage] removed', key, 'fileDeleted=' + fileDeleted);
+  return { ok: true, key, fileDeleted };
+}
+
 exports.main = async (event, context) => {
   try {
     const action = event && event.action;
@@ -1420,6 +1598,11 @@ exports.main = async (event, context) => {
       case 'selfcheck':
         // context 用来读云函数的真实超时配置（判断同步等生图会不会被强杀）
         return await selfcheck(event || {}, context);
+      case 'list':
+        // 配图管理页：每一张的账都摊开给人看（提交次数 / 状态 / 失败原因）
+        return await list(event || {});
+      case 'remove':
+        return await remove(event || {});
       default:
         return { ok: false, message: '未知 action：' + action };
     }
