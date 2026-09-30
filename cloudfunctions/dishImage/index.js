@@ -354,10 +354,28 @@ async function resolve(event) {
         if (doc) states[uniq[i]] = doc.status || 'none';
         continue;
       }
-      // 僵尸任务（超过 TASK_TTL 还没结果）不再白查，直接标记为可重提交
-      if (doc.status === 'pending' && Date.now() - toMs(doc.pendingAt) > TASK_TTL_MS) {
+      // 僵尸任务（超过 TASK_TTL 还没结果）不再白查，标记为可重提交。
+      // ★ 判定必须用 ageOf 而不是 Date.now() - toMs()：pendingAt 一旦取不到，
+      //   差值会变成 56.8 年，刚提交的任务也会被判超时（详见 ageOf 注释）。
+      const pendingAge = ageOf(doc.pendingAt);
+      if (doc.status === 'pending' && pendingAge > TASK_TTL_MS) {
         states[uniq[i]] = 'expired';
+        // ★ 必须顺手把库里的状态推进，否则这道菜永远出不了图：
+        //   status 一直停在 pending ⇒ claimSlot 的 where(status != 'pending') 永远匹配不到
+        //   ⇒ 用户再点多少次都只会收到「已在生成中」，然后又被判超时，死循环。
+        //   taskId 保留着不删，方便事后排查这个任务到底怎么了。
+        await markDoc(uniq[i], {
+          status: 'failed',
+          lastError: '任务超时：等待超过 ' + TASK_TTL_MS / 60000 + ' 分钟仍未出图（taskId=' + doc.taskId + '）',
+          failedAt: new Date(),
+          failCount: (doc.failCount || 0) + 1,
+        });
         continue;
+      }
+      // 历史记录里 pendingAt 被整体覆盖抹掉过（见 markDoc 注释）：补一次基准时间，
+      // 让「已等待多久」重新可算。补上之后上面的超时判定才会正常工作。
+      if (doc.status === 'pending' && doc.taskId && pendingAge < 0) {
+        await markDoc(uniq[i], { pendingAt: new Date() });
       }
       const got = await tryCollect(doc); // 串行：避免并发重复上传同一张图
       if (got) files[uniq[i]] = got;
@@ -396,13 +414,27 @@ const SAVING_LOCK_MS = 2 * 60 * 1000;
 const FAIL_COOLDOWN_MS = 2 * 60 * 1000;
 const FAIL_COOLDOWN_THRESHOLD = 3;
 
-/** Date / ISO 字符串 / 时间戳 → 毫秒，取不到就返回 0（当作很久以前） */
+/** Date / ISO 字符串 / 时间戳 → 毫秒，取不到就返回 0 */
 function toMs(v) {
   if (!v) return 0;
   if (v instanceof Date) return v.getTime();
   if (typeof v === 'number') return v;
   const t = Date.parse(v);
   return isNaN(t) ? 0 : t;
+}
+
+/**
+ * 距今多久（毫秒）；时间字段缺失时返回 **-1**，表示「不知道」。
+ *
+ * ★ 为什么不能像 toMs 那样缺失就返回 0（2026-09-30 实踩）：
+ *   toMs 返回 0 的话，`Date.now() - 0` ≈ 1.79e12 毫秒 ≈ **56.8 年**，
+ *   跟任何 TTL 比都是「早就超了」⇒ 刚提交的任务被瞬间判成超时。
+ *   缺失是「不知道」，不是「很久以前」，这两件事必须分开。
+ *   调用方统一用 `age >= 0 && age < TTL` 的写法：只有确知时间才做时间判定。
+ */
+function ageOf(v) {
+  const ms = toMs(v);
+  return ms > 0 ? Date.now() - ms : -1;
 }
 
 /** 读一条配图记录；不存在时 db 会抛错，统一按「没有」处理 */
@@ -415,15 +447,36 @@ async function readDoc(key) {
   }
 }
 
-/** 写状态标记（pending / ready / failed）。写失败不能阻断主流程 */
+/**
+ * 写状态标记（pending / ready / failed）。写失败不能阻断主流程
+ *
+ * ★★ 必须走 update（局部更新），绝不能用 set（2026-09-30 实踩，血的教训）：
+ *    看 SDK 源码就很直白（@cloudbase/database/dist/commonjs/document.js）：
+ *      set()    → merge: false, upsert: true    ← 整体覆盖，没传的字段直接抹掉
+ *      update() → merge: true,  upsert: false   ← 局部更新
+ *    原来这里用 set，结果 generate 提交成功后补写 taskId 那一下，
+ *    把记录里已有的 pendingAt / submitCount 全抹没了：
+ *      · pendingAt 没了 ⇒ 超时判定算出「56.8 年前提交的任务」（Date.now() - 0）
+ *        ⇒ 刚点下去就被判成 expired，前端直接弹「任务超时了，请再点一次」
+ *      · submitCount 没了 ⇒ 配图管理页永远显示「提交 0 次」，花了多少钱查不出来
+ *
+ *    update 对不存在的记录不会创建（upsert: false，返回 updated: 0），
+ *    所以拿不到更新条数时退回 set 去创建。
+ */
 async function markDoc(key, data) {
+  const payload = Object.assign({ updatedAt: db.serverDate() }, data);
   try {
-    await db
-      .collection('dishImages')
-      .doc(key)
-      .set({ data: Object.assign({ updatedAt: db.serverDate() }, data) });
+    const res = await db.collection('dishImages').doc(key).update({ data: payload });
+    const n = res && typeof res.updated === 'number' ? res.updated : res && res.stats && res.stats.updated;
+    if (n === 0) throw new Error('记录不存在，退回 set 创建');
+    return;
   } catch (e) {
-    console.warn('[dishImage] markDoc failed:', e && e.message);
+    // 记录还不存在（第一次写），或 update 报错 —— 用 set 创建
+    try {
+      await db.collection('dishImages').doc(key).set({ data: payload });
+    } catch (e2) {
+      console.warn('[dishImage] markDoc failed:', (e2 && e2.message) || (e && e.message));
+    }
   }
 }
 
@@ -632,8 +685,10 @@ async function prepare(event) {
     //  - 带 taskId：异步任务在跑，窗口内复用即可（不重复提交＝不重复扣费）
     //  - 不带 taskId：旧同步模式留下的**僵尸记录**（云函数在 await 生图时被强杀，
     //    既不写 ready 也不写 failed）⇒ 必须允许立刻重新提交，否则这道菜永远出不了图。
-    const pendingAge = Date.now() - toMs(prev.pendingAt);
-    if (prev.status === 'pending' && prev.taskId && pendingAge < TASK_TTL_MS) {
+    // pendingAge = -1 表示库里没有 pendingAt（历史记录被整体覆盖抹掉过）。
+    // 这时**不复用**：不知道等了多久，就当已经过期，允许重新提交（配合下面的原子锁，不会重复扣费）。
+    const pendingAge = ageOf(prev.pendingAt);
+    if (prev.status === 'pending' && prev.taskId && pendingAge >= 0 && pendingAge < TASK_TTL_MS) {
       return {
         ok: true,
         key,
@@ -642,15 +697,18 @@ async function prepare(event) {
         message: '任务还在生成中（已提交 ' + Math.round(pendingAge / 1000) + ' 秒）',
       };
     }
-    if (prev.status === 'saving' && Date.now() - toMs(prev.savingAt) < SAVING_LOCK_MS) {
+    const savingAge = ageOf(prev.savingAt);
+    if (prev.status === 'saving' && savingAge >= 0 && savingAge < SAVING_LOCK_MS) {
       return { ok: true, key, pending: true, message: '图已生成，正在入库' };
     }
+    const failAge = ageOf(prev.failedAt);
     if (
       prev.status === 'failed' &&
       (prev.failCount || 0) >= FAIL_COOLDOWN_THRESHOLD &&
-      Date.now() - toMs(prev.failedAt) < FAIL_COOLDOWN_MS
+      failAge >= 0 &&
+      failAge < FAIL_COOLDOWN_MS
     ) {
-      const wait = Math.ceil((FAIL_COOLDOWN_MS - (Date.now() - toMs(prev.failedAt))) / 1000);
+      const wait = Math.ceil((FAIL_COOLDOWN_MS - failAge) / 1000);
       return {
         ok: false,
         key,

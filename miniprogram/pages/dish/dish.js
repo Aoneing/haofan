@@ -373,7 +373,10 @@ Page({
             return true; // 失败也停轮，别让用户干等
           }
           if (state === 'expired') {
-            this._fail('这次任务超时了，请再点一次生成');
+            // 云函数已经把库里的状态从 pending 推到 failed，所以这里再点「生成」能真的重开一局
+            // （以前 status 永远停在 pending，再点多少次都只会被告知「已在生成中」，死循环）
+            this._fail('这次等了 10 分钟还没出图，已停止等待。再点一次生成会重新提交一次');
+            this._diagDirty = true;
             return true;
           }
           return false;
