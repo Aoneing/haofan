@@ -6,7 +6,8 @@
     "pages/dish/dish",
     "pages/import/import",
     "pages/mine/mine",
-    "pages/gallery/gallery"
+    "pages/gallery/gallery",
+    "pages/ingredient/ingredient"
   ],
   "window": {
     "navigationBarBackgroundColor": "#FFFFFF",
@@ -33,6 +34,12 @@
         "text": "一周",
         "iconPath": "images/tabbar/week.png",
         "selectedIconPath": "images/tabbar/week-on.png"
+      },
+      {
+        "pagePath": "pages/ingredient/ingredient",
+        "text": "食材",
+        "iconPath": "images/tabbar/ingredient.png",
+        "selectedIconPath": "images/tabbar/ingredient-on.png"
       },
       {
         "pagePath": "pages/mine/mine",

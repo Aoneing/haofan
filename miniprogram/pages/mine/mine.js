@@ -1,8 +1,8 @@
-// pages/mine/mine.js — 我的：数据统计、历史周期、食材处理、关于
+// pages/mine/mine.js — 我的：数据统计、历史周期、关于
 const api = require('../../utils/api');
 const imageStore = require('../../utils/imageStore');
 const dateUtil = require('../../utils/date');
-const prepData = require('../../utils/ingredientPrep');
+const openStats = require('../../utils/openStats');
 
 /**
  * 历史周期默认只露最近几期。
@@ -12,6 +12,12 @@ const prepData = require('../../utils/ingredientPrep');
 const PERIOD_PREVIEW = 3;
 /** 向云函数要多少期（云函数侧上限 50，再多也只会静默截断） */
 const PERIOD_LIMIT = 50;
+/**
+ * 配图管理卡上内嵌展示几张示例图。
+ * 3 张是权衡出来的：半卡宽度下 3 张还能保持「文件卡」的大小与错落感，
+ * 4 张以上每张会窄到看不清菜名，反而失去「这是配图预览」的意义。
+ */
+const GAL_PREVIEW = 3;
 
 Page({
   data: {
@@ -27,23 +33,75 @@ Page({
     periodPreview: PERIOD_PREVIEW, // 给 wxml 拼「还有 N 期」用
     currentRange: '', // 正在吃的那一期的区间，展示在标题右侧
     dishTotal: 0,
+    // 卡片里内嵌展示「最近生成的 2 张配图」：让用户不进二级页也能看见 AI 到底画了什么
+    recentImgs: [],
     dishImageError: '', // 「张配图」取数失败时的提示：以前静默 catch 成 0，看着像真没图
     envError: '',
-    // 食材处理手册：静态数据，手风琴一次只展开一个（内容长，全展开会把页面撑爆）
-    prep: {
-      title: prepData.title,
-      source: prepData.source,
-      updatedAt: prepData.updatedAt,
-      groups: prepData.groups,
-    },
-    prepOpenIndex: -1,
+    // 月历热力图：heatRows 是日历网格（按行渲染，每行 7 格 = 一周的周一..周日）
+    heatRows: [],
+    heatTitle: '',
+    heatYear: 0,
+    heatMonth: 0,
+    heatTotal: 0,
+    heatMinutes: 0,
+    // 星期表头「一二三四五六日」放data，wxml 直接 wx:for，不用手写 7 个 text
+    WEEK_LABELS: ['一', '二', '三', '四', '五', '六', '日'],
   },
 
   onShow() {
     if (this.getTabBar && this.getTabBar()) {
       this.getTabBar().setActive('/pages/mine/mine');
     }
+    // 月历热力图数据在本地，同步取即可，不用等云函数。
+    this.refreshHeat(this.data.heatYear, this.data.heatMonth);
     this.load();
+  },
+
+  /**
+   * 渲染月历热力图。
+   * @param {number} year 0 表示「跟随当前月」（首次渲染时 data 里是 0）
+   * @param {number} month 同上
+   */
+  refreshHeat(year, month) {
+    const now = new Date();
+    const y = year || now.getFullYear();
+    const m = !month && month !== 0 ? now.getMonth() : month;
+    const cal = openStats.monthCalendar(now, y, m);
+    this.setData({
+      // ⚠️ 字段名必须与 wxml 的 wx:for 对上：wxml 遍历 heatRows（按行渲染日历）。
+      // 之前这里写的是 heatCols（按列的视图），而 wxml 早已改成 heatRows，
+      // 于是循环拿到 undefined，整个日期网格一片空白（用户实机截图）。
+      heatRows: cal.rows,
+      heatTitle: cal.title,
+      heatYear: cal.year,
+      heatMonth: cal.month,
+      heatTotal: cal.total,
+      heatMinutes: cal.minutes,
+    });
+  },
+
+  /** 上个月 / 下个月。翻到未来月份没意义（数据还不存在），挡住并提示 */
+  stepMonth(delta) {
+    const now = new Date();
+    const y = this.data.heatYear || now.getFullYear();
+    const m = !this.data.heatMonth && this.data.heatMonth !== 0 ? now.getMonth() : this.data.heatMonth;
+    const next = openStats.shiftMonth(y, m, delta);
+    const isFuture =
+      next.year > now.getFullYear() ||
+      (next.year === now.getFullYear() && next.month > now.getMonth());
+    if (isFuture) {
+      wx.showToast({ title: '还没到那个月', icon: 'none' });
+      return;
+    }
+    this.refreshHeat(next.year, next.month);
+  },
+
+  prevMonth() {
+    this.stepMonth(-1);
+  },
+
+  nextMonth() {
+    this.stepMonth(1);
   },
 
   async load() {
@@ -59,13 +117,18 @@ Page({
       periodTruncated: false,
       currentRange: '',
       dishTotal: 0,
+      recentImgs: [],
     };
     try {
-      const [pRes, sRes] = await Promise.all([
+      const [pRes, sRes, lRes] = await Promise.all([
         api.query('listPeriods', { limit: PERIOD_LIMIT }),
         // 失败不再静默 catch 成 null：那会让「张配图」显示 0，看起来像一张图都没生成过，
         // 而真实原因可能只是 dishImage 没部署（2026-09-30 吃过的误导）。
         api.image('stats').catch((e) => ({ ok: false, message: (e && e.message) || '调用失败' })),
+        // 卡片里要展示最近两张图。list 云端已按「有图在前 + 时间倒序」排好，
+        // 只取前几条（limit 12）换临时链接，避免全量 200 条换链接白花流量。
+        // 这条只是卡面装饰，取不到就画占位块，不弹错误提示（配图数本身仍走 stats 的报错）。
+        api.image('list', { limit: 12 }).catch(() => ({ ok: false, items: [] })),
       ]);
       if (pRes.ok) {
         const today = dateUtil.beijingToday();
@@ -96,6 +159,16 @@ Page({
       } else {
         data.dishImageError = '配图数取不到：' + ((sRes && sRes.message) || 'dishImage 可能未部署');
       }
+      // 内嵌的两张图：只要真有图的（占位记录没 url），顺手写进缓存供其它页复用
+      if (lRes && lRes.ok && lRes.items) {
+        data.recentImgs = (lRes.items || [])
+          .filter((it) => it && it.url)
+          .slice(0, GAL_PREVIEW)
+          .map((it) => {
+            imageStore.set(it.key, it.url);
+            return { key: it.key, url: it.url, title: it.title || '' };
+          });
+      }
     } catch (e) {
       data.envError = e.message || '云函数调用失败：请确认已部署云函数并正确配置环境 ID';
     }
@@ -114,24 +187,6 @@ Page({
     this.setData({
       periodExpanded: expanded,
       periodsShown: this._slicePeriods(this.data.periodsAll, expanded),
-    });
-  },
-
-  /** 食材处理：点标题展开/收起。一次只开一个，点已展开的则收起 */
-  togglePrep(e) {
-    const idx = Number(e.currentTarget.dataset.index);
-    this.setData({ prepOpenIndex: this.data.prepOpenIndex === idx ? -1 : idx });
-  },
-
-  /** 长按某一步可复制文字（做菜时手上有油，常要发给家人或记到别处） */
-  copyPrepStep(e) {
-    const { gindex, sindex } = e.currentTarget.dataset;
-    const g = this.data.prep.groups[Number(gindex)];
-    const s = g && g.steps[Number(sindex)];
-    if (!s) return;
-    wx.setClipboardData({
-      data: g.name + ' · ' + s.title + '：' + s.text,
-      success: () => wx.showToast({ title: '已复制', icon: 'success' }),
     });
   },
 

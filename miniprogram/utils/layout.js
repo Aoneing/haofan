@@ -6,10 +6,11 @@ const DESIGN_WIDTH_PX_TO_RPX = 750;
 
 // 图区高度 = max(屏宽 × MIN_RATIO, 可视高 × VH)，再封顶到可视高的 VH_MAX。
 //   · 下限 MIN_RATIO：保证不会在宽屏上变成一条矮胖的横幅
-//   · 上限 VH_MAX：永远给下方「做法」留一截，用户知道还能往下滚，而不是以为页面就这么点内容
+//   · VH/VH_MAX 比旧版调小一档：图少占一点屏，把「做法」往前提，
+//     让文字整体往上、首屏就能看全，不必下滑
 const HERO_MIN_RATIO = 0.75;
-const HERO_VH = 0.78;
-const HERO_VH_MAX = 0.86;
+const HERO_VH = 0.70;
+const HERO_VH_MAX = 0.78;
 // 拿不到窗口尺寸时的兜底（≈屏宽 × 0.72，与常见机型算出来的值同一量级）
 const HERO_FALLBACK_RPX = 540;
 

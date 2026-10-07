@@ -117,6 +117,34 @@
 .gal-del--busy {
   color: #8b8c93;
 }
+/* 删除键在有「重新生成」时降级为次要操作，避免两个红按钮抢注意力 */
+.gal-del--plain {
+  color: #8b8c93;
+}
+/* 右侧操作区竖排：上「重新生成」（主）、下「删除」（次） */
+.gal-ops {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 10rpx;
+}
+/* 重新生成：胶囊按钮，按压有反馈——
+   失败/超时的菜如果只能删除，用户就只能绕到菜品页去，非常不方便 */
+.gal-retry {
+  align-self: flex-start;
+  margin-top: 12rpx;
+  padding: 10rpx 24rpx;
+  border-radius: 999rpx;
+  background: #3b3aae;
+  color: #ffffff;
+  font-size: 22rpx;
+  font-weight: 600;
+}
+.gal-retry--busy {
+  opacity: 0.6;
+}
 
 .gal-foot {
   margin-top: 8rpx;

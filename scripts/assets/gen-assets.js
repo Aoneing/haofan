@@ -259,6 +259,17 @@ function drawMine(c, color) {
   strokeArc(c, cx, 78, 25, Math.PI * 1.12, Math.PI * 1.88, STROKE, color, 1);
 }
 
+/** 食材：嫩芽（茎 + 两片叶），呼应「新鲜食材 / 好饭」 */
+function drawIngredient(c, color) {
+  const cx = ICON / 2;
+  // 茎：从下往上
+  strokeLine(c, cx, 64, cx, 30, 6, color, 1);
+  // 左叶
+  fillEllipse(c, cx - 15, 30, 15, 9, color, 1);
+  // 右叶
+  fillEllipse(c, cx + 15, 30, 15, 9, color, 1);
+}
+
 function roundRectHit(x, y, x0, y0, x1, y1, r) {
   if (x < x0 || x > x1 || y < y0 || y > y1) return false;
   const cx = Math.min(Math.max(x, x0 + r), x1 - r);
@@ -300,7 +311,7 @@ function write(file, buf) {
 function main() {
   const ROOT = path.resolve(__dirname, '../..');
   const IMG = path.join(ROOT, 'miniprogram/images');
-  const icons = { today: drawToday, week: drawWeek, mine: drawMine };
+  const icons = { today: drawToday, week: drawWeek, mine: drawMine, ingredient: drawIngredient };
 
   Object.keys(icons).forEach((name) => {
     const off = createCanvas(ICON, ICON);

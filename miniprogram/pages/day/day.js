@@ -66,10 +66,11 @@ Page({
         tiles: withUid(res.day),
         prepLead: preps.lead,
         prepNotes: preps.rest,
-        globalPrepList: Object.keys(res.day.globalPrep || {}).map((k) => ({
-          label: k,
-          value: res.day.globalPrep[k],
-        })),
+        // 整周备注是「一周一次」的信息，只挂在周日（weekday===0）那天的详情里，
+        // 其余 6 天不重复展示，避免每天底部都出现同一段话。
+        globalPrepList: (res.day.weekday === 0
+          ? Object.keys(res.day.globalPrep || {}).map((k) => ({ label: k, value: res.day.globalPrep[k] }))
+          : []),
         expandedUid: '',
         periodId: res.period ? res.period._id : '',
         dateText: dateUtil.fmtCN(date),

@@ -1,5 +1,5 @@
 {
-  "navigationBarTitleText": "好饭 · 一天",
+  "navigationBarTitleText": "一天",
   "usingComponents": {
     "dish-tile": "/components/dish-tile/dish-tile"
   }

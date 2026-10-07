@@ -1,0 +1,65 @@
+<!-- 食材页：四色食材处理手册（从「我的」抽出的独立 tab） -->
+<!-- 卡片样式参考「My collections」：大圆角色块上下叠压，大标题 + 胶囊标签 + 黑色圆形箭头 -->
+<view class="container container--tab">
+  <view class="page-head">
+    <text class="page-head__title">食材</text>
+  </view>
+
+  <view class="sec-head sec-head--gap">
+    <text class="sec-head__title">食材处理</text>
+    <text class="sec-head__count">{{prep.groups.length}} 类</text>
+  </view>
+
+  <!-- 两层循环都必须显式命名 index，否则内层会覆盖外层的 index（必现 bug） -->
+  <view class="stack">
+    <view
+      wx:for="{{prep.groups}}"
+      wx:for-index="gindex"
+      wx:key="name"
+      class="grow prow--t{{gindex % 4}} {{prepOpenIndex === gindex ? 'grow--open' : ''}}"
+    >
+      <view
+        class="grow__head"
+        data-index="{{gindex}}"
+        bindtap="togglePrep"
+        hover-class="grow--press"
+        hover-stay-time="80"
+      >
+        <text class="grow__name">{{item.name}}</text>
+        <text class="grow__meta">共 {{item.steps.length}} 步</text>
+      </view>
+
+      <view
+        class="grow__tags"
+        data-index="{{gindex}}"
+        bindtap="togglePrep"
+        hover-class="grow--press"
+        hover-stay-time="80"
+      >
+        <view class="grow__tag">{{item.overview}}</view>
+        <view class="grow__go {{prepOpenIndex === gindex ? 'grow__go--open' : ''}}">→</view>
+      </view>
+
+      <view wx:if="{{prepOpenIndex === gindex}}" class="grow__steps">
+        <view
+          wx:for="{{item.steps}}"
+          wx:for-item="step"
+          wx:for-index="sindex"
+          wx:key="no"
+          class="gstep"
+          data-gindex="{{gindex}}"
+          data-sindex="{{sindex}}"
+          bindlongpress="copyPrepStep"
+        >
+          <view class="gstep__hd">
+            <text class="gstep__no">{{step.no}}</text>
+            <text class="gstep__title">{{step.title}}</text>
+          </view>
+          <view class="gstep__text">{{step.text}}</view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view class="muted prep-source">来源：{{prep.source}}（{{prep.updatedAt}} 录入）</view>
+</view>

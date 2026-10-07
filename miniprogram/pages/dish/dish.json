@@ -1,5 +1,5 @@
 {
-  "navigationBarTitleText": "好饭 · 菜品",
+  "navigationBarTitleText": "菜品",
   "usingComponents": {
     "dish-thumb": "/components/dish-thumb/dish-thumb"
   }

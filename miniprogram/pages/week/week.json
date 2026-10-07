@@ -1,7 +1,8 @@
 {
-  "navigationBarTitleText": "好饭 · 一周",
+  "navigationBarTitleText": "一周",
   "enablePullDownRefresh": true,
   "usingComponents": {
-    "dish-tile": "/components/dish-tile/dish-tile"
+    "dish-tile": "/components/dish-tile/dish-tile",
+    "prep-card": "/components/prep-card/prep-card"
   }
 }

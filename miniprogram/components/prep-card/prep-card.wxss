@@ -1,0 +1,74 @@
+/* prep-card：备料卡。早暖黄 / 晚冷蓝 / 整周浅灰，纯色块无边框，
+   和菜品色卡同一套语言；点整张卡进单日详情看完整备料步骤 */
+.pc {
+  border-radius: 28rpx;
+  padding: 26rpx 30rpx;
+  margin-top: 20rpx;
+  background: #f2f2f4;
+  box-sizing: border-box;
+}
+.pc--hover {
+  opacity: 0.85;
+}
+.pc--morning {
+  background: #fdf3d8; /* 暖黄：早上要动手的活 */
+}
+.pc--evening {
+  background: #e6eefb; /* 冷蓝：晚上备料 */
+}
+.pc--weekly {
+  background: #f2f2f4;
+}
+
+.pc__head {
+  display: flex;
+  align-items: center;
+  margin-bottom: 14rpx;
+}
+.pc__chip {
+  flex-shrink: 0;
+  margin-right: 14rpx;
+  font-size: 22rpx;
+  font-weight: 700;
+  color: #0e0e10;
+  background: #ffffff;
+  border-radius: 999rpx;
+  padding: 6rpx 18rpx;
+}
+.pc--morning .pc__chip {
+  background: #fce1a8;
+}
+.pc--evening .pc__chip {
+  background: #b5d8eb;
+}
+.pc--weekly .pc__chip {
+  background: #e9f94e;
+}
+
+.pc__title {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #0e0e10;
+}
+
+.pc__list {
+  display: flex;
+  flex-direction: column;
+  gap: 10rpx;
+}
+.pc__item {
+  display: flex;
+  flex-direction: column;
+}
+.pc__label {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #0e0e10;
+  line-height: 1.4;
+}
+.pc__steps {
+  font-size: 23rpx;
+  color: #55565c;
+  line-height: 1.5;
+  margin-top: 2rpx;
+}

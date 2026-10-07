@@ -141,13 +141,53 @@ t(' gallery：能删除配图（图不对版时的干净解法）', () => {
   assert.ok(/删除这张配图？/.test(GALLERY_JS), '删除前要确认');
 });
 
+t('★ gallery：页面自己也要轮询收异步结果（不能只被动看库状态）', () => {
+  // 2026-10-08 用户实机反馈：配图管理里一堆菜一直显示「生成中」，很久都不出图，
+  // 其中一条 lastError 是「任务超时：等待超过 10 分钟仍未出图（taskId=...）」。
+  // 根因：生图 30–180 秒超过云函数单次执行上限，generate 只提交任务就返回，
+  //   真正的结果回收靠 resolve({collect:true})顺带问一句 —— 而**只有菜品详情页会问**。
+  //   本页面原先只拉 list 看库里的 status，库里就永远停在 pending，用户干等。
+  assert.ok(/_autoPoll/.test(GALLERY_JS), '要有 _autoPoll：按是否存在 pending/saving 决定要不要轮询');
+  assert.ok(
+    /status === 'pending' \|\| it\.status === 'saving'/.test(GALLERY_JS) || /'pending' \|\| i\.status === 'saving'/.test(GALLERY_JS),
+    '要按 pending/saving 状态判断是否还有任务在跑'
+  );
+  assert.ok(
+    /image\(\s*'resolve'\s*,\s*\{[^}]*collect:\s*true/.test(GALLERY_JS),
+    '轮询必须用 resolve({collect:true}) 让云函数顺手收图'
+  );
+  assert.ok(/image\('resolve'/.test(GALLERY_JS), '要调 resolve');
+  assert.ok(/_pollTimer/.test(GALLERY_JS) && /clearTimeout/.test(GALLERY_JS), '轮询要有定时器且能停');
+  assert.ok(/onHide\(\)[\s\S]*_stopPoll/.test(GALLERY_JS), '离开页面要停轮询，别后台空转烧云调用');
+  assert.ok(/onUnload\(\)[\s\S]*_stopPoll/.test(GALLERY_JS), '销毁页面也要停轮询');
+  assert.ok(/onShow\(\)[\s\S]*_autoPoll/.test(GALLERY_JS), '进页面要按需起轮询');
+  // 节奏要与菜品详情页一致，避免两处策略不同
+  assert.ok(/POLL_INTERVAL_MS\s*=\s*3000/.test(GALLERY_JS), '前段 3 秒密轮询');
+  assert.ok(/POLL_MAX_MS\s*=\s*5 \* 60 \* 1000/.test(GALLERY_JS), '最多等 5 分钟（云函数 10 分钟才判超时，前端要更早收手）');
+});
+
+t('★ gallery：失败/超时的菜要有「重新生成」出口', () => {
+  // 云函数超时会写 failed + lastError，用户在这个页面上没有任何办法重开一局
+  assert.ok(/retry\(e\)/.test(GALLERY_JS), '要实现 retry');
+  assert.ok(/image\('generate'/.test(GALLERY_JS), 'retry 要重新提交 generate');
+  assert.ok(
+    /wx:if="\{\{item\.status === 'failed' \|\| item\.status === 'expired'\}\}"/.test(GALLERY_WXML),
+    '只有失败/超时的行才显示「重新生成」'
+  );
+  assert.ok(/bindtap="retry"/.test(GALLERY_WXML), '按钮要绑定 retry');
+  assert.ok(/gal-retry/.test(GALLERY_WXML), '要有样式类');
+  assert.ok(/已提交，正在生成/.test(GALLERY_JS), '提交后要给出反馈');
+  // expired 必须有自己的文案，不能落回默认的「无图」
+  assert.ok(/expired:\s*\{\s*label:\s*'超时失败'/.test(GALLERY_JS), 'expired 状态要有独立文案「超时失败」');
+});
+
 t('入口：mine 页「张配图」可点进配图管理', () => {
   assert.ok(/goGallery/.test(MINE_JS), '要有跳转方法');
   assert.ok(MINE_JS.indexOf("'/pages/gallery/gallery'") > 0, '路径要对');
   assert.ok(MINE_WXML.indexOf('bindtap="goGallery"') > 0, 'WXML 要绑上');
   assert.ok(
-    /<view class="stat" bindtap="goGallery">[\s\S]*?张配图/.test(MINE_WXML),
-    '「张配图」整块要能点进配图管理'
+    /<view class="gal-card"[^>]*bindtap="goGallery">[\s\S]*?张配图/.test(MINE_WXML),
+    '「张配图」整卡（深色配图管理卡）要能点进配图管理'
   );
 });
 

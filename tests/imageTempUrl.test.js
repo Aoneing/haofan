@@ -237,10 +237,11 @@ t('诊断面板不输出 undefined（没探测过就不显示 HTTP 结果）', (
   assert.ok(/asciiProbe/.test(DISH_SRC), '应突出显示存储链路对照结果');
 });
 
-t('dish 页有诊断面板（点一下就能看到结论，不用翻日志）', () => {
-  assert.ok(/图不显示？点这里诊断/.test(DISH_WXML), 'WXML 缺少诊断入口');
-  assert.ok(/toggleDiag/.test(DISH_SRC), '缺少 toggleDiag 方法');
-  assert.ok(/selfcheck/.test(DISH_SRC), '诊断面板应调用 selfcheck');
+t('dish 页按需求移除了「图不显示？点这里诊断」入口文字', () => {
+  assert.ok(!/图不显示？点这里诊断/.test(DISH_WXML), 'WXML 不应再显示诊断入口文字');
+  // 诊断逻辑仍在 js 里保留（toggleDiag/selfcheck），只是不再暴露入口，方便日后复用
+  assert.ok(/toggleDiag/.test(DISH_SRC), 'toggleDiag 方法应保留');
+  assert.ok(/selfcheck/.test(DISH_SRC), '诊断面板应仍调用 selfcheck');
 });
 
 t('dish-thumb 把加载失败上报给页面（供诊断面板计数）', () => {

@@ -5,9 +5,17 @@
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
+  /* 宿主（dish-tile 标签）在网格里是纵向 flex：同行等高时
+     由这里撑满宿主高度，矮卡不再在卡下留空白 */
+  flex: 1;
 }
 .dt--hover {
   opacity: 0.86;
+}
+/* 主餐（午餐/晚餐）：立体阴影把它从网格里抬起来，一眼就是重点。
+   底色在 JS 里已换成 bgStrong（加深版），这里只加阴影，不抢边框语言 */
+.dt--main {
+  box-shadow: 0 8rpx 26rpx rgba(59, 58, 174, 0.20);
 }
 
 /* 餐次标签：右上不抢菜名，用描边小胶囊。颜色随色卡前景色走，
@@ -22,6 +30,15 @@
   border-radius: 999rpx;
   border: 1.5rpx solid currentColor;
   opacity: 0.78;
+}
+/* 主餐徽标：实心品牌紫底 + 白字，比描边小胶囊醒目得多，
+   配角仍是描边款，两张卡一对比主次立刻出来 */
+.dt__meal--main {
+  background: #3b3aae;
+  color: #ffffff;
+  border: none;
+  opacity: 1;
+  font-weight: 700;
 }
 
 .dt__head {
@@ -61,19 +78,11 @@
   opacity: 0.85;
 }
 
-.dt__rows {
-  margin-top: 18rpx;
-}
-.dt__row {
-  display: flex;
-  align-items: center;
-  margin-top: 12rpx;
-}
 .dt__ico {
   flex-shrink: 0;
   width: 22rpx;
   height: 22rpx;
-  margin-right: 12rpx;
+  margin-right: 8rpx;
   opacity: 0.9;
 }
 /* 热量：水滴 —— 用 CSS 画，避免为两个小图标再引入图片资源 */
@@ -95,15 +104,47 @@
   margin: 3rpx auto 0;
   background: currentColor;
 }
-.dt__label {
-  font-size: 22rpx;
-  opacity: 0.62;
-  margin-right: 14rpx;
-  flex-shrink: 0;
+
+/* 顶部插图：顶满卡片，负 margin 出血到圆角边缘；overflow 兜底裁掉方角 */
+.dt__media {
+  position: relative;
+  margin: -26rpx -26rpx 18rpx;
+  border-radius: 32rpx 32rpx 0 0;
+  overflow: hidden;
+  height: 210rpx;
 }
-.dt__val {
-  font-size: 30rpx;
-  font-weight: 700;
+.dt__img {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+/* 底边渐变条：从透明过渡到卡片底色，把插图下边缘「化」进卡片，无硬矩形边 */
+.dt__fade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 72rpx;
+  pointer-events: none;
+}
+
+/* 底部小字：热量 + 用时。margin-top:auto 把它压到卡片最底——
+   等高拉伸后矮卡多出的空间留在标题和底部小字之间，卡面仍是完整色块 */
+.dt__foot {
+  display: flex;
+  align-items: center;
+  gap: 28rpx;
+  margin-top: auto;
+  padding-top: 16rpx;
+}
+.dt__foot-item {
+  display: flex;
+  align-items: center;
+}
+.dt__foot-num {
+  font-size: 22rpx;
+  font-weight: 600;
+  line-height: 1;
 }
 
 .dt__more {

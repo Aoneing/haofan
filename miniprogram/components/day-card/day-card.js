@@ -118,10 +118,10 @@ Component({
         }),
         // 备料：先全量算出来，再按开关决定是否把「早上要动手的」抽到最前面
         ...buildPreps(day.prepNotes, prepFirst),
-        globalPrepList: Object.keys(day.globalPrep || {}).map((k) => ({
-          label: k,
-          value: day.globalPrep[k],
-        })),
+        // 整周备注只展示在周日（weekday===0）那天的卡片里，其余 6 天不重复
+        globalPrepList: (day.weekday === 0
+          ? Object.keys(day.globalPrep || {}).map((k) => ({ label: k, value: day.globalPrep[k] }))
+          : []),
       };
     },
 

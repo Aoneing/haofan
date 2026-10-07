@@ -19,10 +19,10 @@ Page({
     activeIndex: 0,
     activeDay: null,
     activeDateText: '',
-    activeIsToday: false,
-    heroDate: '',
     tiles: [],
-    prepBar: null,
+    morningPrep: null,
+    eveningPrep: null,
+    weeklyPrep: null,
     serverToday: '',
     expandedUid: '',
   },
@@ -107,14 +107,16 @@ Page({
   applyActive(i, today) {
     const item = this.data.days[i];
     const day = item && item.day;
+    const prep = buildPrepCards(day);
     this.setData({
       activeIndex: i,
       activeDay: day,
-      activeDateText: day ? dateUtil.fmtCN(day.date) : '',
-      activeIsToday: !!day && day.date === today,
-      heroDate: day ? dateUtil.fmtCN(day.date) : '',
+      // 选中日是否今天直接并进标题（hero 已移除，别丢「当前是今天」的提示）
+      activeDateText: day ? dateUtil.fmtCN(day.date) + (day.date === today ? ' · 今天' : '') : '',
       tiles: withUid(day),
-      prepBar: buildPrepBar(day),
+      morningPrep: prep.morningPrep,
+      eveningPrep: prep.eveningPrep,
+      weeklyPrep: prep.weeklyPrep,
       expandedUid: '',
     });
   },
@@ -160,12 +162,36 @@ function withUid(day) {
   );
 }
 
-/** 备料折叠条：标题优先取带「早」的那条（先动手的活最该被看见） */
-function buildPrepBar(day) {
-  if (!day) return null;
-  const labels = (day.prepNotes || []).map((p) => (p.label || '').trim()).filter(Boolean);
-  const total = labels.length + Object.keys(day.globalPrep || {}).length;
-  if (!total) return null;
-  const lead = labels.filter((l) => l.indexOf('早') >= 0)[0] || labels[0] || '当日备料';
-  return { label: lead, count: total + ' 项' };
+/**
+ * 备料拆成「早 / 晚」两张卡，外加「整周备料」一张（仅当天是周日才出现）。
+ * 与今日页同款逻辑，抽成独立函数避免两份实现 drift。
+ */
+function buildPrepCards(day) {
+  if (!day) return { morningPrep: null, eveningPrep: null, weeklyPrep: null };
+  const notes = day.prepNotes || [];
+  const morning = notes.filter((p) => p.timing === 'morning');
+  const evening = notes.filter((p) => p.timing !== 'morning');
+  const weekly = Object.keys(day.globalPrep || {}).map((k) => ({
+    label: k,
+    stepsText: day.globalPrep[k],
+  }));
+  return {
+    morningPrep: morning.length
+      ? { timing: 'morning', title: '早 · 备料', items: morning.map(toPrepItem) }
+      : null,
+    eveningPrep: evening.length
+      ? { timing: 'evening', title: '晚 · 备料', items: evening.map(toPrepItem) }
+      : null,
+    weeklyPrep:
+      day.weekday === 0 && weekly.length
+        ? { timing: 'weekly', title: '整周备料', items: weekly }
+        : null,
+  };
+}
+
+/** 备料项 → 卡片条目 */
+function toPrepItem(p) {
+  const stepsText =
+    (p.steps && p.steps.length ? p.steps.join('；') : p.rawText || '') || '';
+  return { label: p.label, stepsText };
 }

@@ -36,6 +36,13 @@ page,
   padding: 24rpx 32rpx 48rpx;
 }
 
+/* 四个 tab 页专用：自定义 tabBar 是 fixed 悬浮层，会压住页面底部内容。
+   底部多留出「tabBar 高度（116rpx）+ 底距（20rpx）+ 呼吸空间」的补白，
+   内容才能完整滚出 tabBar，页面也才有向上滑动的余地。 */
+.container--tab {
+  padding-bottom: calc(170rpx + env(safe-area-inset-bottom));
+}
+
 /* ---------- 页面大标题（「好饭 · 今日」这一行） ---------- */
 .page-head {
   display: flex;
@@ -208,4 +215,19 @@ page,
 }
 .state-card .muted {
   display: block;
+}
+
+/* ---------- 两列卡片网格：同行等高铺满 ----------
+ * 根因：dish-tile 有无 AI 插图高度差 210rpx，flex 换行布局里
+ * 矮卡下方会露出一片空白。修法：flex 行内默认 stretch，让每个
+ * 格子拉到同行最高；格子作为 flex 容器，dish-tile 宿主纵向撑满，
+ * 卡片 .dt（组件内 flex:1）再撑满宿主 → 同行两卡永远等高。
+ * 今日/一周/单日三页共用 .grid/.grid__cell，这里全局声明一次。 */
+.grid__cell {
+  display: flex;
+}
+dish-tile {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
 }

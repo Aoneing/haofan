@@ -1,7 +1,8 @@
 {
-  "navigationBarTitleText": "好饭 · 今日",
+  "navigationBarTitleText": "今日",
   "enablePullDownRefresh": true,
   "usingComponents": {
-    "dish-tile": "/components/dish-tile/dish-tile"
+    "dish-tile": "/components/dish-tile/dish-tile",
+    "prep-card": "/components/prep-card/prep-card"
   }
 }

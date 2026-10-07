@@ -19,6 +19,12 @@ const TABS = [
     onIcon: '/images/tabbar/week-on.png',
   },
   {
+    path: '/pages/ingredient/ingredient',
+    text: '食材',
+    icon: '/images/tabbar/ingredient.png',
+    onIcon: '/images/tabbar/ingredient-on.png',
+  },
+  {
     path: '/pages/mine/mine',
     text: '我的',
     icon: '/images/tabbar/mine.png',

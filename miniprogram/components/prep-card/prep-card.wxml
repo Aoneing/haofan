@@ -1,0 +1,19 @@
+<!-- prep-card — 备料卡：早/晚/整周三类，按 timing 换底色与 chip -->
+<view
+  class="pc pc--{{timing}}"
+  hover-class="pc--hover"
+  hover-stay-time="80"
+  bindtap="onTap"
+>
+  <view class="pc__head">
+    <text class="pc__chip">{{chip}}</text>
+    <text class="pc__title">{{title}}</text>
+  </view>
+
+  <view wx:if="{{items.length}}" class="pc__list">
+    <view wx:for="{{items}}" wx:key="label" class="pc__item">
+      <text class="pc__label">{{item.label}}</text>
+      <text wx:if="{{item.stepsText}}" class="pc__steps">{{item.stepsText}}</text>
+    </view>
+  </view>
+</view>

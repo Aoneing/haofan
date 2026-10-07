@@ -1,6 +1,6 @@
-<!-- 菜品详情：全屏大图 + 做法 + AI 生成入口
-     布局要点：图区顶到屏幕左右边缘（满屏宽），高度按屏幕比例算，
-     下方做法区从图底露出一条边，提示「还能往下滚」。 -->
+<!-- 菜品详情：全屏大图 + 毛玻璃渐变过渡 + 做法 + AI 生成入口
+     布局要点：图区顶到屏幕左右边缘（满屏宽），底部用白纱渐变把图「融」进
+     白色页面，菜名大字落在过渡区重点显示；图上浮毛玻璃胶囊提示状态。 -->
 <view class="dish">
   <view class="dish__hero" style="height:{{heroH}}rpx" bindtap="preview">
     <dish-thumb
@@ -12,9 +12,13 @@
       radius="{{0}}"
       bindimgerror="onThumbError"
     />
-    <view class="dish__hero-bar">
-      <view class="dish__hero-title">{{title}}</view>
-      <view class="dish__hero-tip">{{url ? '点击查看大图' : '还没有配图，点击下方生成'}}</view>
+    <!-- 白纱渐变：图片下沿渐隐进页面白底，不再用黑色压字条 -->
+    <view class="dish__veil"></view>
+    <!-- 毛玻璃状态胶囊：浮在图上，像参考图的热量角标 -->
+    <view class="dish__chip">{{url ? '点击查看大图' : '还没有配图，点击下方生成'}}</view>
+    <!-- 菜名：落在渐变过渡区，大字重点显示 -->
+    <view class="dish__head">
+      <view class="dish__title">{{title}}</view>
     </view>
   </view>
 
@@ -38,23 +42,6 @@
       {{generating ? '生成中…' : (url ? '换一张配图' : '生成 AI 配图')}}
     </button>
     <view wx:if="{{generating}}" class="dish-gen-tip">{{genTip}}</view>
-
-    <!-- 诊断面板：图显示不出来时，点一下就能直接看到结论，不必去翻日志 -->
-    <view class="dish-diag">
-      <view class="dish-diag__toggle" bindtap="toggleDiag">
-        {{diagOpen ? '收起诊断 ▲' : '图不显示？点这里诊断 ▼'}}
-      </view>
-      <view wx:if="{{diagOpen}}" class="dish-diag__body">
-        <view wx:if="{{diagLoading}}" class="dish-diag__line">正在自检（需要几秒）…</view>
-        <block wx:else>
-          <view class="dish-diag__verdict">结论：{{diagVerdict || '—'}}</view>
-          <view class="dish-diag__line">url 长度：{{diagUrlLen}}　链接前缀：{{diagUrlHead}}</view>
-          <view wx:for="{{diagLines}}" wx:key="index" class="dish-diag__line">{{item}}</view>
-          <view wx:for="{{diagHints}}" wx:key="index" class="dish-diag__hint">· {{item}}</view>
-          <view class="dish-diag__line dish-diag__line--copy" bindtap="copyDiag">复制诊断结果</view>
-        </block>
-      </view>
-    </view>
 
     <view class="muted dish-note">
       配图按「归一化菜名」全库复用：同一个菜名在一周里出现多次，用的都是同一张图。

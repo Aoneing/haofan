@@ -16,7 +16,9 @@ Page({
     tiles: [], // 今天的餐次，直接喂给 dish-tile
     tomorrowDay: null,
     tomorrowTiles: [],
-    prepBar: null, // { label, count } 备料汇总条
+    morningPrep: null, // 早备料卡 { timing, title, items }
+    eveningPrep: null, // 晚备料卡
+    weeklyPrep: null, // 整周备料卡（仅周日）
     beforeText: '',
     expandedUid: '', // 当前展开的色卡（用 uid 判重，同名菜不会互相牵连）
   },
@@ -26,7 +28,18 @@ Page({
     if (this.getTabBar && this.getTabBar()) {
       this.getTabBar().setActive('/pages/today/today');
     }
+    this._alive = true;
     this.load();
+  },
+
+  onHide() {
+    // 离开页面就停掉轮询，避免对隐藏页 setData 与无谓的云函数调用
+    this._alive = false;
+    if (this._pollTimer) {
+      clearTimeout(this._pollTimer);
+      this._pollTimer = null;
+    }
+    this._pollRunning = false;
   },
 
   onPullDownRefresh() {
@@ -51,7 +64,9 @@ Page({
         tiles: [],
         tomorrowDay: null,
         tomorrowTiles: [],
-        prepBar: null,
+        morningPrep: null,
+        eveningPrep: null,
+        weeklyPrep: null,
         beforeText: '',
         expandedUid: '',
       };
@@ -65,7 +80,7 @@ Page({
         data.tiles = withUid(res.today);
         data.tomorrowDay = res.tomorrow;
         data.tomorrowTiles = withUid(res.tomorrow);
-        data.prepBar = buildPrepBar(res.today);
+        Object.assign(data, buildPrepCards(res.today));
       } else if (res.state === 'before' && res.period) {
         // 距离开饭天数 = 周期开始日 - 今天（服务端日期为准）
         const d = dateUtil.diffDays(res.period.startDate, res.serverToday);
@@ -76,9 +91,114 @@ Page({
         else data.beforeText = '新一期食谱已就绪';
       }
       this.setData(data);
+      // 今天/明天所有菜：没有新鲜配图的，自动提交生成并轮询出图（填 panel 自适应显示）
+      if (res.state === 'in-period') {
+        this.ensureImages(res.today, res.tomorrow);
+      }
     } catch (e) {
       this.setData({ loading: false, state: 'error', errMsg: e.message });
     }
+  },
+
+  /* ---------- 自动生成 AI 配图 ----------
+   * 今天/明天每道菜若没有新鲜图，就调 dishImage.generate 提交生成；
+   * 同步返回的 url 立即回填，异步任务（智谱 30~180s）则轮询 resolve(collect)
+   * 直到出图。已落库的菜（dishImages 有 fileID）generate 会直接回缓存，
+   * 不会重复计费；同名菜在两天里出现也只生成一次（云函数 claimSlot 去重）。 */
+  ensureImages(today, tomorrow) {
+    const map = {}; // 菜名 -> [{ list:'tiles'|'tomorrowTiles', index }]
+    const missing = [];
+    const scan = (day, list) => {
+      if (!day) return;
+      (day.meals || []).forEach((m, i) => {
+        const key = (m.dishKeys && m.dishKeys[0]) || '';
+        if (!key || imageStore.getFresh(key)) return; // 已有新鲜图跳过
+        if (!map[key]) map[key] = [];
+        map[key].push({ list, index: i });
+        if (missing.indexOf(key) < 0) missing.push(key);
+      });
+    };
+    scan(today, 'tiles');
+    scan(tomorrow, 'tomorrowTiles');
+    this._keyToTiles = map;
+    this._pollCount = 0; // 新一轮自动生成，轮询次数重新计
+    if (!missing.length) return;
+
+    const pending = [];
+    // 串行提交：每道菜一次调用，云函数内部已做幂等/去重，本人不会重复扣费
+    missing.forEach((key) => {
+      const entry = map[key][0];
+      const day = entry.list === 'tiles' ? today : tomorrow;
+      const m = day.meals[entry.index];
+      api
+        .image('generate', { key, title: m.displayTitle || '', recipe: m.recipe || '' })
+        .then((res) => {
+          if (res && res.ok && res.url) this.flushImage(key, res.url);
+          else if (res && res.pending) pending.push(key);
+          // ok:false（冷却/未配置/配额）→ 放弃自动生成，等用户手动点
+        })
+        .catch(() => {});
+    });
+
+    if (pending.length) {
+      this._pollKeys = (this._pollKeys || []).concat(pending);
+      if (!this._pollRunning) this.startPoll();
+    }
+  },
+
+  /** 把某道菜的图写进 imageStore 并回填到所有显示它的色卡 */
+  flushImage(key, url) {
+    if (!key || !url) return;
+    imageStore.set(key, url);
+    const entries = (this._keyToTiles && this._keyToTiles[key]) || [];
+    entries.forEach((e) => {
+      const list = this.data[e.list];
+      if (list && list[e.index]) {
+        this.setData({ [e.list + '[' + e.index + '].imageUrl']: url });
+      }
+    });
+  },
+
+  startPoll() {
+    this._pollRunning = true;
+    this.pollTick();
+  },
+
+  /** 轮询异步任务结果：每 5s 问一次 resolve(collect)，出图即回填 */
+  pollTick() {
+    if (!this._alive || !this._pollRunning) {
+      this._pollRunning = false;
+      return;
+    }
+    const keys = this._pollKeys || [];
+    if (!keys.length) {
+      this._pollRunning = false;
+      return;
+    }
+    api
+      .image('resolve', { keys, collect: true })
+      .then((res) => {
+        if (!this._alive) {
+          this._pollRunning = false;
+          return;
+        }
+        const map = (res && res.map) || {};
+        const remain = [];
+        keys.forEach((k) => {
+          if (map[k]) this.flushImage(k, map[k]);
+          else remain.push(k);
+        });
+        this._pollKeys = remain;
+        // 最多轮询 24 次（约 2 分钟），仍没出图的留待下次进页面再触发
+        if (remain.length && (this._pollCount = (this._pollCount || 0) + 1) < 24) {
+          this._pollTimer = setTimeout(() => this.pollTick(), 5000);
+        } else {
+          this._pollRunning = false;
+        }
+      })
+      .catch(() => {
+        this._pollRunning = false;
+      });
   },
 
   /* ---------- 色卡交互 ---------- */
@@ -135,11 +255,15 @@ Page({
  */
 function withUid(day) {
   if (!day) return [];
-  return (day.meals || []).map((m, i) =>
-    Object.assign({}, m, {
-      uid: m.meal + '-' + (m.slot || i) + '-' + ((m.dishKeys && m.dishKeys[0]) || 'empty'),
-    })
-  );
+  return (day.meals || []).map((m, i) => {
+    const key = (m.dishKeys && m.dishKeys[0]) || '';
+    return Object.assign({}, m, {
+      uid: m.meal + '-' + (m.slot || i) + '-' + (key || 'empty'),
+      // 初始图：能直接命中缓存就先给（首屏可立即渲染），
+      // 没有的后面靠 ensureImages 生成并 flushImage 回填
+      imageUrl: imageStore.getFresh(key),
+    });
+  });
 }
 
 function collectKeys(day, out) {
@@ -152,22 +276,39 @@ function collectKeys(day, out) {
 }
 
 /**
- * 备料汇总条：把当天所有备料折叠成「第一条标题 + 共 N 条」。
+ * 备料拆成「早 / 晚」两张卡，外加「整周备料」一张（仅当天是周日才出现）。
  *
- * 为什么不全展开：备料条目多的时候（早/晚各两三条）能把整屏撑掉，
- * 而用户多数时候只想知道「今天有没有要提前处理的东西」。
- * 想看细节点它进单日详情页，那里有完整的备料清单。
+ * 早/晚分卡：用户要看的是「早上要动手的」和「晚上要备的」两件事，
+ * 折叠成一条反而得点进去才知道，首页直接各给一张卡更省一步。
+ * 整周备料（食材准备/备餐）属于整周级的备注，沿用「只在周日显示」的规则，
+ * 避免其余六天底部重复同一段话（那条规则是用户明确要的）。
  */
-function buildPrepBar(day) {
-  if (!day) return null;
+function buildPrepCards(day) {
+  if (!day) return { morningPrep: null, eveningPrep: null, weeklyPrep: null };
   const notes = day.prepNotes || [];
-  const labels = notes.map((p) => (p.label || '').trim()).filter(Boolean);
-  const globalCount = Object.keys(day.globalPrep || {}).length;
-  const total = labels.length + globalCount;
-  if (!total) return null;
+  const morning = notes.filter((p) => p.timing === 'morning');
+  const evening = notes.filter((p) => p.timing !== 'morning'); // 晚 + 未识别都算晚上备料
+  const weekly = Object.keys(day.globalPrep || {}).map((k) => ({
+    label: k,
+    stepsText: day.globalPrep[k],
+  }));
+  return {
+    morningPrep: morning.length
+      ? { timing: 'morning', title: '早 · 备料', items: morning.map(toPrepItem) }
+      : null,
+    eveningPrep: evening.length
+      ? { timing: 'evening', title: '晚 · 备料', items: evening.map(toPrepItem) }
+      : null,
+    weeklyPrep:
+      day.weekday === 0 && weekly.length
+        ? { timing: 'weekly', title: '整周备料', items: weekly }
+        : null,
+  };
+}
 
-  // 标题优先用带时序的那条（早上要动手的活最该被看见），没有就退回第一条
-  const lead =
-    labels.filter((l) => l.indexOf('早') >= 0)[0] || labels[0] || '今日备料';
-  return { label: lead, count: total + ' 项' };
+/** 备料项 → 卡片条目：步骤用「；」拼一行，没有步骤就退回原文 */
+function toPrepItem(p) {
+  const stepsText =
+    (p.steps && p.steps.length ? p.steps.join('；') : p.rawText || '') || '';
+  return { label: p.label, stepsText };
 }

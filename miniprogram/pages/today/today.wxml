@@ -1,5 +1,5 @@
 <!-- 今日页：品牌紫 hero 卡 + 两列菜品色卡 + 备料汇总条 -->
-<view class="container">
+<view class="container container--tab">
   <view wx:if="{{loading}}" class="center-tip">正在开饭…</view>
 
   <view wx:elif="{{state === 'error'}}" class="card">
@@ -10,7 +10,7 @@
 
   <block wx:elif="{{state === 'in-period'}}">
     <view class="page-head">
-      <text class="page-head__title">好饭 · 今日</text>
+      <text class="page-head__title">今日</text>
       <view class="page-head__chip" bindtap="goImport">导入食谱</view>
     </view>
 
@@ -34,6 +34,7 @@
         class="grid__cell"
         meal="{{item}}"
         tone="{{index}}"
+        image="{{item.imageUrl}}"
         expanded="{{expandedUid === item.uid}}"
         bind:dishtap="onTileTap"
       />
@@ -42,11 +43,28 @@
       <view class="muted">今天没有安排，看看本周其它日子吧</view>
     </view>
 
-    <!-- 备料汇总条：把当天所有备料折叠成一行，长内容才不至于把首屏撑爆 -->
-    <view wx:if="{{prepBar}}" class="prepbar" bindtap="goPrep">
-      <text class="prepbar__text">{{prepBar.label}}</text>
-      <text class="prepbar__count">{{prepBar.count}}</text>
-    </view>
+    <!-- 备料：早/晚各一张卡，整周备料只在周日出现。点卡进单日详情看完整步骤 -->
+    <prep-card
+      wx:if="{{morningPrep}}"
+      title="{{morningPrep.title}}"
+      timing="morning"
+      items="{{morningPrep.items}}"
+      bind:preptap="goPrep"
+    />
+    <prep-card
+      wx:if="{{eveningPrep}}"
+      title="{{eveningPrep.title}}"
+      timing="evening"
+      items="{{eveningPrep.items}}"
+      bind:preptap="goPrep"
+    />
+    <prep-card
+      wx:if="{{weeklyPrep}}"
+      title="{{weeklyPrep.title}}"
+      timing="weekly"
+      items="{{weeklyPrep.items}}"
+      bind:preptap="goPrep"
+    />
 
     <view wx:if="{{tomorrowDay}}" class="sec-head sec-head--gap">
       <text class="sec-head__title">明天</text>
@@ -59,6 +77,7 @@
         class="grid__cell"
         meal="{{item}}"
         tone="{{index}}"
+        image="{{item.imageUrl}}"
         bind:dishtap="onTileTap"
       />
     </view>
@@ -68,7 +87,7 @@
   <!-- 未开始 -->
   <block wx:elif="{{state === 'before'}}">
     <view class="page-head">
-      <text class="page-head__title">好饭 · 今日</text>
+      <text class="page-head__title">今日</text>
       <view class="page-head__chip" bindtap="goImport">导入食谱</view>
     </view>
     <view class="card state-card">
@@ -82,7 +101,7 @@
   <!-- 已结束 -->
   <block wx:elif="{{state === 'after'}}">
     <view class="page-head">
-      <text class="page-head__title">好饭 · 今日</text>
+      <text class="page-head__title">今日</text>
     </view>
     <view class="card state-card">
       <view class="state-card__emoji">📭</view>

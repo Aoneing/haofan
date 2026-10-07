@@ -1,22 +1,95 @@
 <!-- 我的页：统计 hero + 导入过的食谱 + 食材处理手册 -->
-<view class="container">
+<view class="container container--tab">
   <view class="page-head">
-    <text class="page-head__title">好饭 · 我的</text>
+    <text class="page-head__title">我的</text>
     <text wx:if="{{currentRange}}" class="page-head__chip">{{currentRange}}</text>
   </view>
 
-  <view class="hero">
-    <view class="hero__stats">
-      <view class="stat">
-        <text class="stat__num stat__num--lime">{{periodTotal}}</text>
-        <text class="stat__label">期食谱</text>
+  <!-- 顶部一行两卡：左 = 月历热力图，右 = 配图管理入口 -->
+  <view class="dash-row">
+    <view class="heat">
+      <view class="heat__hd">
+        <view class="heat__nav" hover-class="heat__nav--press" hover-stay-time="80" bindtap="prevMonth">‹</view>
+        <view class="heat__hdmid">
+          <text class="heat__title">{{heatTitle}}</text>
+          <text class="heat__sub">{{heatTotal}} 次</text>
+        </view>
+        <view class="heat__nav" hover-class="heat__nav--press" hover-stay-time="80" bindtap="nextMonth">›</view>
       </view>
-      <view class="stat" bindtap="goGallery">
-        <text class="stat__num stat__num--mint">{{dishTotal}}</text>
-        <text class="stat__label">张配图</text>
+
+      <!-- 星期表头：一..日 -->
+      <view class="heat__wd">
+        <text wx:for="{{WEEK_LABELS}}" wx:key="*this" class="heat__wdcell">{{item}}</text>
+      </view>
+
+      <!-- 日期格：**按行渲染**，每行从左到右 1,2,3,4... 顺读（符合日历直觉）
+           class 全部由数据层的 c.cls 决定，这里不用 wx:if/wx:else 分支：
+           wx:else 一旦被注释或空行隔断就编译失败（wx:if not found）。 -->
+      <view class="heat__grid">
+        <view wx:for="{{heatRows}}" wx:for-item="row" wx:for-index="ri" wx:key="ri" class="heat__row">
+          <view
+            wx:for="{{row}}"
+            wx:for-item="c"
+            wx:key="ci"
+            class="heat__cell {{c.cls}}"
+          >
+            <text wx:if="{{!c.void}}" class="heat__day">{{c.d}}</text>
+          </view>
+        </view>
+      </view>
+
+      <view class="heat__legend">
+        <text class="heat__legend__txt">少</text>
+        <view class="heat__cell heat__l0"></view>
+        <view class="heat__cell heat__l1"></view>
+        <view class="heat__cell heat__l2"></view>
+        <view class="heat__cell heat__l3"></view>
+        <view class="heat__cell heat__l4"></view>
+        <text class="heat__legend__txt">多</text>
       </view>
     </view>
-    <image class="hero__mascot" src="/images/mascot.png" mode="aspectFit" />
+
+    <!-- 配图管理：三层卡（参考图）
+         ① __base 底图：品牌紫→亮蓝渐变圆角块
+         ② __docs 内容：三张白文件卡错落旋转叠放，露出最近三张 AI 图，底部被前景切掉
+         ③ __fg   前景：深墨绿面板，左上圆角台阶，标题区垂直居中 + ··· + 文件数 -->
+    <view class="gal-card" hover-class="gal-card--press" hover-stay-time="80" bindtap="goGallery">
+      <view class="gal-card__base">
+        <view class="gal-card__docs">
+          <view
+            wx:for="{{recentImgs}}"
+            wx:key="key"
+            wx:for-index="i"
+            class="gal-card__doc {{i === 0 ? 'gal-card__doc--a' : (i === 1 ? 'gal-card__doc--b' : 'gal-card__doc--c')}}"
+          >
+            <image class="gal-card__docimg" src="{{item.url}}" mode="aspectFill" lazy-load="true" />
+            <view class="gal-card__line"></view>
+            <view class="gal-card__line gal-card__line--short"></view>
+          </view>
+          <!-- 一张图都还没生成时也要有「文件」轮廓，不能留一块空底图 -->
+          <view wx:if="{{!recentImgs.length}}" class="gal-card__doc gal-card__doc--a gal-card__doc--empty">
+            <view class="gal-card__docimg gal-card__docimg--ph"></view>
+            <view class="gal-card__line"></view>
+            <view class="gal-card__line gal-card__line--short"></view>
+          </view>
+        </view>
+      </view>
+
+      <view class="gal-card__fg">
+        <view class="gal-card__head">
+          <text class="gal-card__title">配图管理</text>
+          <text class="gal-card__dots">···</text>
+        </view>
+        <!-- 副标题与张数并排一行（同一基线），整行往下挪 -->
+        <view class="gal-card__row">
+          <text class="gal-card__sub">AI 菜品插图</text>
+          <view class="gal-card__foot">
+            <view class="gal-card__ico"></view>
+            <text class="gal-card__count">{{dishTotal}} 张配图</text>
+          </view>
+        </view>
+      </view>
+    </view>
   </view>
 
   <view wx:if="{{envError}}" class="alert alert--warn">{{envError}}</view>
@@ -31,65 +104,36 @@
     <view class="muted">还没有导入记录</view>
   </view>
   <block wx:else>
-    <view
-      wx:for="{{periodsShown}}"
-      wx:key="_id"
-      class="prow{{item.isCurrent ? ' prow--on' : ''}}"
-      data-id="{{item._id}}"
-      bindtap="onPeriodTap"
-    >
-      <text class="prow__text">{{item.rangeText}}</text>
-      <view wx:if="{{item.badgeText}}" class="prow__badge{{item.isCurrent ? ' prow__badge--on' : ''}}">
-        {{item.badgeText}}
+    <view class="stack">
+      <view
+        wx:for="{{periodsShown}}"
+        wx:for-index="pindex"
+        wx:key="_id"
+        class="prow prow--t{{pindex % 4}}{{item.isCurrent ? ' prow--on' : ''}}"
+        data-id="{{item._id}}"
+        bindtap="onPeriodTap"
+        hover-class="prow--press"
+        hover-stay-time="80"
+      >
+        <view class="prow__head">
+          <text class="prow__title">{{item.rangeText}}</text>
+          <text wx:if="{{item.badgeText}}" class="prow__meta">{{item.badgeText}}</text>
+        </view>
+        <view class="prow__tags">
+          <view wx:if="{{item.badgeText}}" class="prow__tag">查看本周食谱</view>
+          <view class="prow__go">→</view>
+        </view>
       </view>
     </view>
 
-    <view wx:if="{{periodTotal > periodPreview}}" class="btn-dark more" bindtap="togglePeriods">
-      {{periodExpanded ? '收起，只看最近 ' + periodPreview + ' 期' : '展开全部（还有 ' + (periodTotal - periodPreview) + ' 期）'}}
+    <view wx:if="{{periodTotal > periodPreview}}" class="more-btn" hover-class="more-btn--press" hover-stay-time="80" bindtap="togglePeriods">
+      <text>{{periodExpanded ? '收起，只看最近 ' + periodPreview + ' 期' : '展开全部（还有 ' + (periodTotal - periodPreview) + ' 期）'}}</text>
+      <text class="more-btn__caret">{{periodExpanded ? '⌃' : '⌄'}}</text>
     </view>
     <view wx:if="{{periodTruncated}}" class="muted more-note">
       仅显示最近 {{periodTotal}} 期，更早的已超出查询上限
     </view>
   </block>
-
-  <!-- 食材处理手册：四色轮转 + 手风琴 -->
-  <view class="sec-head sec-head--gap">
-    <text class="sec-head__title">食材处理</text>
-    <text class="sec-head__count">{{prep.groups.length}} 类</text>
-  </view>
-  <!-- 两层循环都必须显式命名 index，否则内层会覆盖外层的 index（必现 bug） -->
-  <view
-    wx:for="{{prep.groups}}"
-    wx:for-index="gindex"
-    wx:key="name"
-    class="grow prow--t{{gindex % 4}} {{prepOpenIndex === gindex ? 'grow--open' : ''}}"
-  >
-    <view class="grow__head" data-index="{{gindex}}" bindtap="togglePrep">
-      <text class="grow__name">{{item.name}}</text>
-      <view class="grow__caret">{{prepOpenIndex === gindex ? '⌃' : '⌄'}}</view>
-    </view>
-
-    <view wx:if="{{prepOpenIndex === gindex}}" class="grow__steps">
-      <view
-        wx:for="{{item.steps}}"
-        wx:for-item="step"
-        wx:for-index="sindex"
-        wx:key="no"
-        class="gstep"
-        data-gindex="{{gindex}}"
-        data-sindex="{{sindex}}"
-        bindlongpress="copyPrepStep"
-      >
-        <view class="gstep__hd">
-          <text class="gstep__no">{{step.no}}</text>
-          <text class="gstep__title">{{step.title}}</text>
-        </view>
-        <view class="gstep__text">{{step.text}}</view>
-      </view>
-    </view>
-  </view>
-
-  <view class="muted prep-source">来源：{{prep.source}}（{{prep.updatedAt}} 录入）</view>
 
   <!-- 小工具 -->
   <view class="tools">

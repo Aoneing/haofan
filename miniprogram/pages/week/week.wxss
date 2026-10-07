@@ -1,44 +1,4 @@
-/* 一周页：日期条 + hero + 两列色卡（与今日页共用一套卡片语言） */
-
-.hero {
-  display: flex;
-  align-items: center;
-  background: #3b3aae;
-  border-radius: 40rpx;
-  padding: 40rpx;
-  margin: 24rpx 0 32rpx;
-}
-.hero__main {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-}
-.hero__date {
-  font-size: 44rpx;
-  font-weight: 700;
-  color: #ffffff;
-  letter-spacing: -0.5rpx;
-}
-/* 一周页的「今天」在日期左边（今日页在右边）：两页徽标位置不同是有意的，
-   今日页那天只有一个候选、一周页要靠徽标在日期旁做「当前」提示 */
-.hero__badge--light {
-  flex-shrink: 0;
-  margin-right: 22rpx;
-  font-size: 24rpx;
-  font-weight: 700;
-  color: #0e0e10;
-  background: #ffffff;
-  border-radius: 999rpx;
-  padding: 8rpx 22rpx;
-}
-.hero__mascot {
-  flex-shrink: 0;
-  width: 96rpx;
-  height: 96rpx;
-  margin-left: 24rpx;
-  border-radius: 50%;
-}
+/* 一周页：日期条 + 两列色卡（与今日页共用一套卡片语言） */
 
 /* 日期条：白底胶囊，7 格均分 */
 .dbar {
@@ -97,34 +57,7 @@
   padding: 0 10rpx;
 }
 
-.prepbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: #f2f2f4;
-  border-radius: 28rpx;
-  padding: 26rpx 30rpx;
-  margin-top: 20rpx;
-}
-.prepbar:active {
-  opacity: 0.7;
-}
-.prepbar__text {
-  flex: 1;
-  min-width: 0;
-  font-size: 28rpx;
-  font-weight: 600;
-  color: #0e0e10;
-}
-.prepbar__count {
-  flex-shrink: 0;
-  margin-left: 16rpx;
-  font-size: 22rpx;
-  color: #55565c;
-  background: #ffffff;
-  border-radius: 999rpx;
-  padding: 8rpx 20rpx;
-}
+/* 备料卡（prep-card 组件）已接管早/晚/整周备料的展示，这里不再保留汇总条样式 */
 
 .state-card {
   text-align: center;

@@ -43,12 +43,9 @@ t('★ 总数与渲染列表必须是两个变量（折叠不能改统计）', (
   const from = MINE_JS.indexOf('const data = {');
   const seg = MINE_JS.slice(from, MINE_JS.indexOf('try {', from));
   assert.ok(/periodTotal:\s*0/.test(seg), '总数要单独维护');
-  // ★ 顶部「期食谱」如果取渲染数组的长度，收起状态会显示成 3 —— 这是最容易回退的地方
-  const numLine = (MINE_WXML.match(/stat__num[^"]*">\{\{[^}]+\}\}/g) || []).join('');
-  assert.ok(
-    /\{\{periodTotal\}\}/.test(numLine),
-    '★ 顶部统计必须取 periodTotal（全集），不能取渲染数组的 length'
-  );
+  // ★ 「期食谱」色块已按需求移除；总数口径不变——「共 N 期」必须取 periodTotal（全集），
+  //   收起状态只影响 periodsShown，绝不能影响总数
+  assert.ok(/共 \{\{periodTotal\}\} 期/.test(MINE_WXML), '顶部总数必须取 periodTotal（全集），不能取渲染数组的 length');
   assert.ok(!/\{\{periodsShown\.length\}\}/.test(MINE_WXML), '不能用渲染数组长度当总数');
 });
 
@@ -72,10 +69,11 @@ t('标题右侧要显示总数：折叠起来时总数也得看得见', () => {
   assert.ok(/共 \{\{periodTotal\}\} 期/.test(MINE_WXML), '总数文案');
 });
 
-t('wxss：展开按钮要有可点样式（看得出能点，且有按压缩反馈）', () => {
-  assert.ok(/\.btn-dark\s*\{/.test(APP_WXSS), '展开按钮用 .btn-dark 深色块，明显可点');
-  assert.ok(/\.btn-dark:active/.test(APP_WXSS), '按下要有 :active 触摸反馈');
-  assert.ok(/btn-dark more/.test(MINE_WXML), 'WXML 要挂上展开按钮类');
+t('wxss：展开按钮要浅色且看得出能点（箭头 + 按压反馈）', () => {
+  assert.ok(/\.more-btn\s*\{/.test(MINE_WXSS), '要有浅色展开按钮样式 .more-btn');
+  assert.ok(/\.more-btn--press/.test(MINE_WXSS), '要有按压反馈类（hover-class）');
+  assert.ok(/more-btn__caret/.test(MINE_WXML), '要有展开箭头提示可点');
+  assert.ok(/more-btn--press" hover-stay-time/.test(MINE_WXML), 'WXML 要挂上按压反馈');
 });
 
 t('请求上限提到云函数允许的最大值（50），超出要给提示而不是静默截断', () => {

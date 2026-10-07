@@ -83,12 +83,12 @@ t('布局：宽度恒为满屏 750rpx（dish 页 heroW）', () => {
   assert.ok(/\.dish__hero\s*\{[^}]*width:\s*750rpx/.test(DISH_WXSS), '.dish__hero 应为 750rpx 宽');
 });
 
-t('布局：图高按屏幕比例算，占可视高 75%~86%（常见机型 390×756）', () => {
+t('布局：图高按屏幕比例算，占可视高 70%~78%（图少占屏，做法上提前可见）', () => {
   const h = layout.calcHeroHeight(390, 756);
   const viewportRpx = (756 * 750) / 390;
   const ratio = h / viewportRpx;
-  assert.ok(ratio >= 0.75 && ratio <= 0.86, '高度占比应在 75%~86%，实际 ' + ratio.toFixed(3));
-  assert.strictEqual(h, 1134);
+  assert.ok(ratio >= 0.66 && ratio <= 0.80, '高度占比应在 66%~80%，实际 ' + ratio.toFixed(3));
+  assert.strictEqual(h, 1018);
 });
 
 t('布局：小屏也不会被压成矮横幅（320×480 仍 ≥ 屏宽×0.75）', () => {
@@ -138,6 +138,21 @@ t('dish-thumb：支持独立高度（满屏宽时不能是正方形）', () => {
   assert.ok(/height:\s*\{\s*type:\s*Number/.test(THUMB_JS), 'dish-thumb 应支持 height 属性');
   assert.ok(/height:\{\{height > 0 \? height : size\}\}rpx/.test(THUMB_WXML), 'height 为 0 时回退成正方形');
   assert.ok(/height="\{\{heroH\}\}"/.test(DISH_WXML), 'dish 页要把算出来的高度传给组件');
+});
+
+t('dish 页：毛玻璃渐变过渡 + 大字菜名（不再用黑色压字条）', () => {
+  // 白纱渐变把图下沿融进页面白底，文字压在变白的区域上，深字可读
+  assert.ok(/class="dish__veil"/.test(DISH_WXML), 'wxml 要有白纱渐变层');
+  assert.ok(/\.dish__veil\s*\{[^}]*linear-gradient\(/.test(DISH_WXSS), 'veil 要用白色渐变过渡');
+  assert.ok(/rgba\(255,\s*255,\s*255,\s*0\)/.test(DISH_WXSS), '渐变要从全透明起（融图不突兀）');
+  // 菜名不再藏在黑条里，改成大字重点显示
+  assert.ok(!/dish__hero-bar/.test(DISH_WXML + DISH_WXSS), '黑色压字条要删干净');
+  assert.ok(/class="dish__title"/.test(DISH_WXML), '菜名要独立成大字标题');
+  assert.ok(/\.dish__title\s*\{[^}]*font-weight:\s*800/.test(DISH_WXSS), '菜名要加粗重点显示');
+  // 毛玻璃状态胶囊浮在图上（参考图的角标样式）
+  assert.ok(/class="dish__chip"/.test(DISH_WXML), '要有图上状态胶囊');
+  assert.ok(/backdrop-filter:\s*blur\(/.test(DISH_WXSS), '胶囊要毛玻璃（backdrop-filter）');
+  assert.ok(/rgba\(255,\s*255,\s*255,\s*0\.\d+\)/.test(DISH_WXSS), '胶囊底要半透白');
 });
 
 /* ---------- 4. 三个入口都要把做法带过去 ---------- */
@@ -235,7 +250,7 @@ t('day.wxml：单日详情用 dish-tile 渲染，且首屏突出「先动手」�
 });
 
 t('today.wxml：今日用 dish-tile 网格渲染「今天的饭」，并与「明天」分块', () => {
-  assert.ok(/好饭 · 今日/.test(TODAY_WXML), '今日页要有标题');
+  assert.ok(/今日/.test(TODAY_WXML), '今日页要有标题');
   assert.ok(/sec-head__title">今天的饭<\/text>/.test(TODAY_WXML), '要有「今天的饭」区块');
   assert.ok(/<dish-tile/.test(TODAY_WXML), '要用 dish-tile 色卡渲染');
   assert.ok(/wx:key="uid"/.test(TODAY_WXML), '色卡要用稳定 uid');
@@ -247,6 +262,20 @@ t('today.wxml：「今天的饭」与「明天」是两个独立数据集，互�
   assert.ok(/wx:for="\{\{tiles\}\}"/.test(TODAY_WXML), '今天应遍历 tiles');
   assert.ok(/wx:for="\{\{tomorrowTiles\}\}"/.test(TODAY_WXML), '明天应遍历独立的 tomorrowTiles');
   assert.ok(/bind:dishtap="onTileTap"/.test(TODAY_WXML), '两块都要能点色卡进详情');
+});
+
+t('★ 今日页：今天+明天缺图的菜自动生成 AI 配图并显示', () => {
+  const TODAY_JS = read('miniprogram/pages/today/today.js');
+  // 1) 卡片要把图作为可刷新属性接进来（生成完成后由父页回填，组件才能即时重绘）
+  assert.ok(/image="\{\{item\.imageUrl\}\}"/.test(TODAY_WXML), 'dish-tile 要接收 item.imageUrl');
+  // 2) 加载后触发自动生成：扫描今天/明天，缺图就调 generate
+  assert.ok(/ensureImages\(res\.today, res\.tomorrow\)/.test(TODAY_JS), 'in-period 后要自动触发 ensureImages');
+  assert.ok(/image\('generate'/.test(TODAY_JS), '要对缺图菜调用 dishImage.generate');
+  // 3) 异步任务（智谱 30~180s）靠轮询 resolve(collect) 出图，不是傻等
+  assert.ok(/image\('resolve',\s*\{\s*keys,\s*collect:\s*true/.test(TODAY_JS), '要用 resolve(collect) 轮询收图');
+  assert.ok(/flushImage\(/.test(TODAY_JS), '出图后要回填到色卡');
+  // 4) 已落库的菜 generate 直接回缓存不重复计费（由云函数幂等保证，这里只确认不强制 force）
+  assert.ok(/'generate',\s*\{\s*key/.test(TODAY_JS), '生成按菜名提交，依赖云端幂等去重');
 });
 
 /* ---------- 6. 早上的备料提到第一行 ---------- */
@@ -287,12 +316,39 @@ t('day-card.wxss：早活区块有独立强调样式（它是待办，不是备�
   assert.ok(/border-left/.test(seg), '要有左侧强调竖条');
 });
 
-t('今天/单日都前置备料：today 有汇总条、day 有「先动手」', () => {
+t('今天/单日都前置备料：today 用 prep-card 拆早/晚、day 有「先动手」', () => {
   // 旧版是 day-card 开 prep-first 把早备料提到第一行；新版拆成两条等价链路：
-  //   today 首页折叠成「备料汇总条」→ 点它进 day 看完整清单；day 单日详情页直接铺「先动手」
-  assert.ok(/class="prepbar"/.test(TODAY_WXML), 'today 首页要有备料汇总条');
-  assert.ok(/bindtap="goPrep"/.test(TODAY_WXML), '汇总条要能点进单日详情看完整备料');
+  //   today 首页把早/晚备料各铺成一张 prep-card，点卡进 day 看完整清单；
+  //   day 单日详情页直接铺「先动手」
+  assert.ok(/<prep-card/.test(TODAY_WXML), 'today 首页要用 prep-card 渲染备料');
+  assert.ok(/timing="morning"/.test(TODAY_WXML), 'today 要有「早 · 备料」卡');
+  assert.ok(/timing="evening"/.test(TODAY_WXML), 'today 要有「晚 · 备料」卡');
+  assert.ok(/bind:preptap="goPrep"/.test(TODAY_WXML), '备料卡要能点进单日详情看完整备料');
   assert.ok(/先动手/.test(DAY_WXML), 'day 单日详情页要把早备料铺在「先动手」');
+});
+
+t('★ today/week：备料按早/晚拆两张卡，整周备料只在周日（weekday===0）出现', () => {
+  [TODAY_JS, WEEK_JS].forEach((src, i) => {
+    const name = ['today', 'week'][i];
+    assert.ok(/function buildPrepCards/.test(src), name + '.js 应有 buildPrepCards');
+    assert.ok(/timing: 'morning'/.test(src), name + ' 要抽「早 · 备料」');
+    assert.ok(/timing: 'evening'/.test(src), name + ' 要抽「晚 · 备料」');
+    assert.ok(/weekday === 0/.test(src), name + ' 的整周备料必须只在周日出现');
+    assert.ok(/toPrepItem/.test(src), name + ' 要有备料项映射函数');
+  });
+});
+
+t('★ dish-tile：午餐/晚餐用加深底色 + 实心品牌紫徽标，今日/一周/单日一致突出', () => {
+  const TILE_JS = read('miniprogram/components/dish-tile/dish-tile.js');
+  const TILE_WXML = read('miniprogram/components/dish-tile/dish-tile.wxml');
+  const TILE_WXSS = read('miniprogram/components/dish-tile/dish-tile.wxss');
+  assert.ok(/isMainMeal\(m\.meal\)/.test(TILE_JS), 'dish-tile 要按 meal 判主餐');
+  assert.ok(/isMainMeal/.test(TILE_JS), 'dish-tile 要引入 isMainMeal 判定主餐');
+  assert.ok(/MEAL_STYLE\[m\.meal\]\.bgStrong/.test(TILE_JS), '主餐底色换成加深版 bgStrong');
+  assert.ok(/dt--main/.test(TILE_WXML), '主餐卡根要挂 dt--main');
+  assert.ok(/dt__meal--main/.test(TILE_WXML), '主餐要有实心徽标 class');
+  assert.ok(/\.dt--main\s*\{[^}]*box-shadow/.test(TILE_WXSS), '主餐卡要有立体阴影突出');
+  assert.ok(/\.dt__meal--main\s*\{[^}]*background:\s*#3b3aae/.test(TILE_WXSS), '主餐徽标用品牌紫实底');
 });
 
 t('多日列表视角不开 prep-first：周视图/校对页保持原样', () => {
@@ -372,6 +428,17 @@ t('★ 生图提示词：带上做法里的线索词（只有菜名时模型会�
   });
 });
 
+t('★ 生图提示词：极简矢量几何风 + 色块平涂 + 明确禁字（匹配 UI 2.0 插画风）', () => {
+  const from = IMAGE_FN.indexOf('function buildPrompt');
+  const seg = IMAGE_FN.slice(from, IMAGE_FN.indexOf('const RECIPE_HINTS'));
+  assert.ok(/矢量/.test(seg) && /色块平涂/.test(seg), '提示词要指定极简矢量 + 色块平涂');
+  assert.ok(/无渐变/.test(seg) && /硬边/.test(seg), '要无渐变、清晰硬边（矢量几何特征）');
+  assert.ok(/8K/.test(seg), '要 8K 清晰度');
+  assert.ok(/严禁出现任何文字/.test(seg), '要强禁文字（只写「无文字」挡不住模型烧大字）');
+  assert.ok(/柠檬黄绿|淡紫/.test(seg), '要点缀 UI 配色（柠檬黄绿/淡紫）');
+  assert.ok(!/摄影|照片/.test(seg), '不能再要求摄影/照片风格');
+});
+
 t('★ 前端：generate 要把做法一起送上去', () => {
   const from = DISH_JS.indexOf(".image('generate'");
   assert.ok(from > 0, '找不到 generate 的调用');
@@ -414,6 +481,15 @@ t('mine 页：配图数取不到时要提示，不能静默显示 0', () => {
   assert.ok(MINE_JS.indexOf('.catch(() => null)') < 0, '别再静默 catch 成 null 了');
   assert.ok(/dishImageError/.test(MINE_JS), '要有取数失败的提示字段');
   assert.ok(MINE_WXML.indexOf('dishImageError') >= 0, 'WXML 要把它渲染出来，否则等于没写');
+});
+
+/* ---------- 10. 整周备注只挂在周日那一天的食谱里 ---------- */
+
+t('★ 整周备注（全局备料）只展示在周日（weekday===0），其余 6 天不重复', () => {
+  // 数据层 globalPrep 仍按原逻辑分布在 7 天（解析测试已锁），
+  // 但展示层必须按「当天是不是周日」过滤，否则每天底部都重复同一段话。
+  assert.ok(/(res\.day\.weekday === 0[\s\S]{0,120}globalPrepList)|(globalPrepList[\s\S]{0,120}res\.day\.weekday === 0)/.test(DAY_JS), 'day 详情页要按周日过滤整周备注');
+  assert.ok(/(day\.weekday === 0[\s\S]{0,120}globalPrepList)|(globalPrepList[\s\S]{0,120}day\.weekday === 0)/.test(CARD_JS), 'day-card（校对页）也要按周日过滤整周备注');
 });
 
 module.exports = cases;

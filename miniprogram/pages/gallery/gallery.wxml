@@ -54,14 +54,32 @@
             <text wx:if="{{item.resubmitted}}">（重试 {{item.submitCount - 1}} 次）</text>
           </view>
           <view wx:if="{{item.lastError}}" class="gal-err">上次失败：{{item.lastError}}</view>
+          <!-- 失败/超时的菜给一个「重新生成」出口：
+               否则这道菜会永远停在这一行，用户只能删掉或去菜品页绕一圈。 -->
+          <view
+            wx:if="{{item.status === 'failed' || item.status === 'expired'}}"
+            class="gal-retry{{busyKey === item.key ? ' gal-retry--busy' : ''}}"
+            data-key="{{item.key}}"
+            bindtap="retry"
+          >重新生成</view>
         </view>
 
-        <view
-          class="gal-del{{busyKey === item.key ? ' gal-del--busy' : ''}}"
-          data-key="{{item.key}}"
-          data-title="{{item.title}}"
-          bindtap="remove"
-        >删除</view>
+        <view class="gal-ops">
+          <view
+            wx:if="{{item.status === 'failed' || item.status === 'expired'}}"
+            class="gal-del gal-del--plain"
+            data-key="{{item.key}}"
+            data-title="{{item.title}}"
+            bindtap="remove"
+          >删除</view>
+          <view
+            wx:else
+            class="gal-del{{busyKey === item.key ? ' gal-del--busy' : ''}}"
+            data-key="{{item.key}}"
+            data-title="{{item.title}}"
+            bindtap="remove"
+          >删除</view>
+        </view>
       </view>
     </view>
   </block>

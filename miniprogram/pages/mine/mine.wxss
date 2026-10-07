@@ -1,171 +1,441 @@
-/* 我的页：统计 hero + 期数列表 + 四色食材手册 */
+/* 我的页：月历热力图 + 配图管理卡 + 期数列表 */
 
-.hero {
+/* ---- 顶部一行两卡：左热力图 + 右配图管理 ---- */
+.dash-row {
   display: flex;
-  align-items: center;
-  background: #3b3aae;
-  border-radius: 40rpx;
-  padding: 40rpx;
+  align-items: stretch;
+  gap: 16rpx;
   margin-bottom: 32rpx;
 }
-.hero__stats {
-  flex: 1;
+
+/* ---- 本月打开频率（月历式热力图，参考图风格） ----
+   列 = 星期（一..日），行 = 日历的第几周；每格显示日号 + 停留时长。
+   格子刻意做小，为的是和「配图管理」保持一行左右排列（通栏会把月历拉得过大）。 */
+.heat {
+  flex: 1.3;
   min-width: 0;
-  display: flex;
-}
-.stat {
-  display: flex;
-  flex-direction: column;
-}
-/* 两个数字用两个颜色（柠檬黄 / 薄荷），避免「4 6」读成一串 */
-.stat__num {
-  font-size: 60rpx;
-  font-weight: 700;
-  line-height: 1.1;
-}
-.stat__num--lime {
-  color: #e9f94e;
-}
-.stat__num--mint {
-  color: #7fe3c4;
-}
-.stat__label {
-  font-size: 22rpx;
-  color: #ffffff;
-  opacity: 0.85;
-  margin-top: 6rpx;
-}
-.hero__mascot {
-  flex-shrink: 0;
-  width: 96rpx;
-  height: 96rpx;
-  border-radius: 50%;
+  background: #ffffff;
+  border-radius: 28rpx;
+  padding: 20rpx 16rpx;
+  box-shadow: 0 4rpx 20rpx rgba(59, 58, 174, 0.06);
 }
 
-/* 期数列表行 */
-.prow {
+/* 头部：‹ 2026年10月 › */
+.heat__hd {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  margin-bottom: 12rpx;
+}
+.heat__nav {
+  width: 40rpx;
+  height: 40rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
   background: #f2f2f4;
-  border-radius: 26rpx;
-  padding: 28rpx 30rpx;
-  margin-bottom: 16rpx;
-}
-/* 正在吃的那一期：整行换成柠檬黄，不用描边也不用加高 */
-.prow--on {
-  background: #e9f94e;
-}
-.prow__text {
-  font-size: 30rpx;
-  font-weight: 700;
+  font-size: 26rpx;
+  line-height: 1;
   color: #0e0e10;
 }
-.prow__badge {
-  flex-shrink: 0;
-  margin-left: 16rpx;
-  font-size: 22rpx;
-  color: #55565c;
-  background: #ffffff;
-  border-radius: 999rpx;
-  padding: 8rpx 20rpx;
+.heat__nav--press {
+  background: #e2e2e8;
 }
-.prow__badge--on {
+.heat__hdmid {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+}
+.heat__title {
+  font-size: 24rpx;
+  font-weight: 800;
   color: #0e0e10;
-  background: #ffffff;
+  white-space: nowrap;
+}
+.heat__sub {
+  margin-top: 1rpx;
+  font-size: 17rpx;
+  color: #8b8c93;
+  white-space: nowrap;
 }
 
-.more {
-  margin-top: 8rpx;
+/* 星期表头：一..日 */
+.heat__wd {
+  display: flex;
+  gap: 4rpx;
+  margin-bottom: 4rpx;
+}
+.heat__wdcell {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  font-size: 16rpx;
+  color: #8b8c93;
+}
+
+/* 日期格：按行渲染，7 列等宽；每行内gap 与表头一致，保证列对齐 */
+.heat__grid {
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+}
+.heat__row {
+  display: flex;
+  gap: 4rpx;
+}
+/*格子：半卡宽度里要放下 7 列，所以做小（约 68rpx 见方） */
+/* 格子要正方形：宽由 flex:1 均分（实测约 46rpx），高度必须取同值。
+   ⚠️ 之前 height:68rpx 比宽度大 1.45 倍，实机采样确认 47x68px —— 一眼就不方。
+   为什么不用 aspect-ratio：小程序对它的支持依赖基础库，定值最稳。 */
+.heat__cell {
+  flex: 1;
+  min-width: 0;
+  height: 46rpx;
+  border-radius: 8rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+/* 空白格（还没到的未来日）与空格（该位置本月无日期）
+   为什么不能留 transparent：卡片底色是纯白 #fff，透明格在白底上完全看不见，
+   整片区域看着像「没渲染出来」。压到对白底差 28.5 亮度，肉眼能明确分辨出一格。 */
+.heat__cell--blank,
+.heat__cell--void {
+  background: #eef0f3;
+}
+/* 五档色阶：时长 0 / ≤3min / ≤10min / ≤30min / >30min，**亮度必须严格单调递减**。
+   现在对白底亮度差 28.5→43→51→77→111→163，肉眼逐档可分。 */
+.heat__l0 {
+  background: #e2e7ea;
+}
+.heat__l1 {
+  background: #c8e8d8;
+}
+.heat__l2 {
+  background: #95dcb4;
+}
+.heat__l3 {
+  background: #3bbd85;
+}
+.heat__l4 {
+  background: #177f58;
+}
+
+/* 格内文字：浅底深字、深底反白 */
+.heat__day {
+  font-size: 19rpx;
+  font-weight: 700;
+  line-height: 1;
+  color: #0e0e10;
+}
+.heat__l3 .heat__day,
+.heat__l4 .heat__day {
+  color: #ffffff;
+}
+
+/* 今天：深色描边，和参考图的选中格一致 */
+.heat__cell--today {
+  box-shadow: 0 0 0 2.5rpx #0e0e10;
+}
+
+/* 图例：少 → 多 */
+.heat__legend {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4rpx;
+  margin-top: 12rpx;
+}
+.heat__legend .heat__cell {
+  flex: none;
+  width: 16rpx;
+  height: 16rpx;
+  border-radius: 4rpx;
+}
+.heat__legend__txt {
+  font-size: 16rpx;
+  color: #8b8c93;
+  margin: 0 3rpx;
+}
+
+/* 配图管理：三层卡（参考图）
+   ① 底图 base  —— 品牌紫→亮蓝的对角渐变，圆角方块，占卡片上半
+   ② 内容 docs  —— 两张白文件卡错落旋转叠放，卡面是最近两张 AI 图 + 两条文本线，
+                    底部被前景面板盖住，只露出上半截（和参考图里「文件露在袋口上」一致）
+   ③ 前景 fg    —— 纯黑面板，左上角大圆角台阶（右侧切平），承载标题/副标题/···/文件数
+   为什么图要「藏」起来：参考图的观感重点是层次（底图→文件→前景），
+   图整张铺满会退化成普通图片卡，跟参考图完全不像。 */
+/* 背景用**深墨绿**（品牌色系里的墨绿 #1F3A3D 的更暗一档），不用纯黑：
+   纯黑配紫蓝底图对比过硬、显廉价；深墨绿与「好饭」的整体配色同源，也更暖。 */
+.gal-card {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+  background: #0d1f21;
+  border-radius: 24rpx;
+  padding: 10rpx;
+  overflow: hidden;
+}
+.gal-card--press {
+  opacity: 0.85;
+}
+
+/* ① 底图
+   ⚠️ z-index:0 不能省：文件卡带了 z-index:1/2 会逃出底图层，
+   直接盖到前景的标题上（曾把「配图管理」压掉半截）。给底图一个 z-index
+   让它自成层叠上下文，文件卡就被关在里面，前景才能稳稳压住它们。 */
+.gal-card__base {
+  position: relative;
+  z-index: 0;
+  height: 210rpx;
+  border-radius: 18rpx;
+  overflow: hidden;
+  background: linear-gradient(135deg, #4a49b8 0%, #6f6ee0 45%, #8fa8f0 100%);
+}
+
+/* ② 内容：两张文件卡错落叠放 */
+.gal-card__docs {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 100%;
+}
+/* 文件卡：白底 + 圆角 + 投影，尺寸错位旋转，仿参考图里纸张的随意叠放 */
+.gal-card__doc {
+  position: absolute;
+  width: 92rpx;
+  background: #ffffff;
+  border-radius: 14rpx;
+  padding: 8rpx 8rpx 14rpx;
+  box-shadow: 0 10rpx 24rpx rgba(6, 24, 22, 0.32);
+}
+/* 三张卡错位叠放：半卡内宽约 271rpx，3 张 92rpx 必然重叠（叠放正是参考图的观感）。
+   位置按「左中右」均分排布，中间那张最高最靠后，两侧略低靠前，形成层次。 */
+.gal-card__doc--a {
+  left: 6rpx;
+  top: 44rpx;
+  transform: rotate(-8deg);
+  z-index: 3;
+}
+.gal-card__doc--b {
+  left: 88rpx;
+  top: 16rpx;
+  transform: rotate(2deg);
+  z-index: 2;
+}
+.gal-card__doc--c {
+  left: 170rpx;
+  top: 40rpx;
+  transform: rotate(8deg);
+  z-index: 1;
+}
+/* 卡面图就是最近生成的 AI 配图 */
+.gal-card__docimg {
+  width: 100%;
+  height: 100rpx;
+  border-radius: 6rpx;
+  background: #f2f2f4;
+}
+/* 没图时的占位：浅灰块，保留「文件」轮廓 */
+.gal-card__docimg--ph {
+  background: #ececf1;
+}
+/* 卡面两条文本线，复刻参考图文件上的横线细节 */
+.gal-card__line {
+  height: 8rpx;
+  margin-top: 12rpx;
+  border-radius: 4rpx;
+  background: #e3e3ea;
+}
+.gal-card__line--short {
+  width: 58%;
+  margin-top: 9rpx;
+}
+
+/* ③ 前景：黑面板，左上大圆角台阶
+   margin-top 负值 = 往上盖住文件卡下半截（参考图「文件插在袋口里」的关键）；
+   高度按底图 320 + 面板 ~200 反推，让黑区只占整卡约 45%，不会拖出一大片空白。 */
+/* 前景面板同样深墨绿，与卡身连成一体。
+   布局：标题区（__head）用 flex:1 占中间弹性空间并垂直居中；
+   下方 __row 把「AI 菜品插图」与「N张配图」并排成一行（同一基线），整体略微下移。 */
+.gal-card__fg {
+  position: relative;
+  z-index: 1;
+  margin-top: -74rpx;
+  padding: 22rpx 18rpx 20rpx;
+  background: #0d1f21;
+  border-top-left-radius: 38rpx;
+  min-height: 158rpx;
+  display: flex;
+  flex-direction: column;
+}
+/* 标题区（标题 + ···）占据中间弹性区，整体垂直居中 */
+.gal-card__head {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 0;
+}
+.gal-card__title {
+  font-size: 26rpx;
+  font-weight: 800;
+  color: #ffffff;
+}
+.gal-card__dots {
+  font-size: 22rpx;
+  font-weight: 800;
+  line-height: 1;
+  color: #ffffff;
+  letter-spacing: 2rpx;
+}
+/* 「AI 菜品插图」与张数并排一行：左副标题、右张数，同一基线 */
+.gal-card__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  margin-top: 14rpx;
+}
+.gal-card__sub {
+  font-size: 18rpx;
+  color: rgba(255, 255, 255, 0.55);
+}
+/* 张数：文件图标 + 「N 张配图」，在 __row 里靠右 */
+.gal-card__foot {
+  display: flex;
+  align-items: center;
+}
+.gal-card__ico {
+  width: 18rpx;
+  height: 22rpx;
+  margin-right: 8rpx;
+  border: 2.5rpx solid rgba(255, 255, 255, 0.75);
+  border-radius: 4rpx;
+}
+.gal-card__count {
+  font-size: 18rpx;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+/* 导入过的食谱：参考「My collections」卡片风
+   大圆角色块上下叠压，大号粗标题 + 描边胶囊标签 + 黑色圆形箭头按钮（点击进该周） */
+.stack .prow {
+  position: relative;
+  z-index: 1;
+  border-radius: 40rpx;
+  padding: 32rpx 32rpx 36rpx;
+  overflow: hidden;
+}
+.stack .prow + .prow {
+  margin-top: -18rpx;
+}
+.prow--press {
+  opacity: 0.82;
+}
+/* 马卡龙四色轮转（与食材页一致） */
+.prow--t0 {
+  background: #f6c6d9;  /* 柔粉 */
+}
+.prow--t1 {
+  background: #b5d8eb;  /* 雾蓝 */
+}
+.prow--t2 {
+  background: #c9e4ca;  /* 薄荷绿 */
+}
+.prow--t3 {
+  background: #fce1a8;  /* 鹅黄 */
+}
+/* 正在吃的那一期：柠檬黄突出 + 细描边圈，一眼区别于历史期 */
+.prow--on {
+  background: #e9f94e;
+  box-shadow: inset 0 0 0 2rpx rgba(14, 14, 16, 0.18);
+}
+.prow__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+.prow__title {
+  flex: 1;
+  min-width: 0;
+  font-size: 46rpx;
+  font-weight: 800;
+  line-height: 1.25;
+  letter-spacing: 1rpx;
+  color: #0e0e10;
+}
+.prow__meta {
+  flex-shrink: 0;
+  margin-left: 16rpx;
+  padding-top: 12rpx;
+  font-size: 24rpx;
+  font-weight: 600;
+  color: #0e0e10;
+  opacity: 0.65;
+}
+.prow__tags {
+  display: flex;
+  align-items: center;
+  margin-top: 20rpx;
+}
+.prow__tag {
+  border: 1.5rpx solid rgba(14, 14, 16, 0.45);
+  border-radius: 999rpx;
+  padding: 8rpx 22rpx;
+  font-size: 23rpx;
+  font-weight: 600;
+  color: #0e0e10;
+  margin-right: 14rpx;
+  white-space: nowrap;
+}
+.prow__go {
+  margin-left: auto;
+  flex-shrink: 0;
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 50%;
+  background: #0e0e10;
+  color: #ffffff;
+  font-size: 30rpx;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 展开全部：纯色底（无边框）+ 箭头 + 按压反馈 */
+.more-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 12rpx;
+  background: #f2f2f4;
+  border: none;
+  border-radius: 999rpx;
+  padding: 24rpx 30rpx;
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #0e0e10;
+}
+.more-btn--press {
+  background: #e7e7ec;
+  opacity: 0.85;
+}
+.more-btn__caret {
+  margin-left: 12rpx;
+  font-size: 26rpx;
+  font-weight: 700;
 }
 .more-note {
   font-size: 22rpx;
   text-align: center;
-  margin-top: 12rpx;
-}
-
-.sec-head--gap {
-  margin-top: 36rpx;
-}
-
-/* 食材处理手册：四色轮转，与菜品色卡同一套色板 */
-.grow {
-  border-radius: 26rpx;
-  margin-bottom: 16rpx;
-  overflow: hidden;
-}
-.prow--t0 {
-  background: #f2f2f4;
-}
-.prow--t1 {
-  background: #a9b6f2;
-}
-.prow--t2 {
-  background: #e9f94e;
-}
-.prow--t3 {
-  background: #7c8cd8;
-}
-
-.grow__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 28rpx 30rpx;
-}
-.grow__name {
-  flex: 1;
-  min-width: 0;
-  font-size: 30rpx;
-  font-weight: 700;
-  color: #0e0e10;
-}
-.grow__caret {
-  flex-shrink: 0;
-  margin-left: 16rpx;
-  font-size: 28rpx;
-  font-weight: 700;
-  color: #0e0e10;
-  opacity: 0.7;
-}
-
-.grow__steps {
-  padding: 0 30rpx 26rpx;
-}
-.gstep {
-  padding: 18rpx 0;
-  border-top: 2rpx solid rgba(14, 14, 16, 0.08);
-}
-.gstep__hd {
-  display: flex;
-  align-items: center;
-  margin-bottom: 8rpx;
-}
-.gstep__no {
-  width: 34rpx;
-  height: 34rpx;
-  line-height: 34rpx;
-  text-align: center;
-  border-radius: 50%;
-  background: #0e0e10;
-  color: #ffffff;
-  font-size: 20rpx;
-  margin-right: 12rpx;
-  flex-shrink: 0;
-}
-.gstep__title {
-  font-size: 27rpx;
-  font-weight: 700;
-  color: #0e0e10;
-}
-.gstep__text {
-  font-size: 26rpx;
-  line-height: 1.7;
-  color: #1f3a3d;
-}
-
-.prep-source {
-  font-size: 22rpx;
   margin-top: 12rpx;
 }
 

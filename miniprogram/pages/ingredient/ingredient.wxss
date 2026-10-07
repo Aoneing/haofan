@@ -1,0 +1,140 @@
+/* 食材页：马卡龙四色食材处理手册 —— 参考「My collections」卡片风：
+   大圆角色块上下叠压，大号粗标题 + 描边胶囊标签 + 黑色圆形箭头按钮 */
+
+.sec-head--gap {
+  margin-top: 36rpx;
+}
+
+/* 卡片堆叠：后一张卡轻微压住前一张卡的底边（DOM 顺序天然实现上层覆盖），
+   展开的那张 z-index 提到最上，避免被下一张盖住步骤内容 */
+.stack .grow {
+  position: relative;
+  z-index: 1;
+  border-radius: 40rpx;
+  padding: 32rpx 32rpx 36rpx;
+  overflow: hidden;
+}
+.stack .grow + .grow {
+  margin-top: -18rpx;
+}
+.grow--open {
+  z-index: 10;
+}
+.grow--press {
+  opacity: 0.82;
+}
+
+/* 马卡龙四色轮转（柔粉 / 雾蓝 / 薄荷绿 / 鹅黄），深字均清晰可读 */
+.prow--t0 {
+  background: #f6c6d9;
+}
+.prow--t1 {
+  background: #b5d8eb;
+}
+.prow--t2 {
+  background: #c9e4ca;
+}
+.prow--t3 {
+  background: #fce1a8;
+}
+
+/* 卡头：大标题 + 右上角小计数 */
+.grow__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+.grow__name {
+  flex: 1;
+  min-width: 0;
+  font-size: 46rpx;
+  font-weight: 800;
+  line-height: 1.25;
+  letter-spacing: 1rpx;
+  color: #0e0e10;
+}
+.grow__meta {
+  flex-shrink: 0;
+  margin-left: 16rpx;
+  padding-top: 12rpx;
+  font-size: 24rpx;
+  font-weight: 600;
+  color: #0e0e10;
+  opacity: 0.65;
+}
+
+/* 标签行：描边胶囊 + 黑色圆形箭头按钮 */
+.grow__tags {
+  display: flex;
+  align-items: center;
+  margin-top: 20rpx;
+}
+.grow__tag {
+  border: 1.5rpx solid rgba(14, 14, 16, 0.45);
+  border-radius: 999rpx;
+  padding: 8rpx 22rpx;
+  font-size: 23rpx;
+  font-weight: 600;
+  color: #0e0e10;
+  margin-right: 14rpx;
+  white-space: nowrap;
+}
+.grow__go {
+  margin-left: auto;
+  flex-shrink: 0;
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 50%;
+  background: #0e0e10;
+  color: #ffffff;
+  font-size: 30rpx;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease;
+}
+.grow__go--open {
+  transform: rotate(90deg);
+}
+
+/* 展开的步骤清单 */
+.grow__steps {
+  margin-top: 26rpx;
+}
+.gstep {
+  padding: 18rpx 0;
+  border-top: 2rpx solid rgba(14, 14, 16, 0.08);
+}
+.gstep__hd {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8rpx;
+}
+.gstep__no {
+  width: 34rpx;
+  height: 34rpx;
+  line-height: 34rpx;
+  text-align: center;
+  border-radius: 50%;
+  background: #0e0e10;
+  color: #ffffff;
+  font-size: 20rpx;
+  margin-right: 12rpx;
+  flex-shrink: 0;
+}
+.gstep__title {
+  font-size: 27rpx;
+  font-weight: 700;
+  color: #0e0e10;
+}
+.gstep__text {
+  font-size: 26rpx;
+  line-height: 1.7;
+  color: #1f3a3d;
+}
+
+.prep-source {
+  font-size: 22rpx;
+  margin-top: 20rpx;
+}
