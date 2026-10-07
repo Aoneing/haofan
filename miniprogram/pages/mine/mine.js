@@ -25,6 +25,7 @@ Page({
     periodTotal: 0,
     periodTruncated: false, // 拿满了上限 ⇒ 还有更早的没显示
     periodPreview: PERIOD_PREVIEW, // 给 wxml 拼「还有 N 期」用
+    currentRange: '', // 正在吃的那一期的区间，展示在标题右侧
     dishTotal: 0,
     dishImageError: '', // 「张配图」取数失败时的提示：以前静默 catch 成 0，看着像真没图
     envError: '',
@@ -39,6 +40,9 @@ Page({
   },
 
   onShow() {
+    if (this.getTabBar && this.getTabBar()) {
+      this.getTabBar().setActive('/pages/mine/mine');
+    }
     this.load();
   },
 
@@ -53,6 +57,7 @@ Page({
       periodExpanded: false,
       periodTotal: 0,
       periodTruncated: false,
+      currentRange: '',
       dishTotal: 0,
     };
     try {
@@ -79,6 +84,10 @@ Page({
         data.periodTotal = data.periodsAll.length;
         data.periodTruncated = data.periodsAll.length >= PERIOD_LIMIT;
         data.periodsShown = this._slicePeriods(data.periodsAll, false);
+        // 标题右侧那一格显示「正在吃的这一期」；不在吃任何一期时留空，
+        // 显示最近一期的区间会让人以为那就是在吃的
+        const cur = data.periodsAll.filter((p) => p.isCurrent)[0];
+        data.currentRange = cur ? cur.rangeText : '';
       } else {
         data.envError = pRes.message || '';
       }

@@ -1,11 +1,76 @@
-.day-header {
+.hero {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  padding: 8rpx 8rpx 24rpx;
+  align-items: center;
+  background: #3b3aae;
+  border-radius: 40rpx;
+  padding: 40rpx;
+  margin-bottom: 32rpx;
 }
-.day-header__date {
+.hero__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+.hero__date {
   font-size: 40rpx;
   font-weight: 700;
-  color: #3d332b;
+  color: #ffffff;
+  letter-spacing: -0.5rpx;
+}
+.hero__badge {
+  flex-shrink: 0;
+  margin-right: 22rpx;
+  font-size: 24rpx;
+  font-weight: 700;
+  color: #0e0e10;
+  background: #e9f94e;
+  border-radius: 999rpx;
+  padding: 8rpx 22rpx;
+}
+.hero__mascot {
+  flex-shrink: 0;
+  width: 96rpx;
+  height: 96rpx;
+  margin-left: 24rpx;
+  border-radius: 50%;
+}
+
+.grid {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 0 -10rpx;
+}
+.grid__cell {
+  width: 50%;
+  box-sizing: border-box;
+  padding: 0 10rpx;
+}
+
+.sec-head--gap {
+  margin-top: 36rpx;
+}
+
+/* 备料条目 */
+.prep {
+  padding: 16rpx 0;
+  border-top: 2rpx solid rgba(14, 14, 16, 0.07);
+}
+.prep:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+.prep__label {
+  display: block;
+  font-size: 27rpx;
+  font-weight: 700;
+  color: #0e0e10;
+}
+.prep__steps {
+  display: block;
+  font-size: 25rpx;
+  line-height: 1.7;
+  color: #55565c;
+  margin-top: 4rpx;
+  white-space: pre-line;
 }

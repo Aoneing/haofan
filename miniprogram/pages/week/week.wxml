@@ -1,7 +1,11 @@
+<!-- 一周页：日期条 + 品牌紫 hero + 当前选中日的色卡网格 -->
 <view class="container">
   <view wx:if="{{loading}}" class="center-tip">正在摆桌…</view>
 
   <block wx:elif="{{notFound}}">
+    <view class="page-head">
+      <text class="page-head__title">好饭 · 一周</text>
+    </view>
     <view class="card state-card">
       <view class="state-card__emoji">🍽️</view>
       <view class="card-title">还没有食谱</view>
@@ -11,43 +15,62 @@
   </block>
 
   <block wx:else>
-    <!-- 顶部大标题：随滚动自然上移滚出 -->
-    <view class="week-header">
-      <view class="week-header__title">本期菜单</view>
-      <view class="muted">{{periodRange}}</view>
+    <view class="page-head">
+      <text class="page-head__title">好饭 · 一周</text>
+      <text class="page-head__chip">{{periodRange}}</text>
     </view>
 
-    <!-- 吸顶区：当前日期小字 + 星期导航，滚动时始终常驻顶部不消失 -->
-    <view class="wk-sticky {{headerFolded ? 'wk-sticky--pinned' : ''}}">
-      <view class="wk-sticky__meta">
-        <text class="wk-sticky__day">{{activeDayText}}</text>
-        <text class="wk-sticky__range">本期 {{periodRange}}</text>
-      </view>
-
-      <view class="week-nav">
-        <view
-          wx:for="{{navDays}}"
-          wx:key="date"
-          class="week-nav__item {{index === activeIndex ? 'week-nav__item--on' : ''}} {{item.isToday && index !== activeIndex ? 'week-nav__item--today' : ''}}"
-          data-index="{{index}}"
-          bindtap="onNavTap"
-        >
-          <text class="week-nav__wd">{{item.weekdayText}}</text>
+    <!-- 日期条：星期在上、数字在下，选中项是黑色圆。整条可点，横向不滚动（一周只有 7 天） -->
+    <view class="dbar">
+      <view
+        wx:for="{{navDays}}"
+        wx:key="date"
+        class="dbar__item {{index === activeIndex ? 'dbar__item--on' : ''}}"
+        data-index="{{index}}"
+        bindtap="onNavTap"
+      >
+        <text class="dbar__wd">{{item.weekdayText}}</text>
+        <view class="dbar__num-wrap">
+          <view wx:if="{{index === activeIndex}}" class="dbar__pill">
+            <text class="dbar__num dbar__num--on">{{item.dayNum}}</text>
+          </view>
+          <text wx:else class="dbar__num">{{item.dayNum}}</text>
         </view>
       </view>
     </view>
 
-    <view wx:for="{{days}}" wx:key="index" id="day-{{index}}">
-      <day-card
-        day="{{item.day}}"
-        images="{{item.images}}"
-        compact="{{true}}"
-        expandable="{{true}}"
-        highlight="{{item.highlight}}"
-        bind:daytap="onDayTap"
-        bind:dishtap="onDishTap"
-        bind:expandchange="onCardExpand"
+    <view class="hero">
+      <view class="hero__main">
+        <text wx:if="{{activeIsToday}}" class="hero__badge hero__badge--light">今天</text>
+        <text class="hero__date">{{heroDate}}</text>
+      </view>
+      <image class="hero__mascot" src="/images/mascot.png" mode="aspectFit" />
+    </view>
+
+    <view wx:if="{{tiles.length}}" class="sec-head">
+      <text class="sec-head__title">{{activeDateText}}</text>
+      <view class="sec-head__act" bindtap="goActiveDetail">详情</view>
+    </view>
+
+    <view wx:if="{{tiles.length}}" class="grid">
+      <dish-tile
+        wx:for="{{tiles}}"
+        wx:key="uid"
+        class="grid__cell"
+        meal="{{item}}"
+        tone="{{index}}"
+        expanded="{{expandedUid === item.uid}}"
+        bind:dishtap="onTileTap"
       />
+    </view>
+    <view wx:elif="{{activeDay}}" class="card">
+      <view class="muted">这一天没有安排</view>
+    </view>
+
+    <!-- 当天备料折叠条 -->
+    <view wx:if="{{prepBar}}" class="prepbar" bindtap="goActiveDetail">
+      <text class="prepbar__text">{{prepBar.label}}</text>
+      <text class="prepbar__count">{{prepBar.count}}</text>
     </view>
   </block>
 </view>

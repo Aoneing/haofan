@@ -9,15 +9,16 @@
     "pages/gallery/gallery"
   ],
   "window": {
-    "navigationBarBackgroundColor": "#FFF8EF",
+    "navigationBarBackgroundColor": "#FFFFFF",
     "navigationBarTextStyle": "black",
     "navigationBarTitleText": "好饭",
-    "backgroundColor": "#FFF8EF",
+    "backgroundColor": "#FFFFFF",
     "backgroundTextStyle": "dark"
   },
   "tabBar": {
-    "color": "#9A8F80",
-    "selectedColor": "#B26A00",
+    "custom": true,
+    "color": "#8B8C93",
+    "selectedColor": "#0E0E10",
     "backgroundColor": "#FFFFFF",
     "borderStyle": "black",
     "list": [
@@ -25,19 +26,19 @@
         "pagePath": "pages/today/today",
         "text": "今日",
         "iconPath": "images/tabbar/today.png",
-        "selectedIconPath": "images/tabbar/today-active.png"
+        "selectedIconPath": "images/tabbar/today-on.png"
       },
       {
         "pagePath": "pages/week/week",
         "text": "一周",
         "iconPath": "images/tabbar/week.png",
-        "selectedIconPath": "images/tabbar/week-active.png"
+        "selectedIconPath": "images/tabbar/week-on.png"
       },
       {
         "pagePath": "pages/mine/mine",
         "text": "我的",
         "iconPath": "images/tabbar/mine.png",
-        "selectedIconPath": "images/tabbar/mine-active.png"
+        "selectedIconPath": "images/tabbar/mine-on.png"
       }
     ]
   },

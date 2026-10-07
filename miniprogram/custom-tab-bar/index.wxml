@@ -1,0 +1,16 @@
+<view class="tb">
+  <view class="tb__bar">
+    <view
+      wx:for="{{list}}"
+      wx:key="path"
+      class="tb__item {{item.active ? 'tb__item--on' : ''}}"
+      data-path="{{item.path}}"
+      bindtap="onTap"
+    >
+      <view class="tb__ico">
+        <image class="tb__img" src="{{item.active ? item.onIcon : item.icon}}" mode="aspectFit" />
+      </view>
+      <text class="tb__text">{{item.text}}</text>
+    </view>
+  </view>
+</view>

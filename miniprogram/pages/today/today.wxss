@@ -1,24 +1,94 @@
-.today-header {
+/* 今日页：品牌紫 hero + 两列色卡 */
+
+.hero {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  padding: 8rpx 8rpx 24rpx;
+  align-items: center;
+  background: #3b3aae;
+  border-radius: 40rpx;
+  padding: 40rpx 40rpx;
+  margin-bottom: 32rpx;
 }
-.today-header__date {
-  font-size: 40rpx;
+.hero__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+.hero__date {
+  font-size: 44rpx;
   font-weight: 700;
-  color: #3d332b;
+  color: #ffffff;
+  letter-spacing: -0.5rpx;
+}
+/* 「今天」柠檬黄胶囊：整张卡里唯一的亮色，一眼就能看到焦点 */
+.hero__badge {
+  flex-shrink: 0;
+  margin-left: 22rpx;
+  font-size: 24rpx;
+  font-weight: 700;
+  color: #0e0e10;
+  background: #e9f94e;
+  border-radius: 999rpx;
+  padding: 8rpx 22rpx;
+}
+.hero__mascot {
+  flex-shrink: 0;
+  width: 96rpx;
+  height: 96rpx;
+  margin-left: 24rpx;
+  border-radius: 50%;
 }
 
-.section-label {
-  font-size: 26rpx;
-  color: #9a8f80;
-  margin: 8rpx 8rpx 16rpx;
+/* 两列网格：每个格子占 50% 宽，卡片自带 margin-bottom 对齐行距。
+   间隙靠格子的 padding 撑开、外层负 margin 抵消，比 gap 兼容性稳 */
+.grid {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 0 -10rpx;
+}
+.grid__cell {
+  width: 50%;
+  box-sizing: border-box;
+  padding: 0 10rpx;
+}
+
+/* 备料汇总条 */
+.prepbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #f2f2f4;
+  border-radius: 28rpx;
+  padding: 26rpx 30rpx;
+  margin-top: 20rpx;
+}
+.prepbar:active {
+  opacity: 0.7;
+}
+.prepbar__text {
+  flex: 1;
+  min-width: 0;
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #0e0e10;
+}
+.prepbar__count {
+  flex-shrink: 0;
+  margin-left: 16rpx;
+  font-size: 22rpx;
+  color: #55565c;
+  background: #ffffff;
+  border-radius: 999rpx;
+  padding: 8rpx 20rpx;
+}
+
+.sec-head--gap {
+  margin-top: 36rpx;
 }
 
 .state-card {
   text-align: center;
-  padding: 64rpx 40rpx;
+  padding: 72rpx 40rpx;
 }
 .state-card__emoji {
   font-size: 72rpx;

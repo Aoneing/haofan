@@ -228,22 +228,25 @@ t('day-card.wxss：主餐样式只在 dc--keymeal 下生效（不影响周视图
   assert.ok(/box-shadow/.test(CARD_WXSS.slice(CARD_WXSS.indexOf('.dc--keymeal .dc__meal--main'))), '主餐要有立体阴影');
 });
 
-t('day.wxml：单日详情页打开主餐突出', () => {
-  assert.ok(/highlight-key="\{\{true\}\}"/.test(DAY_WXML), 'day 页应打开 highlight-key');
+t('day.wxml：单日详情用 dish-tile 渲染，且首屏突出「先动手」备料', () => {
+  assert.ok(/<dish-tile/.test(DAY_WXML), 'day 页应改用 dish-tile 色卡');
+  assert.ok(/wx:key="uid"/.test(DAY_WXML), '色卡要用稳定 uid 当 key，避免同名菜互串展开态');
+  assert.ok(/先动手/.test(DAY_WXML), 'day 单日详情页要把早备料铺在「先动手」一屏（只有详情页才铺开）');
 });
 
-t('today.wxml：「今天的饭」也要开主餐突出（用户实际看的是首页，不是 day 页）', () => {
-  // 血泪教训：改动只开在 day 页，用户却在首页找效果，结论变成「没变化」。
-  // 断言方式：找到含 highlight="today" 的那个标签，其属性区间里必须有 highlight-key。
-  const m = /highlight="today"([\s\S]{0,220})/.exec(TODAY_WXML);
-  assert.ok(m, 'today 页应有 highlight="today" 的 day-card');
-  assert.ok(m[1].indexOf('highlight-key="{{true}}"') >= 0, '「今天的饭」必须开 highlight-key');
+t('today.wxml：今日用 dish-tile 网格渲染「今天的饭」，并与「明天」分块', () => {
+  assert.ok(/好饭 · 今日/.test(TODAY_WXML), '今日页要有标题');
+  assert.ok(/sec-head__title">今天的饭<\/text>/.test(TODAY_WXML), '要有「今天的饭」区块');
+  assert.ok(/<dish-tile/.test(TODAY_WXML), '要用 dish-tile 色卡渲染');
+  assert.ok(/wx:key="uid"/.test(TODAY_WXML), '色卡要用稳定 uid');
+  assert.ok(/sec-head__title">明天<\/text>/.test(TODAY_WXML), '要有「明天」区块');
 });
 
-t('today.wxml：「明天」那块刻意不开主餐突出（错峰显示，避免首屏一片高亮）', () => {
-  const m = /highlight="tomorrow"([\s\S]{0,220})/.exec(TODAY_WXML);
-  assert.ok(m, 'today 页应有 highlight="tomorrow" 的 day-card');
-  assert.ok(m[1].indexOf('highlight-key') < 0, '「明天」不要开，免得首屏两块都在喊');
+t('today.wxml：「今天的饭」与「明天」是两个独立数据集，互不串味', () => {
+  // 旧版是同一张 day-card 复制两份，展开态会互相牵连；新版 today / tomorrow 各吃各的数组
+  assert.ok(/wx:for="\{\{tiles\}\}"/.test(TODAY_WXML), '今天应遍历 tiles');
+  assert.ok(/wx:for="\{\{tomorrowTiles\}\}"/.test(TODAY_WXML), '明天应遍历独立的 tomorrowTiles');
+  assert.ok(/bind:dishtap="onTileTap"/.test(TODAY_WXML), '两块都要能点色卡进详情');
 });
 
 /* ---------- 6. 早上的备料提到第一行 ---------- */
@@ -284,11 +287,12 @@ t('day-card.wxss：早活区块有独立强调样式（它是待办，不是备�
   assert.ok(/border-left/.test(seg), '要有左侧强调竖条');
 });
 
-t('单日视角开 prep-first：today「今天的饭」与 day 页都要', () => {
-  const todayMain = /highlight="today"([\s\S]{0,260})/.exec(TODAY_WXML);
-  assert.ok(todayMain, 'today 页应有「今天的饭」卡片');
-  assert.ok(todayMain[1].indexOf('prep-first="{{true}}"') >= 0, '「今天的饭」要开 prep-first');
-  assert.ok(/prep-first="\{\{true\}\}"/.test(DAY_WXML), 'day 页也要开 prep-first');
+t('今天/单日都前置备料：today 有汇总条、day 有「先动手」', () => {
+  // 旧版是 day-card 开 prep-first 把早备料提到第一行；新版拆成两条等价链路：
+  //   today 首页折叠成「备料汇总条」→ 点它进 day 看完整清单；day 单日详情页直接铺「先动手」
+  assert.ok(/class="prepbar"/.test(TODAY_WXML), 'today 首页要有备料汇总条');
+  assert.ok(/bindtap="goPrep"/.test(TODAY_WXML), '汇总条要能点进单日详情看完整备料');
+  assert.ok(/先动手/.test(DAY_WXML), 'day 单日详情页要把早备料铺在「先动手」');
 });
 
 t('多日列表视角不开 prep-first：周视图/校对页保持原样', () => {

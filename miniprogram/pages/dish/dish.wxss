@@ -1,5 +1,5 @@
 /* 菜品详情页：全屏布局。
-   图区不再包在 .card 里 —— 卡片有 24rpx 圆角和 32rpx 外边距，图会被「框」住，
+   图区不再包在 .card 里 —— 卡片有圆角和32rpx 外边距，图会被「框」住，
    看着就不像全屏。现在图直接顶到屏幕左右边缘，内容面板浮在下方。 */
 .dish {
   padding-bottom: 48rpx;
@@ -9,7 +9,7 @@
   position: relative;
   width: 750rpx;
   overflow: hidden;
-  background: #f2ead9;
+  background: #f2f2f4;
 }
 /* 底部渐变条：图是浅色时白字也要看得清，同时把菜名压在图上，节省竖向空间 */
 .dish__hero-bar {
@@ -40,9 +40,9 @@
 /* 做法 */
 .dish-sec {
   background: #ffffff;
-  border-radius: 24rpx;
-  padding: 24rpx 28rpx;
-  box-shadow: 0 4rpx 16rpx rgba(122, 96, 66, 0.06);
+  border-radius: 28rpx;
+  padding: 28rpx;
+  box-shadow: 0 4rpx 20rpx rgba(59, 58, 174, 0.06);
 }
 .dish-sec__hd {
   display: flex;
@@ -51,24 +51,25 @@
   margin-bottom: 10rpx;
 }
 .dish-sec__title {
-  font-size: 28rpx;
+  font-size: 32rpx;
   font-weight: 700;
-  color: #3d332b;
+  color: #0e0e10;
 }
 .dish-sec__act {
   font-size: 24rpx;
-  color: #b07a4a;
+  font-weight: 600;
+  color: #3b3aae;
 }
 .dish-recipe {
   font-size: 28rpx;
   line-height: 1.8;
-  color: #4a3f33;
+  color: #1f3a3d;
   word-break: break-word;
   white-space: pre-line; /* 做法里保留了 Excel 的换行，要原样断行 */
 }
 .dish-recipe--empty {
   font-size: 24rpx;
-  color: #9a8f80;
+  color: #8b8c93;
 }
 
 .dish-gen {
@@ -79,7 +80,7 @@
   font-size: 22rpx;
   line-height: 1.6;
   text-align: center;
-  color: #b07a4a;
+  color: #3b3aae;
 }
 .dish-key {
   margin-top: 12rpx;
@@ -92,42 +93,41 @@
 /* ---- 诊断面板 ---- */
 .dish-diag {
   margin-top: 28rpx;
-  border-top: 1rpx solid #efe6d8;
+  border-top: 1rpx solid #e6e6ea;
   padding-top: 20rpx;
 }
 .dish-diag__toggle {
   font-size: 24rpx;
-  color: #b07a4a;
+  color: #3b3aae;
   padding: 8rpx 0;
 }
 .dish-diag__body {
   margin-top: 12rpx;
-  background: #fbf7f0;
-  border: 1rpx solid #efe6d8;
-  border-radius: 12rpx;
-  padding: 20rpx;
+  background: #f2f2f4;
+  border-radius: 18rpx;
+  padding: 22rpx;
   text-align: left;
 }
 .dish-diag__verdict {
   font-size: 26rpx;
   font-weight: 700;
-  color: #8a5a1e;
+  color: #3b3aae;
   margin-bottom: 12rpx;
 }
 .dish-diag__line {
   font-size: 22rpx;
   line-height: 1.7;
-  color: #6b5c4a;
+  color: #55565c;
   word-break: break-all;
 }
 .dish-diag__hint {
   font-size: 22rpx;
   line-height: 1.7;
-  color: #3d6b46;
+  color: #1f3a3d;
   margin-top: 6rpx;
 }
 .dish-diag__line--copy {
   margin-top: 18rpx;
-  color: #b07a4a;
+  color: #3b3aae;
   text-decoration: underline;
 }

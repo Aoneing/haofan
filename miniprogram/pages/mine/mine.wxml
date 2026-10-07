@@ -1,110 +1,99 @@
+<!-- 我的页：统计 hero + 导入过的食谱 + 食材处理手册 -->
 <view class="container">
-  <!-- 数据概览 -->
-  <view class="card">
-    <view class="card-title">数据概览</view>
-    <view class="stats-row">
-      <view class="stats-item">
-        <view class="stats-item__num">{{periodTotal}}</view>
-        <view class="muted">期食谱</view>
-      </view>
-      <!-- 配图数既是统计也是入口：点进去能看清每道菜花了几次、能不能删 -->
-      <view class="stats-item stats-item--link" bindtap="goGallery">
-        <view class="stats-item__num">{{dishTotal}}</view>
-        <view class="muted">张配图 ›</view>
-      </view>
-    </view>
-    <view wx:if="{{envError}}" class="alert alert--warn" style="margin-top:16rpx">{{envError}}</view>
-    <view wx:if="{{dishImageError}}" class="alert alert--warn" style="margin-top:16rpx">{{dishImageError}}</view>
+  <view class="page-head">
+    <text class="page-head__title">好饭 · 我的</text>
+    <text wx:if="{{currentRange}}" class="page-head__chip">{{currentRange}}</text>
   </view>
 
-  <!-- 历史周期：默认只露最近几期 —— 导入越久这个列表越长，全铺开会把下面的卡片顶出屏幕 -->
-  <view class="card">
-    <view class="card-head">
-      <view class="card-title">导入过的食谱</view>
-      <view wx:if="{{periodTotal}}" class="card-head__count">共 {{periodTotal}} 期</view>
+  <view class="hero">
+    <view class="hero__stats">
+      <view class="stat">
+        <text class="stat__num stat__num--lime">{{periodTotal}}</text>
+        <text class="stat__label">期食谱</text>
+      </view>
+      <view class="stat" bindtap="goGallery">
+        <text class="stat__num stat__num--mint">{{dishTotal}}</text>
+        <text class="stat__label">张配图</text>
+      </view>
     </view>
-    <view wx:if="{{!periodTotal}}" class="muted">还没有导入记录</view>
+    <image class="hero__mascot" src="/images/mascot.png" mode="aspectFit" />
+  </view>
+
+  <view wx:if="{{envError}}" class="alert alert--warn">{{envError}}</view>
+  <view wx:if="{{dishImageError}}" class="alert alert--warn">{{dishImageError}}</view>
+
+  <!-- 导入过的食谱：默认只露最近 3 期 -->
+  <view class="sec-head">
+    <text class="sec-head__title">导入过的食谱</text>
+    <text wx:if="{{periodTotal}}" class="sec-head__count">共 {{periodTotal}} 期</text>
+  </view>
+  <view wx:if="{{!periodTotal}}" class="card">
+    <view class="muted">还没有导入记录</view>
+  </view>
+  <block wx:else>
     <view
       wx:for="{{periodsShown}}"
       wx:key="_id"
-      class="period-row{{item.isCurrent ? ' period-row--current' : ''}}"
+      class="prow{{item.isCurrent ? ' prow--on' : ''}}"
       data-id="{{item._id}}"
       bindtap="onPeriodTap"
     >
-      <text class="period-row__text">{{item.rangeText}}</text>
-      <view class="period-row__meta">
-        <text
-          wx:if="{{item.badgeText}}"
-          class="period-row__badge{{item.isCurrent ? ' period-row__badge--current' : ''}}"
-        >{{item.badgeText}}</text>
-        <text class="period-row__arrow">›</text>
+      <text class="prow__text">{{item.rangeText}}</text>
+      <view wx:if="{{item.badgeText}}" class="prow__badge{{item.isCurrent ? ' prow__badge--on' : ''}}">
+        {{item.badgeText}}
       </view>
     </view>
 
-    <!-- 只有超过预览条数时才出现，3 期以内没必要多一个按钮 -->
-    <view wx:if="{{periodTotal > periodPreview}}" class="period-more" bindtap="togglePeriods">
+    <view wx:if="{{periodTotal > periodPreview}}" class="btn-dark more" bindtap="togglePeriods">
       {{periodExpanded ? '收起，只看最近 ' + periodPreview + ' 期' : '展开全部（还有 ' + (periodTotal - periodPreview) + ' 期）'}}
     </view>
-    <view wx:if="{{periodTruncated}}" class="muted period-note">
+    <view wx:if="{{periodTruncated}}" class="muted more-note">
       仅显示最近 {{periodTotal}} 期，更早的已超出查询上限
     </view>
-  </view>
+  </block>
 
-  <!-- 食材处理手册：点分类展开，一次一个 -->
-  <view class="card">
-    <view class="card-title">食材处理</view>
-    <view class="muted prep-sub">
-      {{prep.groups.length}} 类食材的处理步骤 · 点开查看 · 长按可复制
+  <!-- 食材处理手册：四色轮转 + 手风琴 -->
+  <view class="sec-head sec-head--gap">
+    <text class="sec-head__title">食材处理</text>
+    <text class="sec-head__count">{{prep.groups.length}} 类</text>
+  </view>
+  <!-- 两层循环都必须显式命名 index，否则内层会覆盖外层的 index（必现 bug） -->
+  <view
+    wx:for="{{prep.groups}}"
+    wx:for-index="gindex"
+    wx:key="name"
+    class="grow prow--t{{gindex % 4}} {{prepOpenIndex === gindex ? 'grow--open' : ''}}"
+  >
+    <view class="grow__head" data-index="{{gindex}}" bindtap="togglePrep">
+      <text class="grow__name">{{item.name}}</text>
+      <view class="grow__caret">{{prepOpenIndex === gindex ? '⌃' : '⌄'}}</view>
     </view>
 
-    <!-- 两层循环都必须显式命名 index，否则内层会覆盖外层的 index（必现 bug） -->
-    <view
-      wx:for="{{prep.groups}}"
-      wx:for-index="gindex"
-      wx:key="name"
-      class="prep-group{{prepOpenIndex === gindex ? ' prep-group--open' : ''}}"
-    >
-      <view class="prep-head" data-index="{{gindex}}" bindtap="togglePrep">
-        <text class="prep-head__name">{{item.name}}</text>
-        <text class="prep-head__arrow">{{prepOpenIndex === gindex ? '⌃' : '⌄'}}</text>
-      </view>
-
-      <view wx:if="{{prepOpenIndex === gindex}}" class="prep-steps">
-        <view
-          wx:for="{{item.steps}}"
-          wx:for-item="step"
-          wx:for-index="sindex"
-          wx:key="no"
-          class="prep-step"
-          data-gindex="{{gindex}}"
-          data-sindex="{{sindex}}"
-          bindlongpress="copyPrepStep"
-        >
-          <view class="prep-step__hd">
-            <text class="prep-step__no">{{step.no}}</text>
-            <text class="prep-step__title">{{step.title}}</text>
-          </view>
-          <view class="prep-step__text">{{step.text}}</view>
+    <view wx:if="{{prepOpenIndex === gindex}}" class="grow__steps">
+      <view
+        wx:for="{{item.steps}}"
+        wx:for-item="step"
+        wx:for-index="sindex"
+        wx:key="no"
+        class="gstep"
+        data-gindex="{{gindex}}"
+        data-sindex="{{sindex}}"
+        bindlongpress="copyPrepStep"
+      >
+        <view class="gstep__hd">
+          <text class="gstep__no">{{step.no}}</text>
+          <text class="gstep__title">{{step.title}}</text>
         </view>
+        <view class="gstep__text">{{step.text}}</view>
       </view>
     </view>
-
-    <view class="muted prep-source">来源：{{prep.source}}（{{prep.updatedAt}} 录入）</view>
   </view>
 
-  <!-- 操作 -->
-  <view class="card">
-    <view class="card-title">小工具</view>
-    <button class="btn-ghost" style="margin-bottom:16rpx" bindtap="goImport">导入新食谱</button>
+  <view class="muted prep-source">来源：{{prep.source}}（{{prep.updatedAt}} 录入）</view>
+
+  <!-- 小工具 -->
+  <view class="tools">
+    <button class="btn-ghost" bindtap="goImport">导入新食谱</button>
     <button class="btn-ghost" bindtap="clearCache">清除配图缓存</button>
-  </view>
-
-  <!-- 关于 -->
-  <view class="card">
-    <view class="card-title">关于好饭</view>
-    <view class="muted about-line">· 给自己家的一周食谱小程序：Excel 一键进，今天明天随时看。</view>
-    <view class="muted about-line">· 数据全部存在你自己的微信云开发环境里；导出备份 = 留好每次的 Excel 原文件。</view>
-    <view class="muted about-line">· 云开发费用：基础套餐约 19.9 元/月；只用体验版给家人看则 0 元。</view>
-    <view class="muted about-line">· v1.0.0</view>
   </view>
 </view>

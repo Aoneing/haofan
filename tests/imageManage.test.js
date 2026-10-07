@@ -144,8 +144,11 @@ t(' gallery：能删除配图（图不对版时的干净解法）', () => {
 t('入口：mine 页「张配图」可点进配图管理', () => {
   assert.ok(/goGallery/.test(MINE_JS), '要有跳转方法');
   assert.ok(MINE_JS.indexOf("'/pages/gallery/gallery'") > 0, '路径要对');
-  assert.ok(MINE_WXML.indexOf('goGallery') > 0, 'WXML 要绑上');
-  assert.ok(/张配图 ›/.test(MINE_WXML), '要有个箭头提示这里能点进去');
+  assert.ok(MINE_WXML.indexOf('bindtap="goGallery"') > 0, 'WXML 要绑上');
+  assert.ok(
+    /<view class="stat" bindtap="goGallery">[\s\S]*?张配图/.test(MINE_WXML),
+    '「张配图」整块要能点进配图管理'
+  );
 });
 
 t('app.json：gallery 页面要注册（漏了会 navigateTo 失败且没日志）', () => {

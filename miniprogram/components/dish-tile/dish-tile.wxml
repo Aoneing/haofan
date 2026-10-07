@@ -1,0 +1,44 @@
+<!-- dish-tile — 菜品色卡
+     两列瀑布流里的一张卡：菜名 + 热量 + 用时。
+     底色由 tone 决定（四色轮转），文字色由 tone 自带的高/低对比前景色决定，
+     不在组件里判断「深底配白字」—— 那是配色表的事，混进来就会出现某一张卡看不清。 -->
+<view
+  wx:if="{{vm}}"
+  class="dt {{vm.missing ? 'dt--missing' : ''}}"
+  style="background:{{vm.bg}};color:{{vm.fg}}"
+  hover-class="dt--hover"
+  hover-stay-time="80"
+  data-index="{{index}}"
+  data-key="{{vm.key}}"
+  data-title="{{vm.title}}"
+  data-recipe="{{vm.recipe}}"
+  bindtap="onTap"
+>
+  <view class="dt__head">
+    <text class="dt__title">{{vm.title}}</text>
+    <view class="dt__menu" catchtap="onMenu">
+      <view class="dt__dot" />
+      <view class="dt__dot" />
+      <view class="dt__dot" />
+    </view>
+  </view>
+
+  <view wx:if="{{!vm.missing}}" class="dt__rows">
+    <view class="dt__row">
+      <view class="dt__ico dt__ico--drop" />
+      <text class="dt__label">热量</text>
+      <text class="dt__val">{{vm.kcalText}}</text>
+    </view>
+    <view class="dt__row">
+      <view class="dt__ico dt__ico--clock" />
+      <text class="dt__label">用时</text>
+      <text class="dt__val">{{vm.minutesText}}</text>
+    </view>
+  </view>
+
+  <!-- 展开的详情：做法要点 + 跳转入口。默认收起，卡片才不会被撑得高低不齐 -->
+  <view class="dt__more {{vm.expanded ? 'dt__more--open' : ''}}">
+    <text wx:if="{{vm.recipe}}" class="dt__recipe">{{vm.recipe}}</text>
+    <view class="dt__link" catchtap="onDetail">菜品详情 ›</view>
+  </view>
+</view>

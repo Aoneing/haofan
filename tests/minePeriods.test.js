@@ -21,6 +21,7 @@ const read = (p) => fs.readFileSync(path.join(ROOT, p), 'utf8');
 const MINE_JS = read('miniprogram/pages/mine/mine.js');
 const MINE_WXML = read('miniprogram/pages/mine/mine.wxml');
 const MINE_WXSS = read('miniprogram/pages/mine/mine.wxss');
+const APP_WXSS = read('miniprogram/app.wxss');
 
 // date.js 是纯函数模块（只依赖 const.js），可以直接 require 来真跑
 const dateUtil = require(path.join(ROOT, 'miniprogram/utils/date.js'));
@@ -43,7 +44,7 @@ t('★ 总数与渲染列表必须是两个变量（折叠不能改统计）', (
   const seg = MINE_JS.slice(from, MINE_JS.indexOf('try {', from));
   assert.ok(/periodTotal:\s*0/.test(seg), '总数要单独维护');
   // ★ 顶部「期食谱」如果取渲染数组的长度，收起状态会显示成 3 —— 这是最容易回退的地方
-  const numLine = (MINE_WXML.match(/stats-item__num">\{\{[^}]+\}\}/g) || []).join('');
+  const numLine = (MINE_WXML.match(/stat__num[^"]*">\{\{[^}]+\}\}/g) || []).join('');
   assert.ok(
     /\{\{periodTotal\}\}/.test(numLine),
     '★ 顶部统计必须取 periodTotal（全集），不能取渲染数组的 length'
@@ -67,13 +68,14 @@ t('wxml：只有超过预览条数时才出现展开按钮，3 期以内不多�
 });
 
 t('标题右侧要显示总数：折叠起来时总数也得看得见', () => {
-  assert.ok(/card-head__count/.test(MINE_WXML), '要有总数位');
+  assert.ok(/sec-head__count/.test(MINE_WXML), '要有总数位');
   assert.ok(/共 \{\{periodTotal\}\} 期/.test(MINE_WXML), '总数文案');
 });
 
-t('wxss：展开按钮要有触摸反馈，否则看不出能点', () => {
-  assert.ok(/\.period-more/.test(MINE_WXSS), '要有展开按钮样式');
-  assert.ok(/\.period-more:active/.test(MINE_WXSS), '要有 :active 反馈');
+t('wxss：展开按钮要有可点样式（看得出能点，且有按压缩反馈）', () => {
+  assert.ok(/\.btn-dark\s*\{/.test(APP_WXSS), '展开按钮用 .btn-dark 深色块，明显可点');
+  assert.ok(/\.btn-dark:active/.test(APP_WXSS), '按下要有 :active 触摸反馈');
+  assert.ok(/btn-dark more/.test(MINE_WXML), 'WXML 要挂上展开按钮类');
 });
 
 t('请求上限提到云函数允许的最大值（50），超出要给提示而不是静默截断', () => {
@@ -122,8 +124,8 @@ t('periodBadge 已被导出、并在 mine 页真的用上了', () => {
     'date.js 要导出 periodBadge');
   assert.ok(/dateUtil\.periodBadge\(/.test(MINE_JS), 'mine 页要调用它');
   assert.ok(/isCurrent/.test(MINE_JS), '要把高亮标记带进渲染数据');
-  assert.ok(/period-row--current/.test(MINE_WXML), 'wxml 要用高亮类');
-  assert.ok(/\.period-row--current/.test(MINE_WXSS), 'wxss 要有高亮样式');
+  assert.ok(/prow--on/.test(MINE_WXML), 'wxml 要用高亮类');
+  assert.ok(/\.prow--on/.test(MINE_WXSS), 'wxss 要有高亮样式');
 });
 
 module.exports = cases;

@@ -1,3 +1,4 @@
+<!-- 单日详情：日期 hero + 全量色卡 + 完整备料清单 -->
 <view class="container">
   <view wx:if="{{loading}}" class="center-tip">正在端菜…</view>
 
@@ -7,10 +8,67 @@
   </view>
 
   <block wx:else>
-    <view class="day-header">
-      <view class="day-header__date">{{dateText}}{{isToday ? ' · 今天' : ''}}</view>
-      <view wx:if="{{periodId}}" class="muted" bindtap="goWeek">查看本周 ›</view>
+    <view class="hero">
+      <view class="hero__main">
+        <text wx:if="{{isToday}}" class="hero__badge">今天</text>
+        <text class="hero__date">{{dateText}}</text>
+      </view>
+      <image class="hero__mascot" src="/images/mascot.png" mode="aspectFit" />
     </view>
-    <day-card day="{{day}}" images="{{images}}" highlight-key="{{true}}" prep-first="{{true}}" bind:dishtap="onDishTap" />
+
+    <view wx:if="{{tiles.length}}" class="sec-head">
+      <text class="sec-head__title">{{tiles.length}} 餐</text>
+      <view wx:if="{{periodId}}" class="sec-head__act" bindtap="goWeek">查看本周</view>
+    </view>
+    <view wx:if="{{tiles.length}}" class="grid">
+      <dish-tile
+        wx:for="{{tiles}}"
+        wx:key="uid"
+        class="grid__cell"
+        meal="{{item}}"
+        tone="{{index}}"
+        expanded="{{expandedUid === item.uid}}"
+        bind:dishtap="onTileTap"
+      />
+    </view>
+
+    <!-- 完整备料清单：这里是详情页，允许铺开，首页/周页都折叠成一条 -->
+    <block wx:if="{{prepLead.length}}">
+      <view class="sec-head sec-head--gap">
+        <text class="sec-head__title">先动手</text>
+        <text class="sec-head__count">{{prepLead.length}} 项</text>
+      </view>
+      <view class="card card--mist">
+        <view wx:for="{{prepLead}}" wx:key="label" class="prep">
+          <text class="prep__label">{{item.label}}</text>
+          <text wx:if="{{item.stepsText}}" class="prep__steps">{{item.stepsText}}</text>
+        </view>
+      </view>
+    </block>
+
+    <block wx:if="{{prepNotes.length}}">
+      <view class="sec-head sec-head--gap">
+        <text class="sec-head__title">备料</text>
+        <text class="sec-head__count">{{prepNotes.length}} 项</text>
+      </view>
+      <view class="card card--mist">
+        <view wx:for="{{prepNotes}}" wx:key="label" class="prep">
+          <text class="prep__label">{{item.label}}</text>
+          <text wx:if="{{item.stepsText}}" class="prep__steps">{{item.stepsText}}</text>
+        </view>
+      </view>
+    </block>
+
+    <block wx:if="{{globalPrepList.length}}">
+      <view class="sec-head sec-head--gap">
+        <text class="sec-head__title">整周备注</text>
+      </view>
+      <view class="card card--mist">
+        <view wx:for="{{globalPrepList}}" wx:key="label" class="prep">
+          <text class="prep__label">{{item.label}}</text>
+          <text class="prep__steps">{{item.value}}</text>
+        </view>
+      </view>
+    </block>
   </block>
 </view>

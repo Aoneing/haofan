@@ -1,0 +1,71 @@
+/* custom-tab-bar/index.wxss — 悬浮胶囊导航
+ *
+ * 与原生 tabBar 的差别：原生只能「图标 + 文字换色」，做不出参考图里那个
+ * 「选中项 = 黑色圆角块 + 白色图标」的胶囊样式，所以整块换成自绘。
+ * 代价是要自己处理选中态同步（见 index.js 的 onPageChange 约定）。 */
+
+.tb {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 100;
+  /* 底部安全区：iPhone 全面屏要留出小白条，否则胶囊会压住 Home 指示条 */
+  padding: 0 32rpx calc(20rpx + env(safe-area-inset-bottom));
+  pointer-events: none;
+}
+
+.tb__bar {
+  display: flex;
+  align-items: center;
+  height: 116rpx;
+  padding: 0 16rpx;
+  background: #ffffff;
+  border-radius: 999rpx;
+  box-shadow: 0 8rpx 40rpx rgba(14, 14, 16, 0.1);
+  pointer-events: auto;
+}
+
+.tb__item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 选中态：黑块 + 白图标，不显示文字（文字信息已由黑块位置表达，再加一遍是冗余） */
+.tb__ico {
+  width: 48rpx;
+  height: 48rpx;
+  border-radius: 999rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.tb__img {
+  width: 44rpx;
+  height: 44rpx;
+}
+
+.tb__item--on .tb__ico {
+  width: 116rpx;
+  height: 72rpx;
+  border-radius: 32rpx;
+  background: #0e0e10;
+}
+.tb__item--on .tb__img {
+  width: 44rpx;
+  height: 44rpx;
+}
+
+.tb__text {
+  font-size: 22rpx;
+  color: #55565c;
+  line-height: 1.2;
+  margin-top: 6rpx;
+}
+/* 选中项不显示文字：黑块已经足够表意，且黑块 72rpx 高会把它挤变形 */
+.tb__item--on .tb__text {
+  display: none;
+}

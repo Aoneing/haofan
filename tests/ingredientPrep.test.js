@@ -124,8 +124,8 @@ t('我的页引入食材处理数据并挂到 data 上', () => {
 });
 
 t('我的页有食材处理板块', () => {
-  assert.ok(/<view class="card-title">食材处理<\/view>/.test(MINE_WXML), 'WXML 缺少「食材处理」卡片标题');
-  assert.ok(/prep\.groups/.test(MINE_WXML), '未遍历 prep.groups');
+  assert.ok(/sec-head__title">食材处理<\/text>/.test(MINE_WXML), 'WXML 缺少「食材处理」区块标题');
+  assert.ok(/wx:for="\{\{prep\.groups\}\}"/.test(MINE_WXML), '未遍历 prep.groups');
 });
 
 t('★ 手风琴：一次只展开一个（内容长，全展开会把页面撑爆）', () => {
@@ -156,7 +156,7 @@ t('食材处理提供了复制能力（做菜时手上有油，常要发给家�
 });
 
 t('食材处理板块有配套样式（不出现裸奔的白板）', () => {
-  ['prep-group', 'prep-head', 'prep-step', 'prep-step__no', 'prep-step__text'].forEach((cls) => {
+  ['grow', 'grow__head', 'gstep', 'gstep__no', 'gstep__text', 'prow--t0'].forEach((cls) => {
     assert.ok(MINE_WXSS.indexOf('.' + cls) >= 0, 'WXSS 缺少样式类 .' + cls);
   });
 });

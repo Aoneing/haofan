@@ -1,0 +1,118 @@
+.dt {
+  border-radius: 32rpx;
+  padding: 26rpx 26rpx 30rpx;
+  margin-bottom: 20rpx;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+.dt--hover {
+  opacity: 0.86;
+}
+
+.dt__head {
+  display: flex;
+  align-items: flex-start;
+}
+.dt__title {
+  flex: 1;
+  min-width: 0;
+  font-size: 32rpx;
+  font-weight: 700;
+  line-height: 1.3;
+}
+/* 未安排的格子：整块淡出，不要占住视觉重心 */
+.dt--missing {
+  opacity: 0.45;
+}
+.dt--missing .dt__title {
+  font-weight: 400;
+}
+
+/* 「⋮」：纯装饰，点它等同于点整张卡 */
+.dt__menu {
+  flex-shrink: 0;
+  margin-left: 12rpx;
+  margin-top: 6rpx;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6rpx;
+}
+.dt__dot {
+  width: 6rpx;
+  height: 6rpx;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.85;
+}
+
+.dt__rows {
+  margin-top: 18rpx;
+}
+.dt__row {
+  display: flex;
+  align-items: center;
+  margin-top: 12rpx;
+}
+.dt__ico {
+  flex-shrink: 0;
+  width: 22rpx;
+  height: 22rpx;
+  margin-right: 12rpx;
+  opacity: 0.9;
+}
+/* 热量：水滴 —— 用 CSS 画，避免为两个小图标再引入图片资源 */
+.dt__ico--drop {
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  border: 3rpx solid currentColor;
+}
+/* 用时：钟面 —— 圆环 + 指针 */
+.dt__ico--clock {
+  border-radius: 50%;
+  border: 3rpx solid currentColor;
+}
+.dt__ico--clock::after {
+  content: '';
+  display: block;
+  width: 3rpx;
+  height: 8rpx;
+  margin: 3rpx auto 0;
+  background: currentColor;
+}
+.dt__label {
+  font-size: 22rpx;
+  opacity: 0.62;
+  margin-right: 14rpx;
+  flex-shrink: 0;
+}
+.dt__val {
+  font-size: 30rpx;
+  font-weight: 700;
+}
+
+.dt__more {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-height 0.34s ease, opacity 0.24s ease, margin-top 0.34s ease;
+}
+.dt__more--open {
+  max-height: 500rpx;
+  opacity: 0.86;
+  margin-top: 18rpx;
+}
+.dt__recipe {
+  display: block;
+  font-size: 23rpx;
+  line-height: 1.6;
+  white-space: pre-line;
+}
+.dt__link {
+  display: inline-block;
+  margin-top: 12rpx;
+  font-size: 23rpx;
+  font-weight: 600;
+  opacity: 0.9;
+}

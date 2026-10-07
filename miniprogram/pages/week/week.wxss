@@ -1,18 +1,134 @@
-.week-header {
+/* 一周页：日期条 + hero + 两列色卡（与今日页共用一套卡片语言） */
+
+.hero {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  padding: 8rpx 8rpx 24rpx;
+  align-items: center;
+  background: #3b3aae;
+  border-radius: 40rpx;
+  padding: 40rpx;
+  margin: 24rpx 0 32rpx;
 }
-.week-header__title {
-  font-size: 40rpx;
+.hero__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+.hero__date {
+  font-size: 44rpx;
   font-weight: 700;
-  color: #3d332b;
+  color: #ffffff;
+  letter-spacing: -0.5rpx;
+}
+/* 一周页的「今天」在日期左边（今日页在右边）：两页徽标位置不同是有意的，
+   今日页那天只有一个候选、一周页要靠徽标在日期旁做「当前」提示 */
+.hero__badge--light {
+  flex-shrink: 0;
+  margin-right: 22rpx;
+  font-size: 24rpx;
+  font-weight: 700;
+  color: #0e0e10;
+  background: #ffffff;
+  border-radius: 999rpx;
+  padding: 8rpx 22rpx;
+}
+.hero__mascot {
+  flex-shrink: 0;
+  width: 96rpx;
+  height: 96rpx;
+  margin-left: 24rpx;
+  border-radius: 50%;
+}
+
+/* 日期条：白底胶囊，7 格均分 */
+.dbar {
+  display: flex;
+  align-items: center;
+  background: #ffffff;
+  border-radius: 32rpx;
+  padding: 16rpx 8rpx;
+  box-shadow: 0 4rpx 24rpx rgba(14, 14, 16, 0.05);
+}
+.dbar__item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.dbar__wd {
+  font-size: 22rpx;
+  color: #8b8c93;
+  line-height: 1.2;
+}
+.dbar__num-wrap {
+  margin-top: 10rpx;
+  height: 56rpx;
+  display: flex;
+  align-items: center;
+}
+.dbar__num {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #0e0e10;
+}
+.dbar__num--on {
+  color: #ffffff;
+}
+/* 选中项：黑色圆 */
+.dbar__pill {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 50%;
+  background: #0e0e10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 两列网格 */
+.grid {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 0 -10rpx;
+}
+.grid__cell {
+  width: 50%;
+  box-sizing: border-box;
+  padding: 0 10rpx;
+}
+
+.prepbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #f2f2f4;
+  border-radius: 28rpx;
+  padding: 26rpx 30rpx;
+  margin-top: 20rpx;
+}
+.prepbar:active {
+  opacity: 0.7;
+}
+.prepbar__text {
+  flex: 1;
+  min-width: 0;
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #0e0e10;
+}
+.prepbar__count {
+  flex-shrink: 0;
+  margin-left: 16rpx;
+  font-size: 22rpx;
+  color: #55565c;
+  background: #ffffff;
+  border-radius: 999rpx;
+  padding: 8rpx 20rpx;
 }
 
 .state-card {
   text-align: center;
-  padding: 64rpx 40rpx;
+  padding: 72rpx 40rpx;
 }
 .state-card__emoji {
   font-size: 72rpx;
@@ -20,70 +136,4 @@
 }
 .state-card .muted {
   display: block;
-}
-
-/* 吸顶容器：当前日期小字 + 星期导航，滚动时一直贴在顶部不消失
-   背景用页面底色，遮住下方滚过的卡片 */
-.wk-sticky {
-  position: sticky;
-  top: 0;
-  z-index: 20;
-  background: #fff8ef;
-  padding-bottom: 4rpx;
-  transition: box-shadow 0.2s ease;
-}
-.wk-sticky--pinned {
-  box-shadow: 0 10rpx 20rpx rgba(122, 96, 66, 0.12);
-}
-.wk-sticky__meta {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  padding: 0 8rpx 8rpx;
-}
-.wk-sticky__day {
-  font-size: 24rpx;
-  font-weight: 600;
-  color: #b26a00;
-}
-.wk-sticky__range {
-  font-size: 22rpx;
-  color: #9a8f80;
-}
-
-/* 星期导航：白底圆角容器 + 选中纯色方块（无线条）
-   只保留周几、去掉日期，整体压扁，尽量少占正文空间 */
-.week-nav {
-  display: flex;
-  align-items: center;
-  background: #ffffff;
-  border-radius: 14rpx;
-  padding: 4rpx 6rpx;
-  box-shadow: 0 4rpx 16rpx rgba(122, 96, 66, 0.06);
-}
-.week-nav__item {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 6rpx 0;
-  border-radius: 8rpx;
-  transition: background 0.2s;
-}
-.week-nav__item--on {
-  background: #b26a00;
-  box-shadow: 0 6rpx 16rpx rgba(178, 106, 0, 0.28);
-}
-.week-nav__wd {
-  font-size: 25rpx;
-  font-weight: 600;
-  line-height: 1.1;
-  color: #7a6a55;
-}
-.week-nav__item--on .week-nav__wd {
-  color: #ffffff;
-}
-/* 今天未被选中时，星期字用品牌橙提示 */
-.week-nav__item--today .week-nav__wd {
-  color: #b26a00;
 }

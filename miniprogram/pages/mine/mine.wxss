@@ -1,167 +1,177 @@
-.stats-row {
+/* 我的页：统计 hero + 期数列表 + 四色食材手册 */
+
+.hero {
   display: flex;
+  align-items: center;
+  background: #3b3aae;
+  border-radius: 40rpx;
+  padding: 40rpx;
+  margin-bottom: 32rpx;
 }
-.stats-item {
+.hero__stats {
   flex: 1;
-  text-align: center;
+  min-width: 0;
+  display: flex;
 }
-.stats-item__num {
-  font-size: 48rpx;
+.stat {
+  display: flex;
+  flex-direction: column;
+}
+/* 两个数字用两个颜色（柠檬黄 / 薄荷），避免「4 6」读成一串 */
+.stat__num {
+  font-size: 60rpx;
   font-weight: 700;
-  color: #b26a00;
+  line-height: 1.1;
 }
-/* 可点进配图管理的那个：给点触摸反馈，不然看不出它能点 */
-.stats-item--link:active {
-  opacity: 0.55;
+.stat__num--lime {
+  color: #e9f94e;
 }
-
-/* 标题行右侧挂一个总数：折叠起来的时候，总数还得看得见 */
-.card-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
+.stat__num--mint {
+  color: #7fe3c4;
 }
-.card-head .card-title {
-  margin-bottom: 16rpx;
+.stat__label {
+  font-size: 22rpx;
+  color: #ffffff;
+  opacity: 0.85;
+  margin-top: 6rpx;
 }
-.card-head__count {
-  font-size: 24rpx;
-  color: #9a8f80;
+.hero__mascot {
   flex-shrink: 0;
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 50%;
 }
 
-.period-row {
+/* 期数列表行 */
+.prow {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 20rpx 24rpx;
-  background: #faf5ea; /* 浅米色块替代分割线 */
-  border-radius: 16rpx;
+  background: #f2f2f4;
+  border-radius: 26rpx;
+  padding: 28rpx 30rpx;
   margin-bottom: 16rpx;
 }
-/* 正在吃的那一期：加一圈主色描边，不用加高也不用加字 */
-.period-row--current {
-  background: #fff6e6;
-  box-shadow: inset 0 0 0 2rpx #b26a00;
+/* 正在吃的那一期：整行换成柠檬黄，不用描边也不用加高 */
+.prow--on {
+  background: #e9f94e;
 }
-.period-row__text {
-  font-size: 28rpx;
-  color: #3d332b;
+.prow__text {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #0e0e10;
 }
-.period-row__meta {
-  display: flex;
-  align-items: center;
+.prow__badge {
   flex-shrink: 0;
   margin-left: 16rpx;
-}
-.period-row__badge {
   font-size: 22rpx;
-  color: #9a8f80;
-  background: rgba(154, 143, 128, 0.12);
+  color: #55565c;
+  background: #ffffff;
   border-radius: 999rpx;
-  padding: 4rpx 14rpx;
-  margin-right: 12rpx;
+  padding: 8rpx 20rpx;
 }
-.period-row__badge--current {
-  color: #fff;
-  background: #b26a00;
-}
-.period-row__arrow {
-  color: #c9bda9;
-  font-size: 32rpx;
+.prow__badge--on {
+  color: #0e0e10;
+  background: #ffffff;
 }
 
-/* 展开 / 收起：做成一行可点的文字，不给整块加高度 */
-.period-more {
-  text-align: center;
-  font-size: 26rpx;
-  color: #b26a00;
-  padding: 12rpx 0 4rpx;
-}
-.period-more:active {
-  opacity: 0.55;
-}
-.period-note {
-  font-size: 22rpx;
-  text-align: center;
+.more {
   margin-top: 8rpx;
 }
-
-.about-line {
-  margin-bottom: 8rpx;
+.more-note {
+  font-size: 22rpx;
+  text-align: center;
+  margin-top: 12rpx;
 }
 
-/* ---------- 食材处理手册 ---------- */
-.prep-sub {
-  font-size: 24rpx;
-  margin-bottom: 16rpx;
+.sec-head--gap {
+  margin-top: 36rpx;
 }
 
-.prep-group {
-  background: #faf5ea;
-  border-radius: 16rpx;
+/* 食材处理手册：四色轮转，与菜品色卡同一套色板 */
+.grow {
+  border-radius: 26rpx;
   margin-bottom: 16rpx;
   overflow: hidden;
 }
-.prep-group--open {
-  background: #fff6e6;
+.prow--t0 {
+  background: #f2f2f4;
+}
+.prow--t1 {
+  background: #a9b6f2;
+}
+.prow--t2 {
+  background: #e9f94e;
+}
+.prow--t3 {
+  background: #7c8cd8;
 }
 
-.prep-head {
+.grow__head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 22rpx 24rpx;
+  padding: 28rpx 30rpx;
 }
-.prep-head__name {
-  font-size: 28rpx;
-  color: #3d332b;
-  font-weight: 600;
-}
-.prep-head__arrow {
-  color: #c9bda9;
+.grow__name {
+  flex: 1;
+  min-width: 0;
   font-size: 30rpx;
+  font-weight: 700;
+  color: #0e0e10;
+}
+.grow__caret {
+  flex-shrink: 0;
+  margin-left: 16rpx;
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #0e0e10;
+  opacity: 0.7;
 }
 
-.prep-steps {
-  padding: 0 24rpx 20rpx;
+.grow__steps {
+  padding: 0 30rpx 26rpx;
 }
-
-.prep-step {
-  display: flex;
-  flex-direction: column;
-  padding: 16rpx 0;
-  border-top: 2rpx solid rgba(201, 189, 169, 0.35);
+.gstep {
+  padding: 18rpx 0;
+  border-top: 2rpx solid rgba(14, 14, 16, 0.08);
 }
-.prep-step__hd {
+.gstep__hd {
   display: flex;
   align-items: center;
   margin-bottom: 8rpx;
 }
-.prep-step__no {
-  width: 36rpx;
-  height: 36rpx;
-  line-height: 36rpx;
+.gstep__no {
+  width: 34rpx;
+  height: 34rpx;
+  line-height: 34rpx;
   text-align: center;
   border-radius: 50%;
-  background: #b26a00;
-  color: #fff;
-  font-size: 22rpx;
+  background: #0e0e10;
+  color: #ffffff;
+  font-size: 20rpx;
   margin-right: 12rpx;
   flex-shrink: 0;
 }
-.prep-step__title {
+.gstep__title {
   font-size: 27rpx;
-  color: #b26a00;
-  font-weight: 600;
+  font-weight: 700;
+  color: #0e0e10;
 }
-.prep-step__text {
+.gstep__text {
   font-size: 26rpx;
   line-height: 1.7;
-  color: #5a4f45;
+  color: #1f3a3d;
 }
 
 .prep-source {
   font-size: 22rpx;
-  margin-top: 8rpx;
+  margin-top: 12rpx;
+}
+
+.tools {
+  margin-top: 40rpx;
+}
+.tools button {
+  margin-bottom: 16rpx;
 }

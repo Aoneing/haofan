@@ -3,14 +3,14 @@
   border-radius: 24rpx;
   padding: 28rpx;
   margin-bottom: 24rpx;
-  box-shadow: 0 4rpx 16rpx rgba(122, 96, 66, 0.06);
+  box-shadow: 0 4rpx 16rpx rgba(59, 58, 174, 0.06);
 }
 .dc--today {
-  background: #fff7ea; /* 今天：极浅橙纯色底替代边框高亮（不压过餐次色块） */
-  box-shadow: 0 8rpx 24rpx rgba(178, 106, 0, 0.14);
+  background: #f7f7fa; /* 今天：极浅橙纯色底替代边框高亮（不压过餐次色块） */
+  box-shadow: 0 8rpx 24rpx rgba(59, 58, 174, 0.12);
 }
 .dc--tomorrow {
-  background: #fcf9f1; /* 明天：微暖白纯色底，与普通白卡区分 */
+  background: #fafafd; /* 明天：微暖白纯色底，与普通白卡区分 */
 }
 
 .dc__head {
@@ -21,7 +21,7 @@
 .dc__date {
   font-size: 30rpx;
   font-weight: 600;
-  color: #3d332b;
+  color: #0e0e10;
 }
 .dc__badge {
   margin-left: 16rpx;
@@ -30,16 +30,16 @@
   border-radius: 999rpx;
 }
 .dc__badge--today {
-  background: #b26a00;
+  background: #3b3aae;
   color: #ffffff;
 }
 .dc__badge--tomorrow {
-  background: #f3e5c8;
-  color: #854f0b;
+  background: #e9f94e;
+  color: #0e0e10;
 }
 .dc__more {
   margin-left: auto;
-  color: #9a8f80;
+  color: #8b8c93;
   font-size: 24rpx;
 }
 
@@ -73,7 +73,7 @@
 .dc--keymeal .dc__meal--main {
   padding: 30rpx 22rpx 30rpx 30rpx;
   margin-bottom: 22rpx;
-  box-shadow: 0 10rpx 26rpx rgba(122, 96, 66, 0.26);
+  box-shadow: 0 10rpx 26rpx rgba(59, 58, 174, 0.22);
 }
 .dc--keymeal .dc__meal--main .dc__dish {
   font-size: 38rpx;
@@ -207,8 +207,8 @@
 
 /* 早上先做：卡片第一行。比备料区更醒目——它是「待办」不是「备注」 */
 .dc__lead {
-  background: #fdf4e3;
-  border-left: 6rpx solid #b26a00;
+  background: #f2f2f4;
+  border-left: 6rpx solid #3b3aae;
   border-radius: 16rpx;
   padding: 18rpx 20rpx;
   margin-bottom: 20rpx;
@@ -230,8 +230,8 @@
   justify-content: center;
   margin-right: 14rpx;
   margin-top: 4rpx;
-  background: #f6e2bc;
-  color: #854f0b;
+  background: #e9f94e;
+  color: #0e0e10;
 }
 .dc__lead-body {
   flex: 1;
@@ -241,12 +241,12 @@
   display: block;
   font-size: 26rpx;
   font-weight: 600;
-  color: #6b4a1c;
+  color: #0e0e10;
 }
 .dc__lead-steps {
   display: block;
   font-size: 24rpx;
-  color: #7a6a55;
+  color: #55565c;
   margin-top: 2rpx;
   white-space: pre-line;
 }
@@ -254,7 +254,7 @@
 /* 备料：浅米色块替代分割线 */
 .dc__prep {
   margin-top: 20rpx;
-  background: #faf5ea;
+  background: #f2f2f4;
   border-radius: 16rpx;
   padding: 16rpx 20rpx;
 }
@@ -278,16 +278,16 @@
   margin-top: 4rpx;
 }
 .dc__prep-timing--morning {
-  background: #faeeda;
-  color: #854f0b;
+  background: #f2f2f4;
+  color: #0e0e10;
 }
 .dc__prep-timing--evening {
-  background: #e6f1fb;
-  color: #0c447c;
+  background: #a9b6f2;
+  color: #0e0e10;
 }
 .dc__prep-timing--unknown {
-  background: #f3eee5;
-  color: #7a6a55;
+  background: #f2f2f4;
+  color: #55565c;
 }
 .dc__prep-body {
   flex: 1;
@@ -296,13 +296,13 @@
 .dc__prep-label {
   display: block;
   font-size: 24rpx;
-  color: #7a6a55;
+  color: #55565c;
   font-weight: 600;
 }
 .dc__prep-steps {
   display: block;
   font-size: 24rpx;
-  color: #9a8f80;
+  color: #8b8c93;
 }
 
 /* 整周备注 */
@@ -315,12 +315,12 @@
   margin-bottom: 6rpx;
 }
 .dc__global-label {
-  color: #b26a00;
+  color: #3b3aae;
   flex-shrink: 0;
   margin-right: 16rpx;
 }
 .dc__global-value {
-  color: #7a6a55;
+  color: #55565c;
   flex: 1;
   min-width: 0;
 }
