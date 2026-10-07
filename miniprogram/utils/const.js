@@ -46,6 +46,12 @@ function tileTone(i) {
   return TILE_TONES[((Number(i) || 0) % n + n) % n];
 }
 
+/** 餐次中文标签；未知餐次退回原 key，避免卡片上出现空白 */
+function mealLabel(meal) {
+  const s = MEAL_STYLE[meal];
+  return s ? s.label : (meal || '');
+}
+
 const WEEKDAY_TEXT = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
 
 const WARNING_TONE = { error: 'error', warn: 'warn', info: 'info' };
@@ -56,6 +62,7 @@ module.exports = {
   isMainMeal,
   TILE_TONES,
   tileTone,
+  mealLabel,
   WEEKDAY_TEXT,
   WARNING_TONE,
 };

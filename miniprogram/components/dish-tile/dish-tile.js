@@ -2,7 +2,7 @@
 // 一张菜品色卡。数据全部由父组件算好后从 properties 传进来，
 // 组件内部不做数据加工 —— 只负责「把 meal 变成一张好看的卡」。
 const nutrition = require('../../utils/nutrition');
-const { tileTone } = require('../../utils/const');
+const { tileTone, mealLabel } = require('../../utils/const');
 
 Component({
   properties: {
@@ -35,6 +35,7 @@ Component({
         title,
         recipe: m.recipe || '',
         missing: !!m.missing,
+        mealLabel: mealLabel(m.meal),
         bg: t.bg,
         fg: t.fg,
         kcalText: nutrition.fmtKcal(n.kcal),

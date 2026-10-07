@@ -25,6 +25,8 @@ const TB_JS = read('miniprogram/custom-tab-bar/index.js');
 const TB_WXML = read('miniprogram/custom-tab-bar/index.wxml');
 const TODAY_JS = read('miniprogram/pages/today/today.js');
 const TODAY_WXML = read('miniprogram/pages/today/today.wxml');
+const DT_JS = read('miniprogram/components/dish-tile/dish-tile.js');
+const DT_WXML = read('miniprogram/components/dish-tile/dish-tile.wxml');
 const WEEK_JS = read('miniprogram/pages/week/week.js');
 const WEEK_WXML = read('miniprogram/pages/week/week.wxml');
 const MINE_JS = read('miniprogram/pages/mine/mine.js');
@@ -96,7 +98,27 @@ t('三个主 tab 页都有品牌紫 hero 块（吉祥物）', () => {
   });
 });
 
-/* ---------- 4. 资源齐备 ---------- */
+/* ---------- 4. 菜品色卡必须标注餐次（早餐/午餐/晚餐/加餐） ---------- */
+
+t('dish-tile：vm 带上餐次中文标签', () => {
+  assert.ok(/mealLabel/.test(DT_JS), 'dish-tile.js 应调用 mealLabel 取餐次文案');
+  assert.ok(/mealLabel:\s*mealLabel/.test(DT_JS), 'vm 必须含 mealLabel 字段');
+});
+
+t('dish-tile：餐次标签渲染在卡上（dt__meal 胶囊）', () => {
+  assert.ok(/class="dt__meal"/.test(DT_WXML), 'wxml 要有 dt__meal 标签元素');
+  assert.ok(/\{\{vm\.mealLabel\}\}/.test(DT_WXML), 'dt__meal 要绑定 vm.mealLabel');
+});
+
+t('const.mealLabel：四个餐次映射到中文', () => {
+  const c = require('../miniprogram/utils/const');
+  assert.strictEqual(c.mealLabel('breakfast'), '早餐');
+  assert.strictEqual(c.mealLabel('lunch'), '午餐');
+  assert.strictEqual(c.mealLabel('snack'), '加餐');
+  assert.strictEqual(c.mealLabel('dinner'), '晚餐');
+});
+
+/* ---------- 5. 资源齐备 ---------- */
 
 [
   'miniprogram/images/mascot.png',

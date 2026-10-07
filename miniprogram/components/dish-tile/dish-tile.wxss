@@ -10,6 +10,20 @@
   opacity: 0.86;
 }
 
+/* 餐次标签：右上不抢菜名，用描边小胶囊。颜色随色卡前景色走，
+   所以黄/浅紫/深绿/深紫四种底上都看得清，不依赖组件判断深底浅底 */
+.dt__meal {
+  align-self: flex-start;
+  margin-bottom: 14rpx;
+  padding: 4rpx 16rpx;
+  font-size: 20rpx;
+  font-weight: 700;
+  line-height: 1.4;
+  border-radius: 999rpx;
+  border: 1.5rpx solid currentColor;
+  opacity: 0.78;
+}
+
 .dt__head {
   display: flex;
   align-items: flex-start;
