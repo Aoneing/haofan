@@ -57,21 +57,21 @@ Component({
       };
     },
 
-    /** 点整张卡：抛出 meal 的主键与做法，由页面决定是展开还是跳详情 */
+    /** 点整张卡：抛出 tap 事件，由页面决定展开/收起（不再直接跳详情） */
     onTap() {
-      this.emitDish();
+      this.emitDish('card');
     },
 
     onMenu() {
       this.triggerEvent('menu');
     },
 
-    /** 展开区里的「菜品详情 ›」 */
+    /** 展开区里的「菜品详情 ›」：专用 detail 事件，由页面跳转详情 */
     onDetail() {
-      this.emitDish();
+      this.emitDish('detail');
     },
 
-    emitDish() {
+    emitDish(source) {
       const vm = this.data.vm;
       if (!vm || !vm.key) return;
       this.triggerEvent('dishtap', {
@@ -79,6 +79,7 @@ Component({
         uid: vm.uid,
         title: vm.title,
         recipe: vm.recipe,
+        source: source,
       });
     },
   },

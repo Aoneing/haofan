@@ -194,6 +194,43 @@ async function getRecentWeeks(event) {
   return { ok: true, weeks: out };
 }
 
+/**
+ * getAllStats：食材分析「所有周」用 —— 一次性返回全部已导入菜谱的天（displayTitle），
+ * 以及首份 / 最新一份菜谱的日期区间。
+ *   - 与 getRecentWeeks 同理：单次调用拿全量，前端本地喂给 analyzeWeek 聚合，零额外算力；
+ *   - periods 按 startDate 倒序取（cap 300 期，覆盖绝大多数家庭长期使用），
+ *     首末日期直接扫 days 的 date 算，最准（用户要的就是「第一份到最新一份」）；
+ *   - 没导入任何菜谱时返回空的 days + 空区间，前端据此显示「还没有可分析的食谱」。
+ */
+async function getAllStats() {
+  const periodsRes = await db.collection('periods').orderBy('startDate', 'asc').limit(300).get();
+  const periods = periodsRes.data || [];
+  if (!periods.length) return { ok: true, days: [], firstDate: '', lastDate: '' };
+
+  const days = [];
+  let firstDate = periods[0].startDate || '9999';
+  let lastDate = '';
+  for (const period of periods) {
+    const daysRes = await db
+      .collection('days')
+      .where({ periodId: period._id })
+      .orderBy('dayIndex', 'asc')
+      .limit(7)
+      .get();
+    daysRes.data.forEach((d) => {
+      const date = d.date || '';
+      if (date && date < firstDate) firstDate = date;
+      if (date && date > lastDate) lastDate = date;
+      days.push({
+        date,
+        meals: (d.meals || []).map((m) => ({ displayTitle: m.displayTitle || '' })),
+      });
+    });
+  }
+  if (firstDate === '9999') firstDate = '';
+  return { ok: true, days, firstDate, lastDate };
+}
+
 exports.main = async (event) => {
   try {
     const action = event && event.action;
@@ -208,6 +245,8 @@ exports.main = async (event) => {
         return await listPeriods(event || {});
       case 'getRecentWeeks':
         return await getRecentWeeks(event || {});
+      case 'getAllStats':
+        return await getAllStats(event || {});
       default:
         return { ok: false, message: '未知 action：' + action };
     }

@@ -131,10 +131,11 @@ Page({
     }
   },
 
-  load() {
+  load(force) {
     this.setData({ loading: true, err: '' });
+    // force=true 时绕开 list 的 60s 读缓存，直接打后端拿最新（删除等写操作后必须这样）
     return api
-      .image('list')
+      .image('list', null, force ? { noCache: true } : undefined)
       .then((res) => {
         if (!res || !res.ok) {
           this.setData({ loading: false, err: (res && res.message) || '读取配图失败' });
@@ -204,7 +205,16 @@ Page({
               return;
             }
             wx.showToast({ title: '已删除', icon: 'success' });
-            this.load();
+            // ① 乐观移除：本地立刻剔除该项，图片立即消失，不依赖网络/缓存
+            const items = (this.data.items || []).filter((it) => it.key !== key);
+            const totalGenerations = items.reduce((s, i) => s + i.submitCount, 0);
+            const extraGenerations = items.reduce((s, i) => s + Math.max(0, i.submitCount - 1), 0);
+            const pendingCount = items.filter((i) => i.status === 'pending' || i.status === 'saving').length;
+            this.setData({ items, totalGenerations, extraGenerations, pendingCount });
+            // ② 清掉 list 的 60s 读缓存：否则 TTL 内重新进页面又会从缓存拉回已删图
+            api.clearCache();
+            // ③ 强制刷新（noCache）与后端真实状态对齐，按钮在刷新完成后才恢复
+            return this.load(true);
           })
           .catch((err) => {
             wx.showToast({ title: (err && err.message) || '删除失败', icon: 'none' });

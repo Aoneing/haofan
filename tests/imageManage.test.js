@@ -196,4 +196,15 @@ t('app.json：gallery 页面要注册（漏了会 navigateTo 失败且没日志�
   assert.ok(app.pages.indexOf('pages/gallery/gallery') >= 0, 'pages 里要有 gallery');
 });
 
+t('★ gallery：删除后要立刻从列表移除 + 清缓存 + 强制刷新（否则命中 60s 旧缓存图还在）', () => {
+  // 2026-10-09 实机：点删除确认后图片仍在、按钮变灰。
+  // 根因：list 默认走 60s 读缓存，remove 成功后 this.load() 命中旧缓存仍含已删图。
+  // 必须：①本地乐观移除该项 ②清 list 缓存 ③load(true) 强制 noCache 刷新。
+  const from = GALLERY_JS.indexOf('remove(e) {');
+  const seg = GALLERY_JS.slice(from, GALLERY_JS.indexOf('retry(e) {'));
+  assert.ok(/filter\(\(it\) => it\.key !== key\)/.test(seg), '要本地乐观移除该项，图立即消失，不依赖网络/缓存');
+  assert.ok(/api\s*\.clearCache\(\)/.test(seg), '要清掉 list 读缓存，否则 60s TTL 内重进页面又拉回旧图');
+  assert.ok(/load\(true\)/.test(seg), '要 load(true) 强制 noCache 刷新与后端对齐');
+});
+
 module.exports = cases;

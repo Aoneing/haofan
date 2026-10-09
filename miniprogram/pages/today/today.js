@@ -217,18 +217,20 @@ Page({
 
   /* ---------- 色卡交互 ---------- */
 
-  /** 点色卡：第一次点展开做法，再点跳菜品详情（做菜时想看做法 vs 想看大图都在同一处） */
+  /** 点色卡：卡片点击只展开/收起（再点一次收起，不再直接跳详情）；
+   *  只有点开后的「菜品详情 ›」按钮（source='detail'）才进详情页。 */
   onTileTap(e) {
-    const { key, uid, title, recipe } = e.detail;
+    const { key, uid, title, recipe, source } = e.detail;
     if (!key) return;
-    if (this.data.expandedUid !== uid) {
-      this.setData({ expandedUid: uid });
+    if (source === 'detail') {
+      dishNav.put(key, { recipe: recipe || '' });
+      wx.navigateTo({
+        url: '/pages/dish/dish?key=' + encodeURIComponent(key) + '&title=' + encodeURIComponent(title || ''),
+      });
       return;
     }
-    dishNav.put(key, { recipe: recipe || '' });
-    wx.navigateTo({
-      url: '/pages/dish/dish?key=' + encodeURIComponent(key) + '&title=' + encodeURIComponent(title || ''),
-    });
+    // 卡片点击：展开 ↔ 收起 切换
+    this.setData({ expandedUid: this.data.expandedUid === uid ? '' : uid });
   },
 
   /** 备料汇总条 → 单日详情页看全部备料 */

@@ -61,7 +61,7 @@
 
 /* 面板整体往上提：负 margin 让内容压进图底白区，首屏即可看全做法 */
 .dish__panel {
-  margin-top: -24rpx;
+  margin-top: -56rpx;
   padding: 24rpx 32rpx 0;
 }
 
@@ -89,7 +89,7 @@
   color: #3b3aae;
 }
 .dish-recipe {
-  font-size: 30rpx;
+  font-size: 34rpx;
   line-height: 1.85;
   color: #1f3a3d;
   word-break: break-word;

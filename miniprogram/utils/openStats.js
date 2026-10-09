@@ -138,7 +138,10 @@ function monthCalendar(now, year, month) {
       total += cnt;
       minutes += min;
     }
-    const level = isFuture ? -1 : levelOfMinutes(min);
+    // 色阶按「打开次数」分档（c 决定深浅）：用户多次打开某天应看到深色的格子。
+    // 停留分钟数 m 只用于格子里的「1h41m」文案展示，不再参与着色——
+    // 否则像「打开很多次但每次停留很短」的日子会被判成默认色（实测反馈的 bug）。
+    const level = isFuture ? -1 : levelOf(cnt);
     const isToday = d === t.getDate() && y === t.getFullYear() && m === t.getMonth();
     // cls 在数据层算好：WXML 只写 class="{{c.cls}}"，不用任何 wx:if 分支
     let cls = level < 0 ? 'heat__cell--blank' : 'heat__l' + level;

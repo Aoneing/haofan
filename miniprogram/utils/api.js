@@ -9,7 +9,7 @@ const READ_TTL = 60 * 1000; // 60 秒：家庭食谱数据分钟级新鲜度足�
 const _cache = new Map(); // key(`name#data`) -> { ts, value }
 
 // 走缓存的只读 action（menuQuery 侧 / dishImage 侧分开声明）
-const MENU_QUERY_READ = ['getContext', 'getWeek', 'getDay', 'listPeriods', 'getRecentWeeks'];
+const MENU_QUERY_READ = ['getContext', 'getWeek', 'getDay', 'listPeriods', 'getRecentWeeks', 'getAllStats'];
 const DISH_IMAGE_READ = ['stats', 'list'];
 
 function keyOf(name, data) {

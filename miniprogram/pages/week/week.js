@@ -144,18 +144,18 @@ Page({
     this.applyActive(i, this.data.serverToday);
   },
 
-  /** 点色卡：先展开做法，再点进详情 */
+  /** 点色卡：卡片点击只展开/收起（再点收起）；「菜品详情 ›」按钮（source='detail'）才跳详情 */
   onTileTap(e) {
-    const { key, uid, title, recipe } = e.detail;
+    const { key, uid, title, recipe, source } = e.detail;
     if (!key) return;
-    if (this.data.expandedUid !== uid) {
-      this.setData({ expandedUid: uid });
+    if (source === 'detail') {
+      dishNav.put(key, { recipe: recipe || '' });
+      wx.navigateTo({
+        url: '/pages/dish/dish?key=' + encodeURIComponent(key) + '&title=' + encodeURIComponent(title || ''),
+      });
       return;
     }
-    dishNav.put(key, { recipe: recipe || '' });
-    wx.navigateTo({
-      url: '/pages/dish/dish?key=' + encodeURIComponent(key) + '&title=' + encodeURIComponent(title || ''),
-    });
+    this.setData({ expandedUid: this.data.expandedUid === uid ? '' : uid });
   },
 
   goActiveDetail() {

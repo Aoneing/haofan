@@ -48,12 +48,12 @@ Page({
   loadAnalysis() {
     api
       .query('getRecentWeeks', { weeks: 3 })
-      .then((res) => {
+      .then(async (res) => {
         if (!res || !res.ok || !res.weeks || !res.weeks.length) {
           this.setData({ analysisWeeks: [], analysisErr: '' });
           return;
         }
-        const WEEK_LABELS = ['最近一周', '两周前', '三周前', '四周前', '五周前', '六周前', '七周前', '八周前'];
+        const WEEK_LABELS = ['这一周', '上一周', '上上周', '上上上周', '上上上上周', '上上上上上周', '上上上上上上周', '上上上上上上上周'];
         const weeks = res.weeks
           .map((w, i) => {
             const a = analyzeWeek(w.days || []);
@@ -72,7 +72,36 @@ Page({
             };
           })
           .filter((w) => w.totalHits > 0);
-        this.setData({ analysisWeeks: weeks, analysisErr: '' });
+
+        // 「所有周」汇总卡：跨全部已导入菜谱聚合，区间=第一份到最新一份菜谱时间
+        let allCard = null;
+        try {
+          const allRes = await api.query('getAllStats');
+          if (allRes && allRes.ok) {
+            const allDays = allRes.days || [];
+            if (allDays.length) {
+              const aa = analyzeWeek(allDays);
+              allCard = {
+                label: '所有周',
+                range: allRes.firstDate && allRes.lastDate
+                  ? allRes.firstDate.slice(5) + ' ~ ' + allRes.lastDate.slice(5)
+                  : aa.weekRange,
+                variety: aa.variety,
+                totalHits: aa.totalHits,
+                categories: aa.categories,
+                ready: aa.ready,
+              };
+            }
+          }
+        } catch (e) {
+          // 「所有周」是附加卡，拉取失败不影响最近三周的正常展示
+          console.warn('[ingredient] 所有周聚合失败，已跳过：', e && e.message);
+        }
+
+        this.setData({
+          analysisWeeks: allCard ? weeks.concat(allCard) : weeks,
+          analysisErr: '',
+        });
       })
       .catch((e) => {
         this.setData({ analysisWeeks: [], analysisErr: (e && e.message) || '食材分析加载失败' });
