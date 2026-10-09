@@ -105,7 +105,6 @@
           <text class="grow__name">{{item.name}}</text>
           <text class="grow__ov">{{item.overview}}</text>
         </view>
-        <text class="grow__meta">共 {{item.steps.length}} 步</text>
         <view class="grow__go {{prepOpenIndex === gindex ? 'grow__go--open' : ''}}">→</view>
       </view>
 
