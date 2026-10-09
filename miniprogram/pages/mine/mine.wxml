@@ -104,32 +104,36 @@
     <view class="muted">还没有导入记录</view>
   </view>
   <block wx:else>
-    <view class="stack">
+    <!-- 导入过的食谱：扁平时间轴（参考 calendar UI）
+         左列 = 起始日大数字 + 月份；中列 = 轴点 + 垂直虚线；右列 = 期卡片 -->
+    <scroll-view class="tl" scroll-y>
       <view
         wx:for="{{periodsShown}}"
         wx:for-index="pindex"
         wx:key="_id"
-        class="prow prow--t{{pindex % 4}}{{item.isCurrent ? ' prow--on' : ''}}"
+        class="tl__item{{item.isCurrent ? ' prow--on' : ''}}"
         data-id="{{item._id}}"
         bindtap="onPeriodTap"
-        hover-class="prow--press"
+        hover-class="tl__item--press"
         hover-stay-time="80"
       >
-        <view class="prow__head">
-          <text class="prow__title">{{item.rangeText}}</text>
-          <text wx:if="{{item.badgeText}}" class="prow__meta">{{item.badgeText}}</text>
+        <view class="tl__date">
+          <text class="tl__day">{{item.dayNum}}</text>
+          <text class="tl__mon">{{item.monthText}}</text>
         </view>
-        <view class="prow__tags">
-          <view wx:if="{{item.badgeText}}" class="prow__tag">查看本周食谱</view>
-          <view class="prow__go">→</view>
+        <view class="tl__axis">
+          <view class="tl__dot"></view>
+        </view>
+        <view class="tl__card">
+          <view class="tl__info">
+            <text wx:if="{{item.badgeText}}" class="tl__badge">{{item.badgeText}}</text>
+            <text class="tl__range">{{item.rangeText}}</text>
+          </view>
+          <text class="tl__go">›</text>
         </view>
       </view>
-    </view>
+    </scroll-view>
 
-    <view wx:if="{{periodTotal > periodPreview}}" class="more-btn" hover-class="more-btn--press" hover-stay-time="80" bindtap="togglePeriods">
-      <text>{{periodExpanded ? '收起，只看最近 ' + periodPreview + ' 期' : '展开全部（还有 ' + (periodTotal - periodPreview) + ' 期）'}}</text>
-      <text class="more-btn__caret">{{periodExpanded ? '⌃' : '⌄'}}</text>
-    </view>
     <view wx:if="{{periodTruncated}}" class="muted more-note">
       仅显示最近 {{periodTotal}} 期，更早的已超出查询上限
     </view>

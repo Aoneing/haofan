@@ -5,11 +5,10 @@ const dateUtil = require('../../utils/date');
 const openStats = require('../../utils/openStats');
 
 /**
- * 历史周期默认只露最近几期。
- * 为什么：每导入一次就多一行，攒到十几期后这一块能把「食材处理」「小工具」全顶到屏幕外，
- * 而用户真正常点的只有最近一两期。默认收起 + 一键展开，两头都照顾到。
+ * 历史周期现在由「固定高度 + scroll-view 上下滑动」承载：
+ * 全部渲染，多出的旧食谱靠滚动查看，不再做「收起只露 N 期」的截断
+ * （2026-10-09 需求变更：去掉展开全部按钮）。
  */
-const PERIOD_PREVIEW = 3;
 /** 向云函数要多少期（云函数侧上限 50，再多也只会静默截断） */
 const PERIOD_LIMIT = 50;
 /**
@@ -30,7 +29,6 @@ Page({
     periodExpanded: false,
     periodTotal: 0,
     periodTruncated: false, // 拿满了上限 ⇒ 还有更早的没显示
-    periodPreview: PERIOD_PREVIEW, // 给 wxml 拼「还有 N 期」用
     currentRange: '', // 正在吃的那一期的区间，展示在标题右侧
     dishTotal: 0,
     // 卡片里内嵌展示「最近生成的 2 张配图」：让用户不进二级页也能看见 AI 到底画了什么
@@ -160,11 +158,16 @@ Page({
             rangeText: dateUtil.fmtRange(p.startDate, p.endDate),
             badgeText: badge.text,
             isCurrent: badge.isCurrent,
+            // 时间轴左列（参考 calendar UI）：起始日「日」大数字 + 月份小字
+            dayNum: p.startDate ? p.startDate.slice(8, 10) : '',
+            monthText: p.startDate ? parseInt(p.startDate.slice(5, 7), 10) + '月' : '',
           };
         });
         data.periodTotal = data.periodsAll.length;
         data.periodTruncated = data.periodsAll.length >= PERIOD_LIMIT;
-        data.periodsShown = this._slicePeriods(data.periodsAll, false);
+        // 组件改为固定高度 + scroll-view 上下滑动：这里直接渲染全部，
+        // 由滚动容器控制可见范围，不再做「收起只露 N 期」的截断。
+        data.periodsShown = data.periodsAll;
         // 标题右侧那一格显示「正在吃的这一期」；不在吃任何一期时留空，
         // 显示最近一期的区间会让人以为那就是在吃的
         const cur = data.periodsAll.filter((p) => p.isCurrent)[0];
@@ -198,20 +201,7 @@ Page({
     this.setData(data);
   },
 
-  /** 按展开状态切出要渲染的那一段；收起时只留最近 PERIOD_PREVIEW 期 */
-  _slicePeriods(all, expanded) {
-    const list = all || [];
-    return expanded ? list : list.slice(0, PERIOD_PREVIEW);
-  },
-
-  /** 历史周期：展开全部 / 收起。数据已在内存里，切换不产生请求 */
-  togglePeriods() {
-    const expanded = !this.data.periodExpanded;
-    this.setData({
-      periodExpanded: expanded,
-      periodsShown: this._slicePeriods(this.data.periodsAll, expanded),
-    });
-  },
+  /** 历史周期：全部渲染进固定高度的 scroll-view，多出的旧食谱靠上下滑动查看（无展开/收起开关） */
 
   onPeriodTap(e) {
     getApp().globalData.pendingWeekPeriodId = e.currentTarget.dataset.id;

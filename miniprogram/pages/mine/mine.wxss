@@ -324,115 +324,144 @@
   color: rgba(255, 255, 255, 0.75);
 }
 
-/* 导入过的食谱：参考「My collections」卡片风
-   大圆角色块上下叠压，大号粗标题 + 描边胶囊标签 + 黑色圆形箭头按钮（点击进该周） */
-.stack .prow {
-  position: relative;
-  z-index: 1;
-  border-radius: 40rpx;
-  padding: 32rpx 32rpx 36rpx;
-  overflow: hidden;
+/* 导入过的食谱：扁平时间轴（参考 calendar UI，2026-10-09 换装）
+   左列 = 起始日大数字 + 月份小字；中列 = 垂直虚线 + 空心轴点；
+   右列 = 白卡（当前期为品牌紫实底白字）。扁平极简：无渐变、无立体装饰、浅描边。 */
+/* 固定高度容器：约容纳 3 张卡片，多出的旧食谱靠上下滑动查看（scroll-view 必须固定高度才生效） */
+.tl {
+  height: 520rpx;
+  box-sizing: border-box;
 }
-.stack .prow + .prow {
-  margin-top: -18rpx;
+.tl__item {
+  display: flex;
+  align-items: stretch;
 }
-.prow--press {
+.tl__item + .tl__item {
+  margin-top: 26rpx;
+}
+.tl__item--press {
   opacity: 0.82;
 }
-/* 马卡龙四色轮转（与食材页一致） */
-.prow--t0 {
-  background: #f6c6d9;  /* 柔粉 */
-}
-.prow--t1 {
-  background: #b5d8eb;  /* 雾蓝 */
-}
-.prow--t2 {
-  background: #c9e4ca;  /* 薄荷绿 */
-}
-.prow--t3 {
-  background: #fce1a8;  /* 鹅黄 */
-}
-/* 正在吃的那一期：柠檬黄突出 + 细描边圈，一眼区别于历史期 */
-.prow--on {
-  background: #e9f94e;
-  box-shadow: inset 0 0 0 2rpx rgba(14, 14, 16, 0.18);
-}
-.prow__head {
+
+/* 左列：大数字 + 月份 */
+.tl__date {
+  width: 96rpx;
+  flex-shrink: 0;
   display: flex;
+  flex-direction: column;
   align-items: flex-start;
-  justify-content: space-between;
-}
-.prow__title {
-  flex: 1;
-  min-width: 0;
-  font-size: 46rpx;
-  font-weight: 800;
-  line-height: 1.25;
-  letter-spacing: 1rpx;
-  color: #0e0e10;
-}
-.prow__meta {
-  flex-shrink: 0;
-  margin-left: 16rpx;
-  padding-top: 12rpx;
-  font-size: 24rpx;
-  font-weight: 600;
-  color: #0e0e10;
-  opacity: 0.65;
-}
-.prow__tags {
-  display: flex;
-  align-items: center;
-  margin-top: 20rpx;
-}
-.prow__tag {
-  border: 1.5rpx solid rgba(14, 14, 16, 0.45);
-  border-radius: 999rpx;
-  padding: 8rpx 22rpx;
-  font-size: 23rpx;
-  font-weight: 600;
-  color: #0e0e10;
-  margin-right: 14rpx;
-  white-space: nowrap;
-}
-.prow__go {
-  margin-left: auto;
-  flex-shrink: 0;
-  width: 64rpx;
-  height: 64rpx;
-  border-radius: 50%;
-  background: #0e0e10;
-  color: #ffffff;
-  font-size: 30rpx;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
   justify-content: center;
+}
+.tl__day {
+  font-size: 52rpx;
+  font-weight: 800;
+  line-height: 1.1;
+  color: #0e0e10;
+  letter-spacing: 1rpx;
+}
+.tl__mon {
+  margin-top: 4rpx;
+  font-size: 22rpx;
+  font-weight: 600;
+  color: #8b8c93;
 }
 
-/* 展开全部：纯色底（无边框）+ 箭头 + 按压反馈 */
-.more-btn {
+/* 中列：贯穿虚线 + 轴点。首项线从点往下、末项线到点为止 */
+.tl__axis {
+  position: relative;
+  width: 44rpx;
+  flex-shrink: 0;
+}
+.tl__axis::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  border-left: 3rpx dashed #d5d5e0;
+  transform: translateX(-50%);
+}
+.tl__item:first-child .tl__axis::before {
+  top: 50%;
+}
+.tl__item:last-child .tl__axis::before {
+  bottom: 50%;
+}
+.tl__dot {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 24rpx;
+  height: 24rpx;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 5rpx solid #3b3aae; /* 品牌紫描边空心点 */
+  box-sizing: border-box;
+  z-index: 1;
+}
+/* 正在吃的那一期：轴点实心 + 品牌紫光圈，卡片换品牌紫实底 */
+.prow--on .tl__dot {
+  background: #3b3aae;
+  box-shadow: 0 0 0 7rpx rgba(59, 58, 174, 0.14);
+}
+.prow--on .tl__axis::before {
+  border-left-color: #3b3aae;
+}
+
+/* 右列：期卡片（白底浅描边，扁平） */
+.tl__card {
+  flex: 1;
+  min-width: 0;
+  margin-left: 18rpx;
   display: flex;
   align-items: center;
-  justify-content: center;
-  margin-top: 12rpx;
-  background: #f2f2f4;
-  border: none;
-  border-radius: 999rpx;
-  padding: 24rpx 30rpx;
-  font-size: 28rpx;
+  background: #ffffff;
+  border: 1.5rpx solid #ececf2;
+  border-radius: 28rpx;
+  padding: 26rpx 28rpx;
+}
+.prow--on .tl__card {
+  background: #3b3aae;
+  border-color: #3b3aae;
+}
+.tl__info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.tl__badge {
+  font-size: 22rpx;
   font-weight: 600;
+  color: #8b8c93;
+  margin-bottom: 6rpx;
+}
+.tl__range {
+  font-size: 34rpx;
+  font-weight: 800;
+  letter-spacing: 1rpx;
   color: #0e0e10;
+  white-space: nowrap;
 }
-.more-btn--press {
-  background: #e7e7ec;
-  opacity: 0.85;
+.prow--on .tl__badge {
+  color: rgba(255, 255, 255, 0.72);
 }
-.more-btn__caret {
-  margin-left: 12rpx;
-  font-size: 26rpx;
-  font-weight: 700;
+.prow--on .tl__range {
+  color: #ffffff;
 }
+.tl__go {
+  flex-shrink: 0;
+  margin-left: 16rpx;
+  font-size: 44rpx;
+  font-weight: 600;
+  line-height: 1;
+  color: #b9bac4;
+}
+.prow--on .tl__go {
+  color: rgba(255, 255, 255, 0.85);
+}
+
 .more-note {
   font-size: 22rpx;
   text-align: center;
