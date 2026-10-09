@@ -37,8 +37,12 @@ Page({
     if (pending) {
       delete app.globalData.pendingWeekPeriodId;
       this.load(pending);
-    } else {
+    } else if (!this._inited) {
+      // 首次进入全量加载（带骨架）；之后切回走静默刷新，不闪空白
+      this._inited = true;
       this.load(this.data.period && this.data.period._id);
+    } else {
+      this.load(this.data.period && this.data.period._id, true);
     }
   },
 
@@ -48,12 +52,14 @@ Page({
     );
   },
 
-  async load(periodId) {
-    this.setData({ loading: true, notFound: false });
+  async load(periodId, silent) {
+    // 静默刷新：已加载过就不闪 loading，直接后台拿新数据替换
+    if (!silent) this.setData({ loading: true, notFound: false });
     try {
       const res = await api.query('getWeek', periodId ? { periodId } : {});
       if (!res.ok) {
         if (res.code === 'NOT_FOUND') {
+          if (silent) return; // 静默刷新：找不到就沿用旧数据，不闪空态
           this.setData({ loading: false, notFound: true });
           return;
         }
@@ -96,29 +102,40 @@ Page({
           navDays,
           serverToday: today,
         },
-        () => this.applyActive(idx, today)
+        () => this.applyActive(idx, today, silent)
       );
     } catch (e) {
+      if (silent) {
+        // 静默刷新失败：沿用旧数据，下次再试
+        console.warn('[week] 静默刷新失败，沿用旧数据：', e.message);
+        return;
+      }
       this.setData({ loading: false, notFound: true, errMsg: e.message });
     }
   },
 
-  /** 把第 i 天的数据铺到当前视图（色卡 + 备料条） */
-  applyActive(i, today) {
+  /** 把第 i 天的数据铺到当前视图（色卡 + 备料条）
+   * @param {boolean} preserveExpand 静默刷新时保留当前展开的色卡，别切回就收起 */
+  applyActive(i, today, preserveExpand) {
     const item = this.data.days[i];
     const day = item && item.day;
     const prep = buildPrepCards(day);
-    this.setData({
+    const activeDateText = day
+      ? dateUtil.fmtCN(day.date) + (day.date === today ? ' · 今天' : '')
+      : '';
+    const patch = {
       activeIndex: i,
       activeDay: day,
-      // 选中日是否今天直接并进标题（hero 已移除，别丢「当前是今天」的提示）
-      activeDateText: day ? dateUtil.fmtCN(day.date) + (day.date === today ? ' · 今天' : '') : '',
+      activeDateText,
       tiles: withUid(day),
       morningPrep: prep.morningPrep,
       eveningPrep: prep.eveningPrep,
       weeklyPrep: prep.weeklyPrep,
-      expandedUid: '',
-    });
+    };
+    // 用户手动点某天切换时（preserveExpand 为假）照旧收起展开态；
+    // 静默刷新（真）则保留，避免切回 tab 后展开态莫名其妙消失。
+    if (!preserveExpand) patch.expandedUid = '';
+    this.setData(patch);
   },
 
   onNavTap(e) {

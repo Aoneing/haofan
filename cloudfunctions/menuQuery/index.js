@@ -161,6 +161,39 @@ async function listPeriods(event) {
   return { ok: true, periods: res.data };
 }
 
+/**
+ * getRecentWeeks：食材分析用 —— 一次性返回最近 N 周（默认 3）的周期 + 各自 7 天。
+ * 之所以做成单个 action 而不是前端循环调 getWeek：
+ *   - 免费套餐省云调用（1 次 vs 1+3 次）；
+ *   - 前端本地把各周 days 喂给 analyzeWeek 即可，零额外算力。
+ * 周期按 startDate 倒序，weeks[0] = 最近一周。
+ */
+async function getRecentWeeks(event) {
+  const weeks = Math.min(Math.max(Number(event.weeks) || 3, 1), 8);
+  const periodsRes = await db
+    .collection('periods')
+    .orderBy('startDate', 'desc')
+    .limit(weeks)
+    .get();
+  const out = [];
+  for (const period of periodsRes.data) {
+    const daysRes = await db
+      .collection('days')
+      .where({ periodId: period._id })
+      .orderBy('dayIndex', 'asc')
+      .limit(7)
+      .get();
+    // 食材分析只扫 displayTitle，云端直接投影最小字段，避免把 21 天的
+    // recipe / rawText / dishKeys 全量回传（那是几 KB → 几十 KB 的带宽浪费）。
+    const days = daysRes.data.map((d) => ({
+      date: d.date,
+      meals: (d.meals || []).map((m) => ({ displayTitle: m.displayTitle || '' })),
+    }));
+    out.push({ period, days });
+  }
+  return { ok: true, weeks: out };
+}
+
 exports.main = async (event) => {
   try {
     const action = event && event.action;
@@ -173,6 +206,8 @@ exports.main = async (event) => {
         return await getDay(event || {});
       case 'listPeriods':
         return await listPeriods(event || {});
+      case 'getRecentWeeks':
+        return await getRecentWeeks(event || {});
       default:
         return { ok: false, message: '未知 action：' + action };
     }

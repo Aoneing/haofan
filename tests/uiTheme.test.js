@@ -548,4 +548,101 @@ t('★ 全项目 wxml：wx:else 必须紧邻 wx:if/wx:elif（否则整页编译�
   assert.strictEqual(problems.length, 0, '以下 wx:else 缺少配对 wx:if，会导致整页编译失败：\n  ' + problems.join('\n  '));
 });
 
+// ---------- 食材页：新增「食材分析」子模块（在食材处理之前） ----------
+t(' 食材页：导入分析工具 + 本地统计模块', () => {
+  assert.ok(/require\('\.\.\/\.\.\/utils\/ingredientStats'\)/.test(INGREDIENT_JS), '要引入 ingredientStats');
+  assert.ok(/require\('\.\.\/\.\.\/utils\/api'\)/.test(INGREDIENT_JS), '要引入 api 才能拉本周');
+});
+
+t(' 食材页：onShow 主动拉最近 3 周并算分析', () => {
+  assert.ok(/loadAnalysis/.test(INGREDIENT_JS), '要有 loadAnalysis');
+  assert.ok(/api\s*\n?\s*\.query\('getRecentWeeks'/.test(INGREDIENT_JS), 'loadAnalysis 必须调 getRecentWeeks（单云调用取最近 N 周，比循环 getWeek 省资源）');
+  assert.ok(/weeks:\s*3/.test(INGREDIENT_JS), '要请求最近 3 周');
+  assert.ok(/analyzeWeek\(/.test(INGREDIENT_JS), '要用 analyzeWeek 按周算占比');
+  // onShow 里要触发（自绘 tabBar 同步 + 拉分析，二者都在 onShow）
+  assert.ok(/onShow\(\)\s*\{[\s\S]*loadAnalysis\(\)/.test(INGREDIENT_JS), 'onShow 必须调用 loadAnalysis');
+});
+
+t(' 食材页：WXML 渲染食材分析（叠压周卡 + 堆叠条 + 图例 + 种类数）', () => {
+  assert.ok(/ana-week__num/.test(INGREDIENT_WXML), '要有种类数大数字');
+  assert.ok(/ana-bar__seg/.test(INGREDIENT_WXML), '要有占比堆叠条分段');
+  assert.ok(/ana-legend/.test(INGREDIENT_WXML), '要有分类图例');
+  assert.ok(/ana-legend__items/.test(INGREDIENT_WXML), '图例下要有实际食材小字容器（ana-legend__items）');
+  assert.ok(/leg\.items/.test(INGREDIENT_WXML), '每个类别要渲染实际食材明细（{{leg.items}}）');
+  // 与「食材处理」同族的叠压卡：ana-stack 容器 + ana-week 卡 + 马卡龙色轮转类
+  assert.ok(/ana-stack/.test(INGREDIENT_WXML), '要用 ana-stack 叠压容器');
+  assert.ok(/ana-week--t\{\{/.test(INGREDIENT_WXML), '周卡要用马卡龙色轮转类（ana-week--t{{index % 3}}）');
+  assert.ok(/ana-week__name/.test(INGREDIENT_WXML), '卡头要有相对周标签（最近一周/两周前/三周前）');
+  // 失败/空数据要兜底，不能白屏
+  assert.ok(/ana-empty/.test(INGREDIENT_WXML), '要有空/失败兜底文案');
+});
+
+t(' 食材页：食材分析排在食材处理之前', () => {
+  // 用标签内文本 `>食材X<` 精确匹配，避开顶部注释「食材处理手册」里的「食材处理」子串
+  const iAna = INGREDIENT_WXML.indexOf('>食材分析<');
+  const iPrep = INGREDIENT_WXML.indexOf('>食材处理<');
+  assert.ok(iAna >= 0 && iPrep >= 0, '两个区块标题都要有');
+  assert.ok(iAna < iPrep, '食材分析（新增）必须排在食材处理之前，实际 ana=' + iAna + ' prep=' + iPrep);
+});
+
+t(' 食材页：食材分析叠压卡可点击展开 + 叠压更多', () => {
+  assert.ok(/anaOpenIndex/.test(INGREDIENT_JS), 'js 要有 anaOpenIndex 控制展开态');
+  assert.ok(/toggleAna/.test(INGREDIENT_JS), '要有 toggleAna 切换展开/收起');
+  assert.ok(/bindtap="toggleAna"/.test(INGREDIENT_WXML), '卡头要点一下展开（bindtap=toggleAna）');
+  assert.ok(/ana-week--open/.test(INGREDIENT_WXML), '展开那张要有 ana-week--open 类（提到最上层）');
+  assert.ok(/ana-week__go/.test(INGREDIENT_WXML), '卡头要有黑色圆形箭头指示可展开');
+  assert.ok(/ana-week__more/.test(INGREDIENT_WXML), '展开后才显示「更多信息」（占比条+图例）容器');
+  // 默认收起只露卡头，展开态用 wx:if 包住更多信息
+  assert.ok(/wx:if="\{\{anaOpenIndex === index\}\}"/.test(INGREDIENT_WXML), '占比明细要随展开态显隐（wx:if）');
+  // 叠压与食材处理一致（-18rpx），展开时内容完整可见、不被下一张盖住
+  const ss = read('miniprogram/pages/ingredient/ingredient.wxss');
+  assert.ok(/\.ana-stack\s+\.ana-week\s*\+\s*\.ana-week\s*\{\s*margin-top:\s*-18rpx;/.test(ss), '叠压要与食材处理一致（-18rpx）');
+  assert.ok(/\.ana-week--open\s*\{\s*z-index:\s*10;/.test(ss), '展开卡要抬到最上层，免被下一张盖住内容');
+});
+
+// ---------- 云函数 menuQuery：getRecentWeeks 契约（文本断言，无法本地 require wx-server-sdk） ----------
+const MENU_QUERY_JS = read('cloudfunctions/menuQuery/index.js');
+t(' 云函数 menuQuery：新增 getRecentWeeks action（最近 N 周，单云调用）', () => {
+  assert.ok(/case\s+'getRecentWeeks'/.test(MENU_QUERY_JS), 'switch 里要注册 getRecentWeeks action');
+  assert.ok(/async function getRecentWeeks/.test(MENU_QUERY_JS), '要有 getRecentWeeks 实现');
+  // 关键：按 startDate 倒序取「最近」N 周，且 limit 受控（免费档省资源）
+  assert.ok(/orderBy\('startDate',\s*'desc'\)/.test(MENU_QUERY_JS), '要按 startDate 倒序取最近周期');
+  assert.ok(/Math\.min\(Math\.max\(Number\(event\.weeks\)\s*\|\|\s*3,\s*1\),\s*8\)/.test(MENU_QUERY_JS), '周数默认 3、上限 8');
+  assert.ok(/return\s*\{\s*ok:\s*true,\s*weeks:\s*out\s*\}/.test(MENU_QUERY_JS), '要返回 { ok, weeks:[{period,days}] }');
+  // 食材分析只读 displayTitle，云端只投影最小字段，别把 21 天的 recipe/rawText/dishKeys 全量回传
+  assert.ok(/meals:\s*\(d\.meals\s*\|\|\s*\[\]\)\.map\(\(m\)\s*=>\s*\(\{\s*displayTitle:\s*m\.displayTitle/.test(MENU_QUERY_JS), 'days 只回 {date, meals:[{displayTitle}]}，云端瘦身');
+});
+
+// ---------- utils/api：60s 读缓存（消除切 tab 的「冷启动感」） ----------
+const API_JS = read('miniprogram/utils/api.js');
+t(' utils/api：只读 action 走 60s 内存缓存，变更类清缓存', () => {
+  assert.ok(/READ_TTL\s*=\s*60\s*\*\s*1000/.test(API_JS), '要有 60s TTL 常量');
+  assert.ok(/const\s+_cache\s*=\s*new\s+Map\(\)/.test(API_JS), '要有模块级缓存 Map');
+  // 只读 action 默认缓存：getContext/getWeek/listPeriods/getRecentWeeks + dishImage 的 stats/list
+  assert.ok(/MENU_QUERY_READ\s*=/.test(API_JS), '要声明可缓存的 menuQuery action 清单');
+  assert.ok(/DISH_IMAGE_READ\s*=/.test(API_JS), '要声明可缓存的 dishImage action 清单');
+  // save / parse（变更类）成功后必须清缓存，保证写后读一致
+  assert.ok(/\.then\(\(r\)\s*=>\s*\{\s*_cache\.clear\(\)/.test(API_JS), 'save/parse 成功后要 _cache.clear()');
+  // 轮询/写类（resolve/generate）不能缓存：query/image 默认对未声明 action 不开缓存
+  assert.ok(/cacheable\s*&&\s*!\(opts\s*&&\s*opts\.noCache\)/.test(API_JS), '只有清单内的只读 action 才默认缓存');
+  assert.ok(/clearCache\(\)/.test(API_JS), '要暴露 api.clearCache() 供特殊场景手动清');
+});
+
+// ---------- 切 tab 静默刷新（消除「冷启动感」） ----------
+t(' 首页/一周/我的：onShow 首次全量、之后静默刷新不闪空白', () => {
+  const TODAY_JS = read('miniprogram/pages/today/today.js');
+  const WEEK_JS = read('miniprogram/pages/week/week.js');
+  const MINE_JS = read('miniprogram/pages/mine/mine.js');
+  // 三个页都要用 _inited 标记「是否已首加载」，之后走 load(true) 静默刷新
+  [TODAY_JS, WEEK_JS, MINE_JS].forEach((src, i) => {
+    const name = ['today', 'week', 'mine'][i];
+    assert.ok(/this\._inited/.test(src), name + ' 要用 _inited 区分首次/切回');
+    assert.ok(/load\([^)]*true\)/.test(src), name + ' 切回要 load(.., true) 静默刷新');
+  });
+  // 静默刷新必须保留各自展开态
+  assert.ok(/expandedUid:\s*silent\s*\?\s*this\.data\.expandedUid/.test(TODAY_JS), 'today 静默刷新要保留展开的色卡(expandedUid)');
+  assert.ok(/applyActive\([^)]*silent\)/.test(WEEK_JS) && /preserveExpand/.test(WEEK_JS), 'week 静默刷新要把 silent 透传给 applyActive 以保留展开态');
+  assert.ok(/periodExpanded:\s*silent\s*\?\s*this\.data\.periodExpanded/.test(MINE_JS), 'mine 静默刷新要保留历史周期展开态(periodExpanded)');
+});
+
 module.exports = cases;

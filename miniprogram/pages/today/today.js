@@ -29,7 +29,14 @@ Page({
       this.getTabBar().setActive('/pages/today/today');
     }
     this._alive = true;
-    this.load();
+    // 首次进入才全量加载（带 loading 骨架）；之后切回走静默刷新，
+    // 直接复用内存缓存的结果，不再闪空白、不再等网络（见 utils/api 的读缓存）。
+    if (!this._inited) {
+      this._inited = true;
+      this.load();
+    } else {
+      this.load(true);
+    }
   },
 
   onHide() {
@@ -46,8 +53,9 @@ Page({
     this.load().then(() => wx.stopPullDownRefresh());
   },
 
-  async load() {
-    this.setData({ loading: true });
+  async load(silent) {
+    // 静默刷新：已加载过就不闪 loading，直接后台拿新数据替换，用户无感
+    if (!silent) this.setData({ loading: true });
     try {
       const res = await api.query('getContext');
       if (!res.ok) throw new Error(res.message || '查询失败');
@@ -68,7 +76,8 @@ Page({
         eveningPrep: null,
         weeklyPrep: null,
         beforeText: '',
-        expandedUid: '',
+        // 静默刷新时保留当前展开的那张色卡，别一切回就收起
+        expandedUid: silent ? this.data.expandedUid : '',
       };
 
       if (res.state === 'in-period') {
@@ -96,6 +105,11 @@ Page({
         this.ensureImages(res.today, res.tomorrow);
       }
     } catch (e) {
+      if (silent) {
+        // 静默刷新失败：保留旧数据不闪错误页，下次再试
+        console.warn('[today] 静默刷新失败，沿用旧数据：', e.message);
+        return;
+      }
       this.setData({ loading: false, state: 'error', errMsg: e.message });
     }
   },

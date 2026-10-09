@@ -433,8 +433,12 @@ t('★ 生图提示词：极简矢量几何风 + 色块平涂 + 明确禁字（�
   const seg = IMAGE_FN.slice(from, IMAGE_FN.indexOf('const RECIPE_HINTS'));
   assert.ok(/矢量/.test(seg) && /色块平涂/.test(seg), '提示词要指定极简矢量 + 色块平涂');
   assert.ok(/无渐变/.test(seg) && /硬边/.test(seg), '要无渐变、清晰硬边（矢量几何特征）');
-  assert.ok(/8K/.test(seg), '要 8K 清晰度');
-  assert.ok(/严禁出现任何文字/.test(seg), '要强禁文字（只写「无文字」挡不住模型烧大字）');
+  // 2026-10-09：禁字整段前置（模型对开头权重高）；「海报」「8K」是排版触发词，必须剔除
+  assert.ok(/绝对不能出现任何文字/.test(seg), '要强禁文字（只写「无文字」挡不住模型烧大字）');
+  assert.ok(seg.indexOf('绝对不能出现任何文字') < seg.indexOf('极简矢量几何风食物插画'), '禁字要前置（开头权重高）');
+  assert.ok(/不要把菜名写进画面/.test(seg), '要明确禁止把菜名写进画面（最常见的烧字形态）');
+  assert.ok(!/海报/.test(seg), '不能出现「海报」——会触发模型往画面烧标题大字');
+  assert.ok(!/8K/.test(seg), '不能出现「8K」——推向海报式构图');
   assert.ok(/柠檬黄绿|淡紫/.test(seg), '要点缀 UI 配色（柠檬黄绿/淡紫）');
   assert.ok(!/摄影|照片/.test(seg), '不能再要求摄影/照片风格');
 });

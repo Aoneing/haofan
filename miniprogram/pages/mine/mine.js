@@ -40,8 +40,10 @@ Page({
     // 月历热力图：heatRows 是日历网格（按行渲染，每行 7 格 = 一周的周一..周日）
     heatRows: [],
     heatTitle: '',
-    heatYear: 0,
-    heatMonth: 0,
+    // 用 null 表示「尚未定位到任何月份」。不能初始化成 0 ——
+    // 月份 0-11 里 0 就是一月，当哨兵会让页面永远停在一月（实机踩过）。
+    heatYear: null,
+    heatMonth: null,
     heatTotal: 0,
     heatMinutes: 0,
     // 星期表头「一二三四五六日」放data，wxml 直接 wx:for，不用手写 7 个 text
@@ -53,19 +55,29 @@ Page({
       this.getTabBar().setActive('/pages/mine/mine');
     }
     // 月历热力图数据在本地，同步取即可，不用等云函数。
-    this.refreshHeat(this.data.heatYear, this.data.heatMonth);
-    this.load();
+    // ⚠️ 必须传 null 而不是 data 里的初始值 0：
+    //   月份是 0-11，0 是合法值（一月）。曾用 heatMonth=0 当「未指定」，
+    //   refreshHeat 里 `!month && month !== 0` 判false ⇒ 算出 m=0
+    //   ⇒ 页面永远停在一月（2026年1月），而不是当月。
+    this.refreshHeat(null, null);
+    // 首次进入才全量加载（带 loading）；之后切回走静默刷新，不闪空白
+    if (!this._inited) {
+      this._inited = true;
+      this.load();
+    } else {
+      this.load(true);
+    }
   },
 
   /**
    * 渲染月历热力图。
-   * @param {number} year 0 表示「跟随当前月」（首次渲染时 data 里是 0）
-   * @param {number} month 同上
+   * @param {number|null} year 传 null/null 表示「跟随当前月」
+   * @param {number|null} month 同上。**不要用 0 当哨兵值**（0 是合法的一月）
    */
   refreshHeat(year, month) {
     const now = new Date();
-    const y = year || now.getFullYear();
-    const m = !month && month !== 0 ? now.getMonth() : month;
+    const y = year === null || year === undefined ? now.getFullYear() : year;
+    const m = month === null || month === undefined ? now.getMonth() : month;
     const cal = openStats.monthCalendar(now, y, m);
     this.setData({
       // ⚠️ 字段名必须与 wxml 的 wx:for 对上：wxml 遍历 heatRows（按行渲染日历）。
@@ -83,8 +95,12 @@ Page({
   /** 上个月 / 下个月。翻到未来月份没意义（数据还不存在），挡住并提示 */
   stepMonth(delta) {
     const now = new Date();
+    // 同样不能用 || 当哨兵：heatMonth=0 是一月（合法值），
+    // 但 heatYear 一旦为 0 会被 || 吞掉。显式判null。
     const y = this.data.heatYear || now.getFullYear();
-    const m = !this.data.heatMonth && this.data.heatMonth !== 0 ? now.getMonth() : this.data.heatMonth;
+    const m = this.data.heatMonth === null || this.data.heatMonth === undefined
+      ? now.getMonth()
+      : this.data.heatMonth;
     const next = openStats.shiftMonth(y, m, delta);
     const isFuture =
       next.year > now.getFullYear() ||
@@ -104,15 +120,17 @@ Page({
     this.stepMonth(1);
   },
 
-  async load() {
-    this.setData({ loading: true });
+  async load(silent) {
+    // 静默刷新：已加载过就不闪 loading，直接后台拿新数据替换
+    if (!silent) this.setData({ loading: true });
     const data = {
       loading: false,
       envError: '',
       dishImageError: '',
       periodsAll: [],
       periodsShown: [],
-      periodExpanded: false,
+      // 静默刷新时保留「历史周期」的展开态，别切回 tab 就自动收起
+      periodExpanded: silent ? this.data.periodExpanded : false,
       periodTotal: 0,
       periodTruncated: false,
       currentRange: '',
@@ -170,6 +188,11 @@ Page({
           });
       }
     } catch (e) {
+      if (silent) {
+        // 静默刷新失败：沿用旧数据，下次再试
+        console.warn('[mine] 静默刷新失败，沿用旧数据：', e.message);
+        return;
+      }
       data.envError = e.message || '云函数调用失败：请确认已部署云函数并正确配置环境 ID';
     }
     this.setData(data);

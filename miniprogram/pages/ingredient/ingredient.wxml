@@ -5,6 +5,81 @@
     <text class="page-head__title">食材</text>
   </view>
 
+  <!-- ============ 食材分析（新增子模块，放在食材处理之前） ============ -->
+  <!-- 从最近 3 周食谱抽食材关键词、按六大类汇总占比；本地算，零云调用。
+       视觉与「食材处理」同族：大圆角叠压卡，每周一张，马卡龙色轮转 + 大标题 + 种类数 -->
+  <view class="sec-head sec-head--gap">
+    <text class="sec-head__title">食材分析</text>
+    <text wx:if="{{analysisWeeks.length}}" class="sec-head__count">近 {{analysisWeeks.length}} 周</text>
+  </view>
+
+  <!-- 加载失败/暂无数据：轻提示，不挡下面的食材处理 -->
+  <view wx:if="{{analysisErr}}" class="muted ana-empty">{{analysisErr}}</view>
+  <view wx:elif="{{!analysisWeeks.length}}" class="muted ana-empty">近 3 周还没有可分析的食谱，先导入周食谱</view>
+
+  <block wx:else>
+    <!-- 每周一张大圆角卡，DOM 顺序天然叠压（后一张压前一张底边）；
+         默认收起只露卡头（相对周标签 + 种类数 + 箭头），点卡头展开看占比明细；
+         一次只开一张，叠压间距比食材处理更大（-56rpx），更像一摞文件 -->
+    <view class="ana-stack">
+      <view
+        wx:for="{{analysisWeeks}}"
+        wx:key="label"
+        class="ana-week ana-week--t{{index % 3}} {{anaOpenIndex === index ? 'ana-week--open' : ''}}"
+        data-index="{{index}}"
+        bindtap="toggleAna"
+        hover-class="ana-week--press"
+        hover-stay-time="80"
+      >
+        <!-- 卡头：左=相对周标签+区间，中=种类数大数字，右=箭头；整行可点 -->
+        <view class="ana-week__head">
+          <view class="ana-week__titles">
+            <text class="ana-week__name">{{item.label}}</text>
+            <text class="ana-week__meta">{{item.range}}</text>
+          </view>
+          <view class="ana-week__hero">
+            <text class="ana-week__num">{{item.variety}}</text>
+            <text class="ana-week__unit">种</text>
+          </view>
+          <view class="ana-week__go {{anaOpenIndex === index ? 'ana-week__go--open' : ''}}">→</view>
+        </view>
+
+        <!-- 展开后才显示：占比堆叠条 + 分类图例（点击后的更多信息） -->
+        <view wx:if="{{anaOpenIndex === index}}" class="ana-week__more">
+          <view class="ana-bar">
+            <view
+              wx:for="{{item.categories}}"
+              wx:for-item="seg"
+              wx:key="key"
+              wx:if="{{seg.count > 0}}"
+              class="ana-bar__seg"
+              style="width: {{seg.ratio * 100}}%; background: {{seg.color}};"
+            ></view>
+          </view>
+
+          <view class="ana-legend">
+            <view
+              wx:for="{{item.categories}}"
+              wx:for-item="leg"
+              wx:key="key"
+              class="ana-legend__item"
+            >
+              <view class="ana-legend__dot" style="background: {{leg.color}};"></view>
+              <view class="ana-legend__body">
+                <view class="ana-legend__row">
+                  <text class="ana-legend__label">{{leg.label}}</text>
+                  <text class="ana-legend__pct">{{leg.pct}}</text>
+                  <text class="ana-legend__n">{{leg.count}}</text>
+                </view>
+                <text wx:if="{{leg.items.length}}" class="ana-legend__items">{{leg.items}}</text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+  </block>
+
   <view class="sec-head sec-head--gap">
     <text class="sec-head__title">食材处理</text>
     <text class="sec-head__count">{{prep.groups.length}} 类</text>
@@ -18,6 +93,7 @@
       wx:key="name"
       class="grow prow--t{{gindex % 4}} {{prepOpenIndex === gindex ? 'grow--open' : ''}}"
     >
+      <!-- 卡头与分析卡同构（一行）：左=标题+概览小字两行列，中=步数，右=箭头；整行可点 -->
       <view
         class="grow__head"
         data-index="{{gindex}}"
@@ -25,18 +101,11 @@
         hover-class="grow--press"
         hover-stay-time="80"
       >
-        <text class="grow__name">{{item.name}}</text>
+        <view class="grow__titles">
+          <text class="grow__name">{{item.name}}</text>
+          <text class="grow__ov">{{item.overview}}</text>
+        </view>
         <text class="grow__meta">共 {{item.steps.length}} 步</text>
-      </view>
-
-      <view
-        class="grow__tags"
-        data-index="{{gindex}}"
-        bindtap="togglePrep"
-        hover-class="grow--press"
-        hover-stay-time="80"
-      >
-        <view class="grow__tag">{{item.overview}}</view>
         <view class="grow__go {{prepOpenIndex === gindex ? 'grow__go--open' : ''}}">→</view>
       </view>
 

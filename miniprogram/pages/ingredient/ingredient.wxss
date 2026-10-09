@@ -6,12 +6,13 @@
 }
 
 /* 卡片堆叠：后一张卡轻微压住前一张卡的底边（DOM 顺序天然实现上层覆盖），
-   展开的那张 z-index 提到最上，避免被下一张盖住步骤内容 */
+   展开的那张 z-index 提到最上，避免被下一张盖住步骤内容。
+   收起高度与「食材分析」对齐：同样的 padding，标题行 + 一行小字概览 */
 .stack .grow {
   position: relative;
   z-index: 1;
   border-radius: 40rpx;
-  padding: 32rpx 32rpx 36rpx;
+  padding: 26rpx 30rpx;
   overflow: hidden;
 }
 .stack .grow + .grow {
@@ -38,56 +39,53 @@
   background: #fce1a8;
 }
 
-/* 卡头：大标题 + 右上角小计数 */
+/* 卡头：与分析卡 ana-week__head 完全同构的一行布局 ——
+   左=标题+概览小字两行列，中=步数，右=箭头；两个模块字号/高度严格一致 */
 .grow__head {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
 }
-.grow__name {
-  flex: 1;
+.grow__titles {
+  display: flex;
+  flex-direction: column;
   min-width: 0;
-  font-size: 46rpx;
+  flex: 1;
+}
+.grow__name {
+  font-size: 42rpx;
   font-weight: 800;
-  line-height: 1.25;
+  line-height: 1.2;
   letter-spacing: 1rpx;
   color: #0e0e10;
+}
+.grow__ov {
+  margin-top: 4rpx;
+  font-size: 22rpx;
+  font-weight: 600;
+  color: #0e0e10;
+  opacity: 0.6;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .grow__meta {
   flex-shrink: 0;
   margin-left: 16rpx;
-  padding-top: 12rpx;
-  font-size: 24rpx;
+  font-size: 22rpx;
   font-weight: 600;
   color: #0e0e10;
   opacity: 0.65;
 }
-
-/* 标签行：描边胶囊 + 黑色圆形箭头按钮 */
-.grow__tags {
-  display: flex;
-  align-items: center;
-  margin-top: 20rpx;
-}
-.grow__tag {
-  border: 1.5rpx solid rgba(14, 14, 16, 0.45);
-  border-radius: 999rpx;
-  padding: 8rpx 22rpx;
-  font-size: 23rpx;
-  font-weight: 600;
-  color: #0e0e10;
-  margin-right: 14rpx;
-  white-space: nowrap;
-}
 .grow__go {
   margin-left: auto;
   flex-shrink: 0;
-  width: 64rpx;
-  height: 64rpx;
+  width: 56rpx;
+  height: 56rpx;
   border-radius: 50%;
   background: #0e0e10;
   color: #ffffff;
-  font-size: 30rpx;
+  font-size: 26rpx;
   font-weight: 700;
   display: flex;
   align-items: center;
@@ -137,4 +135,191 @@
 .prep-source {
   font-size: 22rpx;
   margin-top: 20rpx;
+}
+
+/* ============ 食材分析（新增子模块） ============ */
+.muted {
+  color: #8b8c93;
+  font-size: 24rpx;
+}
+.ana-empty {
+  margin: 10rpx 8rpx 0;
+}
+
+/* 大圆角叠压卡，与「食材处理」同族：
+   圆角 40rpx + 后一张轻压前一张底边（-18rpx，与食材处理一致）+ 马卡龙三色轮转。
+   默认收起只露卡头，点卡头展开看占比明细；展开的那张 z-index 提到最上，完整撑开显示。 */
+.ana-stack .ana-week {
+  position: relative;
+  z-index: 1;
+  border-radius: 40rpx;
+  padding: 26rpx 30rpx;
+  overflow: hidden;
+  transition: margin-top 0.18s ease;
+}
+/* 轻叠压：与食材处理（-18rpx）一致，展开时不遮挡内容 */
+.ana-stack .ana-week + .ana-week {
+  margin-top: -18rpx;
+}
+.ana-week--open {
+  z-index: 10;
+}
+.ana-week--press {
+  opacity: 0.85;
+}
+/* 马卡龙三色轮转（淡紫 / 蜜桃杏 / 薄荷青），与食材处理的粉/蓝/绿同风格但不同色，深字均清晰可读 */
+.ana-week--t0 {
+  background: #d9d2f0;
+}
+.ana-week--t1 {
+  background: #f8d9c3;
+}
+.ana-week--t2 {
+  background: #c3e6dd;
+}
+
+/* 卡头：一整行可点。左=标签+区间，右=种类数+箭头，与食材处理 grow__head 同构 */
+.ana-week__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.ana-week__titles {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.ana-week__name {
+  font-size: 42rpx;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: 1rpx;
+  color: #0e0e10;
+}
+.ana-week__meta {
+  margin-top: 4rpx;
+  font-size: 22rpx;
+  font-weight: 600;
+  color: #0e0e10;
+  opacity: 0.6;
+  white-space: nowrap;
+}
+
+/* 种类数大数字：嵌在卡头右侧，深字（色块卡不再叠品牌紫） */
+.ana-week__hero {
+  display: flex;
+  align-items: baseline;
+  margin-left: 16rpx;
+  flex-shrink: 0;
+}
+.ana-week__num {
+  font-size: 60rpx;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -1rpx;
+  color: #0e0e10;
+}
+.ana-week__unit {
+  margin-left: 6rpx;
+  font-size: 24rpx;
+  font-weight: 700;
+  color: #0e0e10;
+}
+/* 黑色圆形箭头，展开时旋转 90°（与食材处理 grow__go 同款） */
+.ana-week__go {
+  margin-left: 18rpx;
+  flex-shrink: 0;
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 50%;
+  background: #0e0e10;
+  color: #ffffff;
+  font-size: 26rpx;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease;
+}
+.ana-week__go--open {
+  transform: rotate(90deg);
+}
+/* 展开后的更多信息：占比条 + 图例 */
+.ana-week__more {
+  margin-top: 22rpx;
+}
+
+/* 占比堆叠条：每段宽度由内联 style 给定（= 占比），整体圆角像一根糖果 */
+.ana-bar {
+  display: flex;
+  width: 100%;
+  height: 28rpx;
+  border-radius: 999rpx;
+  overflow: hidden;
+  margin-top: 24rpx;
+  background: #e6e6ea;
+}
+.ana-bar__seg {
+  height: 100%;
+  flex-shrink: 0;
+  /* 段与段之间留 2rpx 细缝，纯展示也能看出分界 */
+  box-shadow: 1rpx 0 0 #ffffff;
+}
+
+/* 图例：类别 → 色点 + 名称 + 占比% + 次数 */
+.ana-legend {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: 22rpx;
+}
+.ana-legend__item {
+  display: flex;
+  align-items: flex-start;
+  width: 50%; /* 两列，6 类正好 3 行 */
+  box-sizing: border-box;
+  padding: 8rpx 24rpx 8rpx 0; /* 右侧留缝：第一列的计数不得贴到第二列的色点 */
+}
+.ana-legend__dot {
+  width: 20rpx;
+  height: 20rpx;
+  border-radius: 6rpx;
+  flex-shrink: 0;
+  margin-top: 8rpx;
+  margin-right: 12rpx;
+}
+.ana-legend__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.ana-legend__row {
+  display: flex;
+  align-items: center;
+}
+.ana-legend__label {
+  font-size: 25rpx;
+  font-weight: 600;
+  color: #0e0e10;
+}
+.ana-legend__pct {
+  margin-left: auto;
+  font-size: 25rpx;
+  font-weight: 700;
+  color: #0e0e10;
+}
+.ana-legend__n {
+  margin-left: 10rpx;
+  min-width: 34rpx;
+  flex-shrink: 0;
+  text-align: right;
+  font-size: 22rpx;
+  color: #8b8c93;
+}
+/* 每个类别下、用灰色小字列出的实际食材（逗号分隔） */
+.ana-legend__items {
+  margin-top: 6rpx;
+  font-size: 20rpx;
+  line-height: 1.5;
+  color: #8b8c93;
 }

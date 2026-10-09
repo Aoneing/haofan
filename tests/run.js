@@ -18,6 +18,7 @@ const suites = [
   require('./imageTimeout.test.js'),
   require('./minePeriods.test.js'),
   require('./uiTheme.test.js'),
+  require('./ingredientStats.test.js'),
   require('./preflight.test.js'),
 ];
 
